@@ -10,6 +10,8 @@ window.Persons = (() => {
   let editingConsentAt = null;
   let searchTimer = null;
   const regions = new Map();
+  let units = [];          // підрозділи МП для рядків зв’язків
+  let rowSeq = 0;          // унікальні id для полів у рядках
   const $ = (id) => document.getElementById(id);
 
   async function init(client, operator) {
@@ -32,12 +34,10 @@ window.Persons = (() => {
     data.forEach((r) => { regions.set(r.id, r.name); sel.add(new Option(r.name, r.id)); });
 
     // Підрозділи МП
-    const units = await db.from('mp_units').select('id, name').eq('active', true).order('name');
-    if (units.error) throw units.error;
-    const u = $('f-mp_unit');
-    u.innerHTML = '<option value="">Невідомо</option>';
-    units.data.forEach((x) => u.add(new Option(x.name, x.id)));
-    u.add(new Option('Інший підрозділ', 'other'));
+    const ures = await db.from('mp_units').select('id, name').eq('active', true).order('name');
+    if (ures.error) throw ures.error;
+    units = ures.data;
+    fillUnitSelect($('f-mp_unit'));
 
     // Варіанти з документа керівника
     fillSelect($('f-military_status'), OPT.military_status);
@@ -45,6 +45,7 @@ window.Persons = (() => {
     fillSelect($('f-disability_group'), OPT.disability_group);
     fillSelect($('f-disability_war_related'), OPT.disability_war_related);
     fillSelect($('f-mp_relation'), OPT.yes_no_unknown);
+    fillSelect($('f-has_children'), OPT.yes_no_unknown);
     fillSelect($('f-mp_relation_type'), OPT.mp_relation_type);
     $('f-mp_relation_type').insertBefore(new Option('Оберіть…', ''), $('f-mp_relation_type').firstChild);
 
@@ -63,6 +64,97 @@ window.Persons = (() => {
     });
   }
 
+  function fillUnitSelect(sel) {
+    sel.innerHTML = '<option value="">Невідомо</option>';
+    units.forEach((x) => sel.add(new Option(x.name, x.id)));
+    sel.add(new Option('Інший підрозділ', 'other'));
+  }
+
+  // ---------- Рядки: пов’язані військові особи ----------
+  function addRelationRow(r = {}) {
+    const n = ++rowSeq;
+    const row = document.createElement('div');
+    row.className = 'row-card';
+    row.dataset.kind = 'relation';
+    row.innerHTML = `
+      <div class="grid">
+        <div class="field"><label for="r${n}-degree">Ступінь спорідненості <span class="req">*</span></label>
+          <select id="r${n}-degree" data-k="relation_degree"></select><p class="hint" data-h="relation_degree"></p></div>
+        <div class="field"><label for="r${n}-name">ПІБ військового</label>
+          <input id="r${n}-name" data-k="related_full_name"><p class="hint" data-h="related_full_name"></p></div>
+        <div class="field"><label for="r${n}-bd">Дата народження</label>
+          <input id="r${n}-bd" type="date" data-k="related_birth_date"><p class="hint" data-h="related_birth_date"></p></div>
+        <div class="field"><label for="r${n}-status">Статус</label>
+          <select id="r${n}-status" data-k="related_status"></select></div>
+        <div class="field"><label for="r${n}-mp">Відношення до МП</label>
+          <select id="r${n}-mp" data-k="related_mp"></select></div>
+        <div class="field" data-row-mp><label for="r${n}-unit">Підрозділ</label>
+          <select id="r${n}-unit" data-k="related_unit"></select></div>
+        <div class="field" data-row-other><label for="r${n}-other">Назва підрозділу <span class="req">*</span></label>
+          <input id="r${n}-other" data-k="related_unit_other"><p class="hint" data-h="related_unit_other"></p></div>
+      </div>
+      <button type="button" class="btn-link btn-remove">Прибрати</button>`;
+
+    const q = (k) => row.querySelector(`[data-k="${k}"]`);
+    const degree = q('relation_degree');
+    degree.add(new Option('Оберіть…', ''));
+    OPT.relation_degree.forEach((v) => degree.add(new Option(v, v)));
+    fillSelect(q('related_status'), OPT.related_status);
+    fillSelect(q('related_mp'), OPT.yes_no_unknown);
+    fillUnitSelect(q('related_unit'));
+
+    degree.value = r.relation_degree || '';
+    q('related_full_name').value = r.related_full_name || '';
+    q('related_birth_date').value = r.related_birth_date || '';
+    q('related_status').value = r.related_status || 'Невідомо';
+    q('related_mp').value = r.related_mp || 'Невідомо';
+    q('related_unit').value = r.related_unit_id ? String(r.related_unit_id) : (r.related_unit_other ? 'other' : '');
+    q('related_unit_other').value = r.related_unit_other || '';
+
+    const vis = () => {
+      const mp = q('related_mp').value === 'Так';
+      row.querySelector('[data-row-mp]').hidden = !mp;
+      row.querySelector('[data-row-other]').hidden = !mp || q('related_unit').value !== 'other';
+    };
+    q('related_mp').addEventListener('change', vis);
+    q('related_unit').addEventListener('change', vis);
+    row.querySelector('.btn-remove').addEventListener('click', () => row.remove());
+    vis();
+    $('relations-list').appendChild(row);
+    return row;
+  }
+
+  // ---------- Рядки: діти ----------
+  function addChildRow(c = {}) {
+    const n = ++rowSeq;
+    const row = document.createElement('div');
+    row.className = 'row-card row-card-compact';
+    row.dataset.kind = 'child';
+    row.innerHTML = `
+      <div class="grid">
+        <div class="field"><label for="c${n}-bd">Дата народження <span class="req">*</span></label>
+          <input id="c${n}-bd" type="date" data-k="birth_date"><p class="hint" data-h="birth_date"></p></div>
+        <div class="field"><label for="c${n}-name">Ім’я дитини</label>
+          <input id="c${n}-name" data-k="full_name"></div>
+      </div>
+      <button type="button" class="btn-link btn-remove">Прибрати</button>`;
+    row.querySelector('[data-k="birth_date"]').value = c.birth_date || '';
+    row.querySelector('[data-k="full_name"]').value = c.full_name || '';
+    row.querySelector('.btn-remove').addEventListener('click', () => row.remove());
+    $('children-list').appendChild(row);
+    return row;
+  }
+
+  function setRowHint(row, key, error, warning) {
+    const h = row.querySelector(`[data-h="${key}"]`);
+    const input = row.querySelector(`[data-k="${key}"]`);
+    if (input) input.setAttribute('aria-invalid', error ? 'true' : 'false');
+    if (h) {
+      h.textContent = error || warning || '';
+      h.className = 'hint' + (error ? ' hint-err' : warning ? ' hint-warn' : '');
+    }
+  }
+
   // Показ залежних полів: група інвалідності, дані про МП
   function updateVisibility() {
     const f = $('person-form');
@@ -78,6 +170,14 @@ window.Persons = (() => {
     $('cancel-btn').addEventListener('click', showList);
     $('person-form').addEventListener('submit', save);
     $('delete-btn').addEventListener('click', removePerson);
+    $('add-relation-btn').addEventListener('click', () => {
+      addRelationRow().querySelector('select').focus();
+    });
+    $('add-child-btn').addEventListener('click', () => {
+      const f = $('person-form');
+      if (f.has_children.value !== 'Так') f.has_children.value = 'Так';
+      addChildRow().querySelector('input').focus();
+    });
     ['f-has_disability', 'f-mp_relation', 'f-mp_unit'].forEach((id) =>
       $(id).addEventListener('change', updateVisibility));
     $('search').addEventListener('input', () => {
@@ -204,9 +304,11 @@ window.Persons = (() => {
     editingId = id;
     editingConsentAt = null;
     $('consent-date').textContent = '';
+    $('relations-list').innerHTML = '';
+    $('children-list').innerHTML = '';
 
     if (id) {
-      const { data, error } = await db.from('persons').select('*, person_veteran_statuses(status)').eq('id', id).single();
+      const { data, error } = await db.from('persons').select('*, person_veteran_statuses(status), military_relations(*), children(*)').eq('id', id).single();
       if (error) { console.error(error); toast('Не вдалося відкрити картку.'); return; }
       fillForm(data);
       $('form-title').textContent = [data.last_name, data.first_name, data.patronymic].filter(Boolean).join(' ');
@@ -244,6 +346,15 @@ window.Persons = (() => {
     f.mp_unit_other.value = p.mp_unit_other ?? '';
     const vs = new Set((p.person_veteran_statuses || []).map((x) => x.status));
     f.querySelectorAll('input[name="vet_status"]').forEach((cb) => { cb.checked = vs.has(cb.value); });
+
+    f.has_children.value = p.has_children;
+    f.children_count.value = p.children_count ?? '';
+    (p.military_relations || [])
+      .sort((a, b) => a.created_at.localeCompare(b.created_at))
+      .forEach((r) => addRelationRow(r));
+    (p.children || [])
+      .sort((a, b) => a.birth_date.localeCompare(b.birth_date))
+      .forEach((c) => addChildRow(c));
     editingConsentAt = p.consent_pd_at;
     if (p.consent_pd_at) {
       $('consent-date').textContent = `надано ${new Date(p.consent_pd_at).toLocaleDateString('uk-UA')}`;
@@ -294,6 +405,60 @@ window.Persons = (() => {
 
     const vetStatuses = [...f.querySelectorAll('input[name="vet_status"]:checked')].map((cb) => cb.value);
 
+    // Пов’язані військові особи
+    const relations = [];
+    document.querySelectorAll('#relations-list .row-card').forEach((row) => {
+      const q = (k) => row.querySelector(`[data-k="${k}"]`).value;
+      const r = {
+        relation_degree: q('relation_degree'),
+        related_full_name: V.normalizeName(q('related_full_name'), false),
+        related_status: q('related_status'),
+        related_mp: q('related_mp'),
+        related_unit_id: null,
+        related_unit_other: null
+      };
+      if (!r.relation_degree) { setRowHint(row, 'relation_degree', 'Оберіть ступінь спорідненості'); ok = false; }
+      if (r.related_full_name.error) { setRowHint(row, 'related_full_name', r.related_full_name.error); ok = false; }
+      r.related_full_name = r.related_full_name.value ?? null;
+      const bd = V.checkBirthDate(q('related_birth_date'));
+      if (bd.error) { setRowHint(row, 'related_birth_date', bd.error); ok = false; }
+      r.related_birth_date = bd.value ?? null;
+      if (r.related_mp === 'Так') {
+        const u = q('related_unit');
+        r.related_unit_id = u && u !== 'other' ? Number(u) : null;
+        r.related_unit_other = u === 'other' ? (q('related_unit_other').trim() || null) : null;
+        if (u === 'other' && !r.related_unit_other) { setRowHint(row, 'related_unit_other', 'Вкажіть назву підрозділу'); ok = false; }
+      }
+      relations.push(r);
+    });
+
+    // Діти
+    rec.has_children = f.has_children.value;
+    const children = [];
+    document.querySelectorAll('#children-list .row-card').forEach((row) => {
+      const raw = row.querySelector('[data-k="birth_date"]').value;
+      const bd = V.checkBirthDate(raw);
+      if (!raw) { setRowHint(row, 'birth_date', 'Вкажіть дату народження'); ok = false; return; }
+      if (bd.error) { setRowHint(row, 'birth_date', bd.error); ok = false; return; }
+      if (rec.birth_date && bd.value <= rec.birth_date) {
+        setRowHint(row, 'birth_date', 'Дитина не може бути старшою за батьків'); ok = false; return;
+      }
+      const name = row.querySelector('[data-k="full_name"]').value.trim();
+      children.push({ birth_date: bd.value, full_name: name || null });
+    });
+    const cnt = f.children_count.value === '' ? null : Number(f.children_count.value);
+    if (cnt !== null && (!Number.isInteger(cnt) || cnt < 0 || cnt > 30)) {
+      setHint('children_count', 'Число від 0 до 30'); ok = false;
+    }
+    rec.children_count = cnt;
+    if (children.length) {
+      rec.has_children = 'Так';
+      if (rec.children_count === null || rec.children_count < children.length) rec.children_count = children.length;
+    }
+    if (rec.has_children === 'Ні' && rec.children_count > 0) {
+      setHint('children_count', 'Вказано «Є діти: Ні», але кількість більше нуля'); ok = false;
+    }
+
     if (!ok) {
       setFormError('Виправте поля, позначені червоним.');
       const firstBad = f.querySelector('[aria-invalid="true"]');
@@ -327,6 +492,15 @@ window.Persons = (() => {
         const ins = await db.from('person_veteran_statuses')
           .insert(vetStatuses.map((status) => ({ person_id: personId, status })));
         error = ins.error;
+      }
+      // Зв’язки і діти: замінюємо повністю поточним набором з картки
+      if (!error) error = (await db.from('military_relations').delete().eq('person_id', personId)).error;
+      if (!error && relations.length) {
+        error = (await db.from('military_relations').insert(relations.map((r) => ({ ...r, person_id: personId })))).error;
+      }
+      if (!error) error = (await db.from('children').delete().eq('person_id', personId)).error;
+      if (!error && children.length) {
+        error = (await db.from('children').insert(children.map((c) => ({ ...c, person_id: personId })))).error;
       }
     }
     $('save-btn').disabled = false;
@@ -375,6 +549,7 @@ window.Persons = (() => {
   function clearHints() {
     document.querySelectorAll('#person-form .hint').forEach((h) => { h.textContent = ''; h.className = 'hint'; });
     document.querySelectorAll('#person-form [aria-invalid]').forEach((i) => i.setAttribute('aria-invalid', 'false'));
+    document.querySelectorAll('#person-form .row-card .hint').forEach((h) => { h.textContent = ''; h.className = 'hint'; });
   }
 
   function setFormError(text) {

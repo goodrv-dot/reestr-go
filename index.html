@@ -127,6 +127,25 @@
           </fieldset>
 
           <fieldset>
+            <legend>Пов’язані військові особи</legend>
+            <p class="muted fs-lead">Члени родини або близькі, які служать, служили, загинули, у полоні чи зникли безвісти. Від цього залежать категорії родини.</p>
+            <div id="relations-list" class="rows"></div>
+            <button id="add-relation-btn" class="btn-secondary btn-small" type="button">Додати пов’язану особу</button>
+          </fieldset>
+
+          <fieldset>
+            <legend>Діти</legend>
+            <div class="grid">
+              <div class="field"><label for="f-has_children">Є діти</label>
+                <select id="f-has_children" name="has_children"></select></div>
+              <div class="field"><label for="f-children_count">Кількість дітей</label>
+                <input id="f-children_count" name="children_count" type="number" min="0" max="30"><p class="hint" id="h-children_count"></p></div>
+            </div>
+            <div id="children-list" class="rows"></div>
+            <button id="add-child-btn" class="btn-secondary btn-small" type="button">Додати дитину</button>
+          </fieldset>
+
+          <fieldset>
             <legend>Контакти й розсилки</legend>
             <div class="grid">
               <div class="field"><label for="f-phone">Телефон</label>
@@ -165,8 +184,6 @@
             <div class="field field-wide"><label for="f-comment">Коментар</label>
               <textarea id="f-comment" name="comment" rows="3"></textarea></div>
           </fieldset>
-
-          <p class="muted form-note">Пов’язані військові особи й діти з’являться в картці на наступному кроці.</p>
 
           <p id="form-error" class="form-error" role="alert" hidden></p>
           <div class="form-actions">

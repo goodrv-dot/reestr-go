@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Реєстр — кабінет співробітника</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Unbounded:wght@600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ЕКРАН ВХОДУ -->
+  <main id="login-screen" class="login" hidden>
+    <section class="login-brand">
+      <p class="wordmark">Реєстр</p>
+      <p class="brand-lead">Робочий кабінет співробітників громадської організації</p>
+      <p class="brand-note">Обліковий запис видає адміністратор. Самостійна реєстрація вимкнена.</p>
+    </section>
+
+    <section class="login-panel">
+      <form id="login-form" class="login-form" novalidate>
+        <h1>Вхід</h1>
+
+        <label for="email">Електронна пошта</label>
+        <input id="email" type="email" autocomplete="username" required>
+
+        <label for="password">Пароль</label>
+        <input id="password" type="password" autocomplete="current-password" required>
+
+        <p id="login-error" class="form-error" role="alert" hidden></p>
+
+        <button id="login-btn" type="submit">Увійти</button>
+      </form>
+    </section>
+  </main>
+
+  <!-- ОСНОВНИЙ КАБІНЕТ -->
+  <div id="app-screen" class="app" hidden>
+    <header class="topbar">
+      <span class="wordmark wordmark-small">Реєстр</span>
+      <div class="topbar-user">
+        <span id="user-name"></span>
+        <span id="user-role" class="role"></span>
+        <button id="logout-btn" class="btn-quiet" type="button">Вийти</button>
+      </div>
+    </header>
+
+    <main class="app-main">
+      <h1 id="greeting"></h1>
+      <p class="empty">Реєстр поки порожній. Наступним кроком тут з’являться додавання особи, пошук і фільтри.</p>
+    </main>
+  </div>
+
+  <!-- Завантаження -->
+  <p id="loading" class="loading">Завантаження…</p>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,5 +1,5 @@
 // ============================================================
-// Реєстр — вхід співробітника (крок 4)
+// Реєстр — вхід співробітника і запуск кабінету
 // ============================================================
 const { SUPABASE_URL, SUPABASE_KEY, IDLE_MINUTES } = window.APP_CONFIG;
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -20,11 +20,13 @@ function showApp(operator) {
   $('loading').hidden = true;
   $('login-screen').hidden = true;
   $('app-screen').hidden = false;
-  const firstName = operator.full_name.split(' ')[0];
   $('user-name').textContent = operator.full_name;
   $('user-role').textContent = ROLE_LABELS[operator.role] || operator.role;
-  $('greeting').textContent = `Вітаємо, ${firstName}`;
   startIdleTimer();
+  Persons.init(db).catch((e) => {
+    console.error(e);
+    alert('Не вдалося завантажити довідники. Оновіть сторінку.');
+  });
 }
 
 function setError(text) {

@@ -49,16 +49,108 @@
     </header>
 
     <main class="app-main">
-      <h1 id="greeting"></h1>
-      <p class="empty">Реєстр поки порожній. Наступним кроком тут з’являться додавання особи, пошук і фільтри.</p>
+
+      <!-- СПИСОК ОСІБ -->
+      <section id="list-view">
+        <div class="list-head">
+          <h1>Особи <span id="count" class="count"></span></h1>
+          <button id="add-btn" class="btn-primary" type="button">Додати особу</button>
+        </div>
+        <input id="search" class="search" type="search" placeholder="Пошук за прізвищем, ім’ям або телефоном" aria-label="Пошук">
+        <p id="list-status" class="empty" hidden></p>
+        <div class="table-wrap">
+          <table id="persons-table" hidden>
+            <thead><tr><th>ПІБ</th><th>Телефон</th><th>Область</th><th>Категорії</th><th>Додано</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- КАРТКА ОСОБИ -->
+      <section id="form-view" hidden>
+        <button id="back-btn" class="btn-link" type="button">Назад до списку</button>
+        <h1 id="form-title">Нова особа</h1>
+
+        <form id="person-form" novalidate>
+          <fieldset>
+            <legend>Основні дані</legend>
+            <div class="grid">
+              <div class="field"><label for="f-last_name">Прізвище <span class="req">*</span></label>
+                <input id="f-last_name" name="last_name" autocomplete="off"><p class="hint" id="h-last_name"></p></div>
+              <div class="field"><label for="f-first_name">Ім’я <span class="req">*</span></label>
+                <input id="f-first_name" name="first_name" autocomplete="off"><p class="hint" id="h-first_name"></p></div>
+              <div class="field"><label for="f-patronymic">По батькові</label>
+                <input id="f-patronymic" name="patronymic" autocomplete="off"><p class="hint" id="h-patronymic"></p></div>
+              <div class="field"><label for="f-birth_date">Дата народження</label>
+                <input id="f-birth_date" name="birth_date" type="date"><p class="hint" id="h-birth_date"></p></div>
+              <div class="field"><label for="f-sex">Стать</label>
+                <select id="f-sex" name="sex">
+                  <option>Не вказано</option><option>Чоловіча</option><option>Жіноча</option>
+                </select></div>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Контакти й розсилки</legend>
+            <div class="grid">
+              <div class="field"><label for="f-phone">Телефон</label>
+                <input id="f-phone" name="phone" type="tel" inputmode="tel" placeholder="050 123 45 67"><p class="hint" id="h-phone"></p></div>
+              <div class="field"><label for="f-email">Електронна пошта</label>
+                <input id="f-email" name="email" type="email"><p class="hint" id="h-email"></p></div>
+              <div class="field"><label for="f-preferred_messenger">Бажаний месенджер</label>
+                <select id="f-preferred_messenger" name="preferred_messenger">
+                  <option>Не вказано</option><option>Telegram</option><option>WhatsApp</option><option>Viber</option>
+                </select></div>
+            </div>
+            <div class="checks">
+              <label class="check"><input type="checkbox" name="consent_pd"> Згода на обробку персональних даних <span id="consent-date" class="muted"></span></label>
+              <label class="check"><input type="checkbox" name="consent_messages"> Згода на повідомлення в месенджерах</label>
+              <label class="check"><input type="checkbox" name="unsubscribed"> Відписався від розсилок</label>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Проживання</legend>
+            <div class="grid">
+              <div class="field"><label for="f-region_id">Область</label>
+                <select id="f-region_id" name="region_id"></select></div>
+              <div class="field"><label for="f-settlement">Населений пункт</label>
+                <input id="f-settlement" name="settlement"></div>
+              <div class="field"><label for="f-is_idp">ВПО</label>
+                <select id="f-is_idp" name="is_idp">
+                  <option>Невідомо</option><option>Так</option><option>Ні</option>
+                </select></div>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Інше</legend>
+            <label class="check"><input type="checkbox" name="vkmpu_member"> Член ВКМПУ</label>
+            <div class="field field-wide"><label for="f-comment">Коментар</label>
+              <textarea id="f-comment" name="comment" rows="3"></textarea></div>
+          </fieldset>
+
+          <p class="muted form-note">Військовий статус, інвалідність, Морська піхота, пов’язані особи й діти з’являться в картці на наступному кроці.</p>
+
+          <p id="form-error" class="form-error" role="alert" hidden></p>
+          <div class="form-actions">
+            <button id="save-btn" class="btn-primary" type="submit">Зберегти</button>
+            <button id="cancel-btn" class="btn-secondary" type="button">Скасувати</button>
+          </div>
+        </form>
+      </section>
     </main>
   </div>
+
+  <p id="toast" class="toast" role="status" hidden></p>
 
   <!-- Завантаження -->
   <p id="loading" class="loading">Завантаження…</p>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script src="config.js"></script>
+  <script src="validation.js"></script>
+  <script src="persons.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

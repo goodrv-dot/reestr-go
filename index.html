@@ -91,6 +91,42 @@
           </fieldset>
 
           <fieldset>
+            <legend>Військовий статус</legend>
+            <div class="grid">
+              <div class="field"><label for="f-military_status">Поточний статус особи</label>
+                <select id="f-military_status" name="military_status"></select></div>
+            </div>
+            <p class="sublabel">Статус ветерана війни <span class="muted">(можна обрати кілька)</span></p>
+            <div id="vet-statuses" class="checks checks-grid"></div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Інвалідність</legend>
+            <div class="grid">
+              <div class="field"><label for="f-has_disability">Наявність інвалідності</label>
+                <select id="f-has_disability" name="has_disability"></select></div>
+              <div class="field" data-show-if="has_disability"><label for="f-disability_group">Група</label>
+                <select id="f-disability_group" name="disability_group"></select></div>
+              <div class="field" data-show-if="has_disability"><label for="f-disability_war_related">Пов’язана з війною чи службою</label>
+                <select id="f-disability_war_related" name="disability_war_related"></select></div>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Морська піхота</legend>
+            <div class="grid">
+              <div class="field"><label for="f-mp_relation">Особисте відношення до МП</label>
+                <select id="f-mp_relation" name="mp_relation"></select></div>
+              <div class="field" data-show-if="mp_relation"><label for="f-mp_relation_type">Характер відношення <span class="req">*</span></label>
+                <select id="f-mp_relation_type" name="mp_relation_type"></select><p class="hint" id="h-mp_relation_type"></p></div>
+              <div class="field" data-show-if="mp_relation"><label for="f-mp_unit">Підрозділ</label>
+                <select id="f-mp_unit" name="mp_unit"></select></div>
+              <div class="field" id="mp-unit-other-wrap" hidden><label for="f-mp_unit_other">Назва підрозділу <span class="req">*</span></label>
+                <input id="f-mp_unit_other" name="mp_unit_other"><p class="hint" id="h-mp_unit_other"></p></div>
+            </div>
+          </fieldset>
+
+          <fieldset>
             <legend>Контакти й розсилки</legend>
             <div class="grid">
               <div class="field"><label for="f-phone">Телефон</label>
@@ -130,12 +166,13 @@
               <textarea id="f-comment" name="comment" rows="3"></textarea></div>
           </fieldset>
 
-          <p class="muted form-note">Військовий статус, інвалідність, Морська піхота, пов’язані особи й діти з’являться в картці на наступному кроці.</p>
+          <p class="muted form-note">Пов’язані військові особи й діти з’являться в картці на наступному кроці.</p>
 
           <p id="form-error" class="form-error" role="alert" hidden></p>
           <div class="form-actions">
             <button id="save-btn" class="btn-primary" type="submit">Зберегти</button>
             <button id="cancel-btn" class="btn-secondary" type="button">Скасувати</button>
+            <button id="delete-btn" class="btn-danger" type="button" hidden>Видалити особу</button>
           </div>
         </form>
       </section>
@@ -149,6 +186,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script src="config.js"></script>
+  <script src="options.js"></script>
   <script src="validation.js"></script>
   <script src="persons.js"></script>
   <script src="app.js"></script>

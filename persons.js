@@ -1,8 +1,10 @@
 // ============================================================
-// Особи: список, пошук, додавання і редагування (крок 5 — основні дані)
+// Особи: список, пошук, картка (основні дані, військовий статус,
+// інвалідність, Морська піхота), видалення
 // ============================================================
 window.Persons = (() => {
   let db = null;
+  let isAdmin = false;
   let started = false;
   let editingId = null;
   let editingConsentAt = null;
@@ -10,22 +12,64 @@ window.Persons = (() => {
   const regions = new Map();
   const $ = (id) => document.getElementById(id);
 
-  async function init(client) {
+  async function init(client, operator) {
     db = client;
+    isAdmin = operator.role === 'admin';
     if (!started) {
-      await loadRegions();
+      await loadDicts();
       bind();
       started = true;
     }
     showList();
   }
 
-  async function loadRegions() {
+  async function loadDicts() {
+    // Області
     const { data, error } = await db.from('regions').select('id, name').order('sort');
     if (error) throw error;
     const sel = $('f-region_id');
     sel.innerHTML = '<option value="">Не вказано</option>';
     data.forEach((r) => { regions.set(r.id, r.name); sel.add(new Option(r.name, r.id)); });
+
+    // Підрозділи МП
+    const units = await db.from('mp_units').select('id, name').eq('active', true).order('name');
+    if (units.error) throw units.error;
+    const u = $('f-mp_unit');
+    u.innerHTML = '<option value="">Невідомо</option>';
+    units.data.forEach((x) => u.add(new Option(x.name, x.id)));
+    u.add(new Option('Інший підрозділ', 'other'));
+
+    // Варіанти з документа керівника
+    fillSelect($('f-military_status'), OPT.military_status);
+    fillSelect($('f-has_disability'), OPT.yes_no_unknown);
+    fillSelect($('f-disability_group'), OPT.disability_group);
+    fillSelect($('f-disability_war_related'), OPT.disability_war_related);
+    fillSelect($('f-mp_relation'), OPT.yes_no_unknown);
+    fillSelect($('f-mp_relation_type'), OPT.mp_relation_type);
+    $('f-mp_relation_type').insertBefore(new Option('Оберіть…', ''), $('f-mp_relation_type').firstChild);
+
+    // Статуси ветерана — прапорці
+    const box = $('vet-statuses');
+    box.innerHTML = '';
+    OPT.veteran_statuses.forEach((v) => {
+      const label = document.createElement('label');
+      label.className = 'check';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.name = 'vet_status';
+      cb.value = v;
+      label.append(cb, ' ' + v);
+      box.appendChild(label);
+    });
+  }
+
+  // Показ залежних полів: група інвалідності, дані про МП
+  function updateVisibility() {
+    const f = $('person-form');
+    document.querySelectorAll('#person-form [data-show-if]').forEach((el) => {
+      el.hidden = f[el.dataset.showIf].value !== 'Так';
+    });
+    $('mp-unit-other-wrap').hidden = f.mp_relation.value !== 'Так' || f.mp_unit.value !== 'other';
   }
 
   function bind() {
@@ -33,6 +77,9 @@ window.Persons = (() => {
     $('back-btn').addEventListener('click', showList);
     $('cancel-btn').addEventListener('click', showList);
     $('person-form').addEventListener('submit', save);
+    $('delete-btn').addEventListener('click', removePerson);
+    ['f-has_disability', 'f-mp_relation', 'f-mp_unit'].forEach((id) =>
+      $(id).addEventListener('change', updateVisibility));
     $('search').addEventListener('input', () => {
       clearTimeout(searchTimer);
       searchTimer = setTimeout(loadList, 300);
@@ -159,7 +206,7 @@ window.Persons = (() => {
     $('consent-date').textContent = '';
 
     if (id) {
-      const { data, error } = await db.from('persons').select('*').eq('id', id).single();
+      const { data, error } = await db.from('persons').select('*, person_veteran_statuses(status)').eq('id', id).single();
       if (error) { console.error(error); toast('Не вдалося відкрити картку.'); return; }
       fillForm(data);
       $('form-title').textContent = [data.last_name, data.first_name, data.patronymic].filter(Boolean).join(' ');
@@ -167,6 +214,8 @@ window.Persons = (() => {
       $('form-title').textContent = 'Нова особа';
     }
 
+    $('delete-btn').hidden = !(id && isAdmin);
+    updateVisibility();
     $('list-view').hidden = true;
     $('form-view').hidden = false;
     window.scrollTo(0, 0);
@@ -183,6 +232,18 @@ window.Persons = (() => {
     f.consent_messages.checked = p.consent_messages;
     f.unsubscribed.checked = p.unsubscribed;
     f.consent_pd.checked = !!p.consent_pd_at;
+
+    const na = (v) => (v === 'Не застосовується' ? '' : v);
+    f.military_status.value = p.military_status;
+    f.has_disability.value = p.has_disability;
+    f.disability_group.value = na(p.disability_group) || 'Невідомо';
+    f.disability_war_related.value = na(p.disability_war_related) || 'Невідомо';
+    f.mp_relation.value = p.mp_relation;
+    f.mp_relation_type.value = na(p.mp_relation_type);
+    f.mp_unit.value = p.mp_unit_id ? String(p.mp_unit_id) : (p.mp_unit_other ? 'other' : '');
+    f.mp_unit_other.value = p.mp_unit_other ?? '';
+    const vs = new Set((p.person_veteran_statuses || []).map((x) => x.status));
+    f.querySelectorAll('input[name="vet_status"]').forEach((cb) => { cb.checked = vs.has(cb.value); });
     editingConsentAt = p.consent_pd_at;
     if (p.consent_pd_at) {
       $('consent-date').textContent = `надано ${new Date(p.consent_pd_at).toLocaleDateString('uk-UA')}`;
@@ -209,6 +270,30 @@ window.Persons = (() => {
     apply('phone',      V.normalizePhone(f.phone.value));
     apply('email',      V.normalizeEmail(f.email.value));
 
+    // Інвалідність
+    rec.has_disability = f.has_disability.value;
+    const dis = rec.has_disability === 'Так';
+    rec.disability_group = dis ? f.disability_group.value : 'Не застосовується';
+    rec.disability_war_related = dis ? f.disability_war_related.value : 'Не застосовується';
+
+    // Морська піхота
+    rec.military_status = f.military_status.value;
+    rec.mp_relation = f.mp_relation.value;
+    if (rec.mp_relation === 'Так') {
+      rec.mp_relation_type = f.mp_relation_type.value;
+      if (!rec.mp_relation_type) { setHint('mp_relation_type', 'Оберіть характер відношення'); ok = false; }
+      const unit = f.mp_unit.value;
+      rec.mp_unit_id = unit && unit !== 'other' ? Number(unit) : null;
+      rec.mp_unit_other = unit === 'other' ? (f.mp_unit_other.value.trim() || null) : null;
+      if (unit === 'other' && !rec.mp_unit_other) { setHint('mp_unit_other', 'Вкажіть назву підрозділу'); ok = false; }
+    } else {
+      rec.mp_relation_type = 'Не застосовується';
+      rec.mp_unit_id = null;
+      rec.mp_unit_other = null;
+    }
+
+    const vetStatuses = [...f.querySelectorAll('input[name="vet_status"]:checked')].map((cb) => cb.value);
+
     if (!ok) {
       setFormError('Виправте поля, позначені червоним.');
       const firstBad = f.querySelector('[aria-invalid="true"]');
@@ -228,9 +313,22 @@ window.Persons = (() => {
     rec.consent_pd_at = f.consent_pd.checked ? (editingConsentAt || new Date().toISOString()) : null;
 
     $('save-btn').disabled = true;
-    const { error } = editingId
-      ? await db.from('persons').update(rec).eq('id', editingId)
-      : await db.from('persons').insert(rec);
+    const res = editingId
+      ? await db.from('persons').update(rec).eq('id', editingId).select('id').single()
+      : await db.from('persons').insert(rec).select('id').single();
+    let error = res.error;
+
+    // Статуси ветерана: замінюємо повністю
+    if (!error) {
+      const personId = res.data.id;
+      const del = await db.from('person_veteran_statuses').delete().eq('person_id', personId);
+      error = del.error;
+      if (!error && vetStatuses.length) {
+        const ins = await db.from('person_veteran_statuses')
+          .insert(vetStatuses.map((status) => ({ person_id: personId, status })));
+        error = ins.error;
+      }
+    }
     $('save-btn').disabled = false;
 
     if (error) {
@@ -245,6 +343,22 @@ window.Persons = (() => {
     }
 
     toast(editingId ? 'Зміни збережено' : 'Особу додано');
+    showList();
+  }
+
+  // ---------- Видалення (лише адміністратор) ----------
+  async function removePerson() {
+    if (!editingId || !isAdmin) return;
+    const name = $('form-title').textContent;
+    if (!confirm(`Видалити «${name}» з реєстру?\n\nРазом з особою буде видалено її статуси, пов’язаних осіб і дітей. Відновити неможливо.`)) return;
+
+    const { data, error } = await db.from('persons').delete().eq('id', editingId).select('id');
+    if (error || !data.length) {
+      console.error(error);
+      setFormError('Не вдалося видалити. Можливо, у вас немає прав на видалення.');
+      return;
+    }
+    toast('Особу видалено');
     showList();
   }
 

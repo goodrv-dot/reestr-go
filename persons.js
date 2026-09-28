@@ -33,6 +33,8 @@ window.Persons = (() => {
     sel.innerHTML = '<option value="">Не вказано</option>';
     data.forEach((r) => { regions.set(r.id, r.name); sel.add(new Option(r.name, r.id)); });
 
+    Filters.init(regions, loadList);
+
     // Підрозділи МП
     const ures = await db.from('mp_units').select('id, name').eq('active', true).order('name');
     if (ures.error) throw ures.error;
@@ -227,6 +229,14 @@ window.Persons = (() => {
       query = query.or(parts.join(','));
     }
 
+    try {
+      query = await Filters.apply(query, db);
+    } catch (e) {
+      console.error(e);
+      setListStatus('Не вдалося застосувати фільтри. Оновіть сторінку.');
+      return;
+    }
+
     const { data, error, count } = await query;
     if (error) {
       console.error(error);
@@ -240,12 +250,15 @@ window.Persons = (() => {
     const table = $('persons-table');
     const tbody = table.tBodies[0];
     tbody.innerHTML = '';
-    $('count').textContent = q ? `${count} знайдено` : `${count}`;
+    const filtered = q || Filters.activeCount() > 0;
+    $('count').textContent = filtered ? `${count} знайдено` : `${count}`;
+    $('list-note').hidden = count <= rows.length;
+    $('list-note').textContent = `Показано перші ${rows.length} з ${count}. Уточніть пошук або фільтри.`;
 
     if (!rows.length) {
       table.hidden = true;
-      setListStatus(q
-        ? `За запитом «${q}» нікого не знайдено.`
+      setListStatus(filtered
+        ? 'За цими умовами нікого не знайдено. Змініть пошук або скиньте фільтри.'
         : 'Реєстр порожній. Натисніть «Додати особу», щоб внести першу.');
       return;
     }

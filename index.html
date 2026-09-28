@@ -56,7 +56,14 @@
           <h1>Особи <span id="count" class="count"></span></h1>
           <button id="add-btn" class="btn-primary" type="button">Додати особу</button>
         </div>
-        <input id="search" class="search" type="search" placeholder="Пошук за прізвищем, ім’ям або телефоном" aria-label="Пошук">
+        <div class="toolbar">
+          <input id="search" class="search" type="search" placeholder="Пошук за прізвищем, ім’ям або телефоном" aria-label="Пошук">
+          <button id="filters-toggle" class="btn-secondary" type="button" aria-expanded="false" aria-controls="filters-panel">
+            Фільтри <span id="filters-count" class="badge" hidden></span>
+          </button>
+        </div>
+        <div id="filters-panel" class="filters" hidden></div>
+        <p id="list-note" class="muted list-note" hidden></p>
         <p id="list-status" class="empty" hidden></p>
         <div class="table-wrap">
           <table id="persons-table" hidden>
@@ -205,6 +212,7 @@
   <script src="config.js"></script>
   <script src="options.js"></script>
   <script src="validation.js"></script>
+  <script src="filters.js"></script>
   <script src="persons.js"></script>
   <script src="app.js"></script>
 </body>

@@ -136,7 +136,7 @@ window.Persons = (() => {
       <div class="grid">
         <div class="field"><label for="c${n}-bd">Дата народження <span class="req">*</span></label>
           <input id="c${n}-bd" type="date" data-k="birth_date"><p class="hint" data-h="birth_date"></p></div>
-        <div class="field"><label for="c${n}-name">Ім’я дитини</label>
+        <div class="field"><label for="c${n}-name">ПІБ дитини</label>
           <input id="c${n}-name" data-k="full_name"></div>
       </div>
       <button type="button" class="btn-link btn-remove">Прибрати</button>`;

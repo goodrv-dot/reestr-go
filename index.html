@@ -60,7 +60,14 @@
       <section id="list-view">
         <div class="list-head">
           <h1>Особи <span id="count" class="count"></span></h1>
-          <button id="add-btn" class="btn-primary" type="button">Додати особу</button>
+          <div class="head-actions">
+            <div id="export-box" class="export-box" hidden>
+              <span class="muted">Вивантажити список:</span>
+              <button id="export-excel-btn" class="btn-secondary btn-small" type="button">Excel</button>
+              <button id="export-csv-btn" class="btn-secondary btn-small" type="button">CSV для SendPulse</button>
+            </div>
+            <button id="add-btn" class="btn-primary" type="button">Додати особу</button>
+          </div>
         </div>
         <div class="toolbar">
           <input id="search" class="search" type="search" placeholder="Пошук за прізвищем, ім’ям або телефоном" aria-label="Пошук">
@@ -237,6 +244,7 @@
         <a href="#m-auto">Автоматичні категорії</a>
         <a href="#m-quality">Підсвітка: що доповнити</a>
         <a href="#m-filters">Фільтри</a>
+        <a href="#m-export">Вивантаження</a>
         <a href="#m-phone">Телефони</a>
         <a href="#m-scenarios">Типові завдання</a>
         <a href="#m-rules">Правила роботи з даними</a>
@@ -331,6 +339,17 @@
         </ul>
       </section>
 
+      <section id="m-export">
+        <h2>Вивантаження</h2>
+        <p>Кнопки «Excel» і «CSV для SendPulse» вивантажують <b>поточний список</b> — з урахуванням пошуку і фільтрів. Спочатку відфільтруйте потрібних людей, потім вивантажуйте.</p>
+        <ul>
+          <li><b>Excel</b> — для роботи й звітів: аркуші «Особи», «Діти», «Зв’язки».</li>
+          <li><b>CSV для SendPulse</b> — оберіть канал (Telegram, WhatsApp, Viber). У файл потрапляють лише люди з мобільним телефоном, згодою на обробку ПД і на повідомлення, які не відписались і обрали цей месенджер.</li>
+          <li>Перед завантаженням видно, <b>скільки людей пропущено і чому</b>. Відкрийте їхні картки й доповніть дані.</li>
+          <li>Вивантажувати можуть лише співробітники з відповідним правом. Кожне вивантаження записується в журнал.</li>
+        </ul>
+      </section>
+
       <section id="m-phone">
         <h2>Телефони</h2>
         <p>Вводьте номер у будь-якому вигляді — система сама приведе його до формату <code>+380XXXXXXXXX</code>.</p>
@@ -378,6 +397,29 @@
     </main>
   </div>
 
+
+  <!-- Діалог CSV для SendPulse -->
+  <dialog id="csv-dialog" class="dialog" aria-labelledby="csv-title">
+    <h2 id="csv-title">CSV для SendPulse</h2>
+    <p class="muted">Вивантажується поточний список з урахуванням пошуку і фільтрів.</p>
+    <fieldset class="dlg-fs">
+      <legend>Канал розсилки</legend>
+      <label class="check"><input type="radio" name="csv-channel" value="Telegram" checked> Telegram</label>
+      <label class="check"><input type="radio" name="csv-channel" value="WhatsApp"> WhatsApp</label>
+      <label class="check"><input type="radio" name="csv-channel" value="Viber"> Viber</label>
+    </fieldset>
+    <label class="check"><input type="checkbox" id="csv-unknown"> Додати тих, у кого месенджер не вказано</label>
+    <p id="csv-summary" class="csv-summary" role="status"></p>
+    <div id="csv-skipped-wrap" hidden>
+      <p class="sublabel">Кого пропущено і чому (відкрийте картки, щоб доповнити):</p>
+      <ul id="csv-skipped" class="csv-skipped"></ul>
+    </div>
+    <div class="form-actions">
+      <button id="csv-download" class="btn-primary" type="button" disabled>Завантажити CSV</button>
+      <button id="csv-close" class="btn-secondary" type="button">Закрити</button>
+    </div>
+  </dialog>
+
   <p id="toast" class="toast" role="status" hidden></p>
 
   <!-- Завантаження -->
@@ -385,10 +427,12 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script src="config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="options.js"></script>
   <script src="validation.js"></script>
   <script src="filters.js"></script>
   <script src="persons.js"></script>
+  <script src="export.js"></script>
   <script src="nav.js"></script>
   <script src="app.js"></script>
 </body>

@@ -366,3 +366,17 @@ legend { font-weight: 600; font-size: 1.1rem; padding: 0 0.6rem 0 0; color: var(
 .tip { background: #eef3f6; border-left: 4px solid var(--sea); padding: 0.7rem 0.9rem; border-radius: 4px; }
 .manual code { background: #e7eef3; padding: 0.05rem 0.35rem; border-radius: 3px; }
 .grid + .check { margin-top: 0.75rem; }
+
+/* ============ Експорт ============ */
+.head-actions { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.export-box { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.dialog {
+  border: 0; border-radius: 10px; padding: 1.5rem; width: min(40rem, 92vw);
+  box-shadow: 0 20px 50px rgba(14, 45, 64, 0.3); color: var(--ink);
+}
+.dialog::backdrop { background: rgba(14, 45, 64, 0.45); }
+.dialog h2 { margin: 0 0 0.3rem; font-size: 1.3rem; }
+.dlg-fs { border: 0; padding: 0; margin: 1rem 0 0.75rem; display: flex; gap: 1.25rem; flex-wrap: wrap; }
+.dlg-fs legend { font-size: 0.95rem; color: var(--ink); margin-bottom: 0.4rem; }
+.csv-summary { background: #eef3f6; border-left: 4px solid var(--sea); padding: 0.7rem 0.9rem; border-radius: 4px; margin: 1rem 0; }
+.csv-skipped { max-height: 12rem; overflow: auto; margin: 0; padding: 0.5rem 0.75rem 0.5rem 1.6rem; border: 1px solid var(--line); border-radius: 6px; font-size: 0.9rem; }

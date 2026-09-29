@@ -207,7 +207,9 @@ window.Filters = (() => {
   }
 
   // ---------- Застосування до запиту Supabase ----------
-  // Повертає змінений запит. Фільтр за віком дитини потребує окремого запиту до таблиці children.
+  // Повертає { query } — обгортка потрібна, бо запит Supabase «thenable»:
+  // якщо повернути його напряму з async-функції, він одразу виконається.
+  // Фільтр за віком дитини потребує окремого запиту до таблиці children.
   async function apply(query, db) {
     const v = values();
     const NONE = '00000000-0000-0000-0000-000000000000';
@@ -236,7 +238,7 @@ window.Filters = (() => {
         query = query.in(d.key, ['region_id', 'cell_id'].includes(d.key) ? val.map(Number) : val);
       }
     }
-    return query;
+    return { query };
   }
 
   // Діти віком від..до повних років: дата народження у проміжку

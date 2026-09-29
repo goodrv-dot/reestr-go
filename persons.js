@@ -5,6 +5,7 @@
 window.Persons = (() => {
   let db = null;
   let isAdmin = false;
+  let operator = null;
   let started = false;
   let editingId = null;
   let editingConsentAt = null;
@@ -16,9 +17,10 @@ window.Persons = (() => {
   let rowSeq = 0;          // унікальні id для полів у рядках
   const $ = (id) => document.getElementById(id);
 
-  async function init(client, operator) {
+  async function init(client, op) {
     db = client;
-    isAdmin = operator.role === 'admin';
+    isAdmin = op.role === 'admin';
+    operator = op;
     if (!started) {
       await loadDicts();
       bind();
@@ -267,30 +269,37 @@ window.Persons = (() => {
     loadList();
   }
 
-  async function loadList() {
-    const raw = $('search').value.trim();
-    const q = raw.replace(/[,()%*\\]/g, ' ').trim();
+  function currentSearch() {
+    return $('search').value.trim().replace(/[,()%*\\]/g, ' ').trim();
+  }
 
-    let query = db
-      .from('persons_view')
-      .select('id, last_name, first_name, patronymic, phone, region_id, person_categories, family_categories, created_at, critical_count, warning_count', { count: 'exact' })
-      .order('created_at', { ascending: false })
-      .limit(200);
-
+  // Запит з урахуванням пошуку і фільтрів (для списку та експорту)
+  // Повертає { query } (див. коментар у Filters.apply)
+  async function buildQuery(columns, opts) {
+    let query = db.from('persons_view').select(columns, opts);
+    const q = currentSearch();
     if (q) {
       const parts = [`last_name.ilike.%${q}%`, `first_name.ilike.%${q}%`, `patronymic.ilike.%${q}%`];
       const digits = q.replace(/\D/g, '');
       if (digits.length >= 3) parts.push(`phone.ilike.%${digits}%`);
       query = query.or(parts.join(','));
     }
+    return Filters.apply(query, db);
+  }
 
+  async function loadList() {
+    let query;
     try {
-      query = await Filters.apply(query, db);
+      ({ query } = await buildQuery(
+        'id, last_name, first_name, patronymic, phone, region_id, person_categories, family_categories, created_at, critical_count, warning_count',
+        { count: 'exact' }));
     } catch (e) {
       console.error(e);
       setListStatus('Не вдалося застосувати фільтри. Оновіть сторінку.');
       return;
     }
+    query = query.order('created_at', { ascending: false }).limit(200);
+    const q = currentSearch();
 
     const { data, error, count } = await query;
     if (error) {
@@ -713,5 +722,9 @@ window.Persons = (() => {
     toastTimer = setTimeout(() => { t.hidden = true; }, 3000);
   }
 
-  return { init, showList };
+  function ctx() {
+    return { db, operator, regions, cells, programs, units: new Map(units.map((u) => [u.id, u.name])) };
+  }
+
+  return { init, showList, buildQuery, ctx, toast };
 })();

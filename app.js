@@ -23,7 +23,7 @@ function showApp(operator) {
   $('user-name').textContent = operator.full_name;
   $('user-role').textContent = ROLE_LABELS[operator.role] || operator.role;
   startIdleTimer();
-  Persons.init(db, operator).catch((e) => {
+  Persons.init(db, operator).then(() => { if (!window.__exp) { Exporter.init(); window.__exp = true; } }).catch((e) => {
     console.error(e);
     alert('Не вдалося завантажити довідники. Оновіть сторінку.');
   });

@@ -380,3 +380,31 @@ legend { font-weight: 600; font-size: 1.1rem; padding: 0 0.6rem 0 0; color: var(
 .dlg-fs legend { font-size: 0.95rem; color: var(--ink); margin-bottom: 0.4rem; }
 .csv-summary { background: #eef3f6; border-left: 4px solid var(--sea); padding: 0.7rem 0.9rem; border-radius: 4px; margin: 1rem 0; }
 .csv-skipped { max-height: 12rem; overflow: auto; margin: 0; padding: 0.5rem 0.75rem 0.5rem 1.6rem; border: 1px solid var(--line); border-radius: 6px; font-size: 0.9rem; }
+
+/* ============ Імпорт ============ */
+.imp-lead { max-width: 65ch; margin: 0 0 1.25rem; }
+.imp-steps { max-width: 48rem; }
+.imp-steps input[type="file"] { padding: 0.45rem; background: var(--white); }
+.imp-status { min-height: 1.5rem; font-weight: 500; }
+.imp-summary { display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 0.5rem 0 0.75rem; }
+.imp-chip { padding: 0.25rem 0.7rem; border-radius: 999px; font-size: 0.9rem; font-weight: 600; }
+.imp-table tbody tr { cursor: default; }
+.imp-table tbody tr:hover { background: inherit; }
+.imp-table td:first-child { white-space: nowrap; }
+.st-new  .st-badge, .imp-chip.st-new  { background: #dcefe4; color: #24583f; }
+.st-upd  .st-badge, .imp-chip.st-upd  { background: #dde8f2; color: var(--sea); }
+.st-warn .st-badge, .imp-chip.st-warn { background: #f6ebcf; color: #7a5a10; }
+.st-err  .st-badge, .imp-chip.st-err  { background: #f6dcd8; color: var(--err); }
+tr.st-err { background: #fdf5f4; }
+tr.st-warn { background: #fffbf1; }
+.st-badge { display: inline-block; margin-left: 0.45rem; padding: 0.05rem 0.45rem; border-radius: 4px; font-size: 0.8rem; font-weight: 600; }
+.imp-notes { margin: 0; padding: 0; list-style: none; font-size: 0.88rem; display: flex; flex-direction: column; gap: 0.2rem; min-width: 18rem; }
+.imp-notes li { padding-left: 0.9rem; position: relative; }
+.imp-notes li::before { content: ''; position: absolute; left: 0; top: 0.5rem; width: 0.45rem; height: 0.45rem; border-radius: 50%; }
+.n-err { color: var(--err); } .n-err::before { background: var(--err); }
+.n-warn { color: #6d500e; } .n-warn::before { background: #d4a531; }
+.n-info { color: var(--muted); } .n-info::before { background: #9fb3c2; }
+.imp-h2 { font-size: 1.2rem; margin: 2.5rem 0 0.75rem; }
+.btn-rollback { color: var(--err); margin: 0; }
+.imp-table td:nth-child(4) { white-space: nowrap; }
+.imp-steps { grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr)); }

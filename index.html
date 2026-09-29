@@ -44,6 +44,7 @@
         <span class="wordmark wordmark-small">Реєстр</span>
         <nav class="tabs" aria-label="Розділи">
           <button type="button" class="tab is-active" data-tab="registry" aria-current="page">Особи</button>
+          <button type="button" class="tab" data-tab="import">Імпорт</button>
           <button type="button" class="tab" data-tab="manual">Мануал</button>
         </nav>
       </div>
@@ -234,6 +235,42 @@
         </form>
       </section>
     </main>
+    <main id="import-view" class="app-main" hidden>
+      <h1>Імпорт з Excel</h1>
+      <p class="muted imp-lead">Оберіть шаблон і файл. До запису в реєстр ви побачите попередній перегляд: хто новий, кого буде доповнено, що перевірити і де помилки.</p>
+      <div class="grid imp-steps">
+        <div class="field"><label for="imp-template">1. Шаблон файлу</label><select id="imp-template"></select></div>
+        <div class="field"><label for="imp-file">2. Файл Excel (.xlsx)</label><input id="imp-file" type="file" accept=".xlsx,.xls"></div>
+      </div>
+      <p id="imp-status" class="imp-status" role="status"></p>
+
+      <section id="imp-result" hidden>
+        <div id="imp-summary" class="imp-summary"></div>
+        <p class="muted">Жовті рядки імпортуються, але після імпорту їх варто перевірити — у картках буде видно, що доповнити. Червоні не імпортуються: виправте їх у файлі та завантажте повторно. Зніміть галочку, щоб пропустити рядок.</p>
+        <div class="table-wrap">
+          <table id="imp-preview" class="imp-table">
+            <thead><tr><th>Імпорт</th><th>Рядок</th><th>Особа</th><th>Телефон</th><th>Військовий</th><th>Діти</th><th>Примітки</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="form-actions">
+          <button id="imp-run" class="btn-primary" type="button">Імпортувати</button>
+          <button id="imp-errors-btn" class="btn-secondary" type="button" hidden>Завантажити файл помилок</button>
+          <button id="imp-reset" class="btn-secondary" type="button">Інший файл</button>
+        </div>
+      </section>
+
+      <section id="imp-batches-wrap" hidden>
+        <h2 class="imp-h2">Історія імпорту</h2>
+        <div class="table-wrap">
+          <table id="imp-batches" class="imp-table">
+            <thead><tr><th>Дата</th><th>Файл</th><th>Шаблон</th><th>Імпортовано</th><th></th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
     <main id="manual-view" class="app-main manual" hidden>
       <h1>Мануал оператора</h1>
       <p class="manual-lead">Коротко: як вносити людей, що означають позначки і як знайти потрібних людей для розсилки.</p>
@@ -244,6 +281,7 @@
         <a href="#m-auto">Автоматичні категорії</a>
         <a href="#m-quality">Підсвітка: що доповнити</a>
         <a href="#m-filters">Фільтри</a>
+        <a href="#m-import">Імпорт</a>
         <a href="#m-export">Вивантаження</a>
         <a href="#m-phone">Телефони</a>
         <a href="#m-scenarios">Типові завдання</a>
@@ -337,6 +375,17 @@
           <li>Список оновлюється сам. Кнопка «Скинути всі фільтри» повертає повний список.</li>
           <li>«Є дитина віком 11–14» — знайде людей, у яких хоча б одна дитина цього віку.</li>
         </ul>
+      </section>
+
+      <section id="m-import">
+        <h2>Імпорт з Excel</h2>
+        <ol>
+          <li>Вкладка «Імпорт» → оберіть шаблон (зараз: «Діти Морської піхоти») → оберіть файл.</li>
+          <li>Перегляньте таблицю. <b>Зелені</b> — нові особи. <b>Сині</b> — людина вже є в реєстрі (той самий телефон): буде лише доповнено дітей, пошту, область. <b>Жовті</b> — імпортуються, але потребують перевірки. <b>Червоні</b> — не імпортуються.</li>
+          <li>Для червоних натисніть «Завантажити файл помилок», виправте у файлі та завантажте повторно.</li>
+          <li>Натисніть «Імпортувати». Кілька анкет з одним телефоном стануть однією особою з кількома дітьми.</li>
+        </ol>
+        <p>Невдалий імпорт адміністратор може <b>відкотити</b> в «Історії імпорту»: видаляться особи, створені цим імпортом.</p>
       </section>
 
       <section id="m-export">
@@ -433,6 +482,7 @@
   <script src="filters.js"></script>
   <script src="persons.js"></script>
   <script src="export.js"></script>
+  <script src="import.js"></script>
   <script src="nav.js"></script>
   <script src="app.js"></script>
 </body>

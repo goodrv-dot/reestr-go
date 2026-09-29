@@ -40,7 +40,13 @@
   <!-- ОСНОВНИЙ КАБІНЕТ -->
   <div id="app-screen" class="app" hidden>
     <header class="topbar">
-      <span class="wordmark wordmark-small">Реєстр</span>
+      <div class="topbar-left">
+        <span class="wordmark wordmark-small">Реєстр</span>
+        <nav class="tabs" aria-label="Розділи">
+          <button type="button" class="tab is-active" data-tab="registry" aria-current="page">Особи</button>
+          <button type="button" class="tab" data-tab="manual">Мануал</button>
+        </nav>
+      </div>
       <div class="topbar-user">
         <span id="user-name"></span>
         <span id="user-role" class="role"></span>
@@ -48,7 +54,7 @@
       </div>
     </header>
 
-    <main class="app-main">
+    <main class="app-main" id="registry-view">
 
       <!-- СПИСОК ОСІБ -->
       <section id="list-view">
@@ -67,7 +73,7 @@
         <p id="list-status" class="empty" hidden></p>
         <div class="table-wrap">
           <table id="persons-table" hidden>
-            <thead><tr><th>ПІБ</th><th>Телефон</th><th>Область</th><th>Категорії</th><th>Додано</th></tr></thead>
+            <thead><tr><th><span class="sr-only">Стан даних</span></th><th>ПІБ</th><th>Телефон</th><th>Область</th><th>Категорії</th><th>Додано</th></tr></thead>
             <tbody></tbody>
           </table>
         </div>
@@ -77,6 +83,12 @@
       <section id="form-view" hidden>
         <button id="back-btn" class="btn-link" type="button">Назад до списку</button>
         <h1 id="form-title">Нова особа</h1>
+        <section id="quality-box" class="quality" hidden aria-labelledby="quality-title">
+          <h2 id="quality-title">Що потрібно доповнити</h2>
+          <ul id="quality-critical" class="q-list q-critical"></ul>
+          <ul id="quality-warning" class="q-list q-warning"></ul>
+          <p class="muted">Список оновлюється після збереження. Розшифровка — у розділі «Мануал».</p>
+        </section>
 
         <form id="person-form" novalidate>
           <fieldset>
@@ -102,6 +114,14 @@
             <div class="grid">
               <div class="field"><label for="f-military_status">Поточний статус особи</label>
                 <select id="f-military_status" name="military_status"></select></div>
+              <div class="field" id="death-wrap" hidden><label for="f-death_date">Дата смерті</label>
+                <input id="f-death_date" name="death_date" type="date"><p class="hint" id="h-death_date"></p></div>
+              <div class="field"><label for="f-military_unit_code">В/ч (код частини)</label>
+                <input id="f-military_unit_code" name="military_unit_code" placeholder="А0216"></div>
+              <div class="field"><label for="f-wounded">Поранення</label>
+                <select id="f-wounded" name="wounded"></select></div>
+              <div class="field" data-show-if="wounded"><label for="f-wound_date">Дата поранення</label>
+                <input id="f-wound_date" name="wound_date" type="date"><p class="hint" id="h-wound_date"></p></div>
             </div>
             <p class="sublabel">Статус ветерана війни <span class="muted">(можна обрати кілька)</span></p>
             <div id="vet-statuses" class="checks checks-grid"></div>
@@ -186,8 +206,14 @@
           </fieldset>
 
           <fieldset>
-            <legend>Інше</legend>
+            <legend>Організація</legend>
+            <div class="grid">
+              <div class="field"><label for="f-cell_id">Осередок ГО</label>
+                <select id="f-cell_id" name="cell_id"></select></div>
+            </div>
             <label class="check"><input type="checkbox" name="vkmpu_member"> Член ВКМПУ</label>
+            <p class="sublabel">Програми ГО <span class="muted">(можна обрати кілька)</span></p>
+            <div id="programs-box" class="checks checks-grid"></div>
             <div class="field field-wide"><label for="f-comment">Коментар</label>
               <textarea id="f-comment" name="comment" rows="3"></textarea></div>
           </fieldset>
@@ -199,6 +225,155 @@
             <button id="delete-btn" class="btn-danger" type="button" hidden>Видалити особу</button>
           </div>
         </form>
+      </section>
+    </main>
+    <main id="manual-view" class="app-main manual" hidden>
+      <h1>Мануал оператора</h1>
+      <p class="manual-lead">Коротко: як вносити людей, що означають позначки і як знайти потрібних людей для розсилки.</p>
+
+      <nav class="toc" aria-label="Зміст">
+        <a href="#m-start">Основи</a>
+        <a href="#m-card">Картка особи</a>
+        <a href="#m-auto">Автоматичні категорії</a>
+        <a href="#m-quality">Підсвітка: що доповнити</a>
+        <a href="#m-filters">Фільтри</a>
+        <a href="#m-phone">Телефони</a>
+        <a href="#m-scenarios">Типові завдання</a>
+        <a href="#m-rules">Правила роботи з даними</a>
+      </nav>
+
+      <section id="m-start">
+        <h2>Основи</h2>
+        <ul>
+          <li><b>Пошук</b> — за прізвищем, ім’ям, по батькові або частиною телефону (від 3 цифр).</li>
+          <li><b>Додати особу</b> — кнопка вгорі праворуч. Відкрити картку — клік по рядку.</li>
+          <li>Обов’язкові лише <b>прізвище та ім’я</b>. Решту можна доповнити пізніше — система підкаже, чого бракує.</li>
+          <li><b>Видаляти</b> особу може лише адміністратор.</li>
+          <li>Після <b>30 хвилин бездіяльності</b> система виходить сама — увійдіть знову.</li>
+        </ul>
+      </section>
+
+      <section id="m-card">
+        <h2>Картка особи</h2>
+        <p>У картку вносимо <b>людину, з якою ГО підтримує зв’язок</b>: самого військового або члена його родини.</p>
+        <ul>
+          <li><b>Військовий статус</b> — статус самої людини. Для родичів зазвичай «Не застосовується».</li>
+          <li><b>Пов’язані військові особи</b> — чоловік, син, брат тощо, які служать, загинули, у полоні чи зникли безвісти. Від цього блоку залежать категорії родини. Для загиблих вказуйте <b>дату загибелі</b>.</li>
+          <li><b>Діти</b> — дата народження обов’язкова: вік рахується сам і завжди актуальний. Вказуйте інтереси дитини — за ними роблять тематичні розсилки (табори, спорт).</li>
+          <li><b>Вік ніколи не вписується числом</b> — лише дата народження. Для загиблих вік рахується на момент загибелі.</li>
+          <li><b>Програми ГО</b> — у яких програмах бере участь людина (200, 300, Діти МП). За ними можна фільтрувати.</li>
+        </ul>
+      </section>
+
+      <section id="m-auto">
+        <h2>Автоматичні категорії</h2>
+        <p>Категорії <b>не вносяться вручну</b> — система визначає їх сама з власного статусу людини та її пов’язаних осіб.</p>
+        <table class="m-table">
+          <thead><tr><th>Що внесено</th><th>Що з’явиться</th></tr></thead>
+          <tbody>
+            <tr><td>Пов’язана особа: <i>Дружина</i>, статус <i>Загиблий</i>, МП <i>Так</i></td><td>Член родини загиблого · Член родини загиблого військовослужбовця МП · Родина загиблого · Родина Морської піхоти</td></tr>
+            <tr><td>Пов’язана особа зі статусом <i>Зниклий безвісти</i></td><td>Член родини зниклого безвісти · Родина зниклого безвісти</td></tr>
+            <tr><td>Власний статус <i>Ветеран</i></td><td>Ветеран</td></tr>
+          </tbody>
+        </table>
+        <p>Якщо категорія не з’явилась — перевірте статус пов’язаної особи: при «Невідомо» категорія не визначається.</p>
+      </section>
+
+      <section id="m-quality">
+        <h2>Підсвітка: що доповнити</h2>
+        <p>У списку біля кожної особи є позначки, а в картці вгорі — блок «Що потрібно доповнити» з поясненням.</p>
+        <div class="legend">
+          <p><span class="dot dot-crit" aria-hidden="true"></span><b>Червона — критично.</b> Людина <b>не потрапить у розсилку або у вибірки</b>. Виправляйте в першу чергу.</p>
+          <p><span class="dot dot-warn" aria-hidden="true"></span><b>Жовта — бажано.</b> Людина <b>випаде з окремих фільтрів</b> (вік, область, діти). Доповнюйте, коли є можливість.</p>
+          <p><span class="dot dot-ok" aria-hidden="true"></span><b>Зелена галочка</b> — картка заповнена повністю.</p>
+        </div>
+
+        <h3>Критично</h3>
+        <table class="m-table">
+          <thead><tr><th>Позначка</th><th>Чому важливо</th><th>Що зробити</th></tr></thead>
+          <tbody>
+            <tr><td>Немає телефону</td><td>Не потрапить у розсилку</td><td>Уточніть номер у родини, осередку чи в документах</td></tr>
+            <tr><td>Стаціонарний номер</td><td>Месенджери не працюють</td><td>Попросіть мобільний номер</td></tr>
+            <tr><td>Немає згоди на обробку ПД</td><td>Дані не можна використовувати для розсилок</td><td>Перевірте анкету чи документи; якщо згода є — відмітьте її</td></tr>
+            <tr><td>Не визначено зв’язок з військовим</td><td>Категорії не рахуються, не потрапить у вибірки</td><td>Додайте пов’язану військову особу або вкажіть власний статус</td></tr>
+          </tbody>
+        </table>
+
+        <h3>Бажано</h3>
+        <table class="m-table">
+          <thead><tr><th>Позначка</th><th>На що впливає</th></tr></thead>
+          <tbody>
+            <tr><td>Немає дати народження</td><td>Фільтр за віком, пошук дублікатів</td></tr>
+            <tr><td>Не вказано область</td><td>Вибірки за регіоном</td></tr>
+            <tr><td>Немає по батькові</td><td>Складніше розрізнити однофамільців</td></tr>
+            <tr><td>Не вказано месенджер</td><td>Незрозуміло, в який канал вивантажувати</td></tr>
+            <tr><td>Немає згоди на повідомлення</td><td>Перед розсилкою потрібно уточнити згоду</td></tr>
+            <tr><td>«Є діти», але дітей не додано / невідомо, чи є діти</td><td>Фільтр за віком дітей, дитячі програми</td></tr>
+            <tr><td>Не вказано інтереси дитини</td><td>Тематичні розсилки (табори, спорт тощо)</td></tr>
+            <tr><td>Інвалідність без групи</td><td>Фільтр за групою</td></tr>
+            <tr><td>Не вказано підрозділ МП</td><td>Фільтр за підрозділом</td></tr>
+            <tr><td>Поранення чи смерть без дати</td><td>Повнота картки</td></tr>
+            <tr><td>Статус уточнюється</td><td>Нагадування повернутися до картки</td></tr>
+            <tr><td>Статус пов’язаної особи невідомий</td><td><b>Категорія родини не визначиться</b></td></tr>
+            <tr><td>Невідомо, чи пов’язана особа служила в МП</td><td>Може не потрапити до «Родина Морської піхоти»</td></tr>
+          </tbody>
+        </table>
+        <p class="tip">Порада: у фільтрах оберіть <b>«Потребує доповнення → Є критичні»</b> — отримаєте список, кому зателефонувати в першу чергу.</p>
+      </section>
+
+      <section id="m-filters">
+        <h2>Фільтри</h2>
+        <ul>
+          <li>Всередині одного фільтра — <b>«АБО»</b>: «УБД» або «Учасник війни».</li>
+          <li>Між різними фільтрами — <b>«І»</b>: УБД <i>і</i> Родина МП <i>і</i> Полтавська область.</li>
+          <li>Список оновлюється сам. Кнопка «Скинути всі фільтри» повертає повний список.</li>
+          <li>«Є дитина віком 11–14» — знайде людей, у яких хоча б одна дитина цього віку.</li>
+        </ul>
+      </section>
+
+      <section id="m-phone">
+        <h2>Телефони</h2>
+        <p>Вводьте номер у будь-якому вигляді — система сама приведе його до формату <code>+380XXXXXXXXX</code>.</p>
+        <table class="m-table">
+          <thead><tr><th>Ввели</th><th>Стане</th></tr></thead>
+          <tbody>
+            <tr><td>050 123 45 67</td><td>+380 50 123 45 67</td></tr>
+            <tr><td>(050)123-45-67</td><td>+380 50 123 45 67</td></tr>
+            <tr><td>501234567</td><td>+380 50 123 45 67</td></tr>
+            <tr><td>+48 512 345 678</td><td>іноземний, залишиться як є</td></tr>
+          </tbody>
+        </table>
+        <p>Один номер — одна особа: якщо номер уже є в реєстрі, система не дасть створити дублікат. Знайдіть цю особу пошуком.</p>
+      </section>
+
+      <section id="m-scenarios">
+        <h2>Типові завдання</h2>
+        <h3>Внести родину загиблого</h3>
+        <ol>
+          <li>Додати особу — члена родини (ПІБ, телефон, згода).</li>
+          <li>У блоці «Пов’язані військові особи» — ступінь спорідненості, ПІБ загиблого, статус «Загиблий», дата загибелі, МП, підрозділ.</li>
+          <li>Додати дітей з датами народження та інтересами.</li>
+          <li>Відмітити програму «Супровід родин загиблих (200)».</li>
+        </ol>
+        <h3>Знайти дітей 11–14 років для табору</h3>
+        <ol>
+          <li>Фільтри → «Є дитина віком» 11–14.</li>
+          <li>За потреби — «Інтереси дітей: Дитячі табори» та область.</li>
+        </ol>
+        <h3>Пройтися по неповних картках</h3>
+        <ol>
+          <li>Фільтри → «Потребує доповнення → Є критичні».</li>
+          <li>Відкривайте картки по черзі: вгорі видно, чого бракує.</li>
+        </ol>
+      </section>
+
+      <section id="m-rules">
+        <h2>Правила роботи з даними</h2>
+        <ul>
+          <li>Дані в реєстрі <b>конфіденційні</b>: не пересилайте їх у месенджери, не робіть скриншотів без потреби.</li>
+          <li>Не передавайте свій пароль колегам — кожен працює під своїм обліковим записом.</li>
+          <li>Вносьте лише те, що підтверджено: сумнівне залишайте «Невідомо» або «Статус уточнюється».</li>
+        </ul>
       </section>
     </main>
   </div>
@@ -214,6 +389,7 @@
   <script src="validation.js"></script>
   <script src="filters.js"></script>
   <script src="persons.js"></script>
+  <script src="nav.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

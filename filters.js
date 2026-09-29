@@ -8,10 +8,19 @@ window.Filters = (() => {
   let onChange = () => {};
   const $ = (id) => document.getElementById(id);
 
-  function buildDefs(regions) {
-    const regionOpts = [...regions].map(([id, name]) => ({ value: String(id), label: name }));
+  function buildDefs({ regions, cells, programs }) {
+    const toOpts = (m) => [...m].map(([id, name]) => ({ value: String(id), label: name }));
+    const regionOpts = toOpts(regions);
     const o = (arr) => arr.map((v) => ({ value: v, label: v }));
     return [
+      { group: 'Стан картки' },
+      { key: 'quality', label: 'Потребує доповнення', type: 'select', options: [
+        { value: 'crit', label: 'Є критичні' },
+        { value: 'warn', label: 'Лише бажані' },
+        { value: 'ok', label: 'Все заповнено' }] },
+      { key: 'program_ids', label: 'Програми ГО', type: 'multi', op: 'overlaps', options: toOpts(programs) },
+      { key: 'cell_id', label: 'Осередок ГО', type: 'multi', op: 'in', options: toOpts(cells) },
+
       { group: 'Категорії' },
       { key: 'person_categories', label: 'Категорія особи', type: 'multi', op: 'overlaps', options: o(OPT.person_categories) },
       { key: 'family_categories', label: 'Категорія родини', type: 'multi', op: 'overlaps', options: o(OPT.family_categories) },
@@ -24,11 +33,13 @@ window.Filters = (() => {
       { key: 'disability_war_related', label: 'Інвалідність через війну', type: 'multi', op: 'in', options: o(OPT.disability_war_related) },
       { key: 'mp_relation', label: 'Особисте відношення до МП', type: 'multi', op: 'in', options: o(OPT.yes_no_unknown) },
       { key: 'mp_family_link', label: 'Родинний зв’язок з МП', type: 'bool' },
+      { key: 'wounded', label: 'Поранення', type: 'multi', op: 'in', options: o(OPT.yes_no_unknown) },
 
       { group: 'Вік і діти' },
       { key: 'age', label: 'Вік особи', type: 'range' },
       { key: 'has_minor_children', label: 'Є неповнолітні діти', type: 'bool' },
       { key: 'child_age', label: 'Є дитина віком', type: 'range' },
+      { key: 'children_interests', label: 'Інтереси дітей', type: 'multi', op: 'overlaps', options: o(OPT.child_interests) },
 
       { group: 'Проживання і розсилки' },
       { key: 'region_id', label: 'Область', type: 'multi', op: 'in', options: regionOpts },
@@ -120,6 +131,15 @@ window.Filters = (() => {
       wrap.querySelector('select').addEventListener('change', changed);
     }
 
+    if (d.type === 'select') {
+      const id = 'flt-' + d.key;
+      wrap.innerHTML = `<label class="filter-label" for="${id}"></label><select id="${id}"><option value="">Будь-яке</option></select>`;
+      wrap.querySelector('label').textContent = d.label;
+      const sel = wrap.querySelector('select');
+      d.options.forEach((opt) => sel.add(new Option(opt.label, opt.value)));
+      sel.addEventListener('change', changed);
+    }
+
     if (d.type === 'range') {
       const id = 'flt-' + d.key;
       wrap.innerHTML = `<span class="filter-label" id="${id}-l"></span>
@@ -164,6 +184,9 @@ window.Filters = (() => {
       } else if (d.type === 'bool') {
         const v = wrap.querySelector('select').value;
         if (v) out[d.key] = v === 'true';
+      } else if (d.type === 'select') {
+        const v = wrap.querySelector('select').value;
+        if (v) out[d.key] = v;
       } else if (d.type === 'range') {
         const from = wrap.querySelector('[data-r="from"]').value;
         const to = wrap.querySelector('[data-r="to"]').value;
@@ -193,7 +216,11 @@ window.Filters = (() => {
       if (!d.key || !(d.key in v)) continue;
       const val = v[d.key];
 
-      if (d.key === 'has_phone') {
+      if (d.key === 'quality') {
+        if (val === 'crit') query = query.gt('critical_count', 0);
+        if (val === 'warn') query = query.eq('critical_count', 0).gt('warning_count', 0);
+        if (val === 'ok') query = query.eq('critical_count', 0).eq('warning_count', 0);
+      } else if (d.key === 'has_phone') {
         query = val ? query.not('phone', 'is', null) : query.is('phone', null);
       } else if (d.key === 'age') {
         if (val.from !== null) query = query.gte('age', val.from);
@@ -204,9 +231,9 @@ window.Filters = (() => {
       } else if (d.type === 'bool') {
         query = query.eq(d.key, val);
       } else if (d.op === 'overlaps') {
-        query = query.overlaps(d.key, val);
+        query = query.overlaps(d.key, d.key === 'program_ids' ? val.map(Number) : val);
       } else if (d.op === 'in') {
-        query = query.in(d.key, d.key === 'region_id' ? val.map(Number) : val);
+        query = query.in(d.key, ['region_id', 'cell_id'].includes(d.key) ? val.map(Number) : val);
       }
     }
     return query;

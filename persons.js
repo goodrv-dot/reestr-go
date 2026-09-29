@@ -10,6 +10,8 @@ window.Persons = (() => {
   let editingConsentAt = null;
   let searchTimer = null;
   const regions = new Map();
+  const cells = new Map();
+  const programs = new Map();
   let units = [];          // підрозділи МП для рядків зв’язків
   let rowSeq = 0;          // унікальні id для полів у рядках
   const $ = (id) => document.getElementById(id);
@@ -33,7 +35,29 @@ window.Persons = (() => {
     sel.innerHTML = '<option value="">Не вказано</option>';
     data.forEach((r) => { regions.set(r.id, r.name); sel.add(new Option(r.name, r.id)); });
 
-    Filters.init(regions, loadList);
+    // Осередки та програми ГО
+    const [cres, pres] = await Promise.all([
+      db.from('cells').select('id, name').eq('active', true).order('name'),
+      db.from('programs').select('id, name').eq('active', true).order('id')
+    ]);
+    if (cres.error) throw cres.error;
+    if (pres.error) throw pres.error;
+    const cs = $('f-cell_id');
+    cs.innerHTML = '<option value="">Не вказано</option>';
+    cres.data.forEach((c) => { cells.set(c.id, c.name); cs.add(new Option(c.name, c.id)); });
+    const pbox = $('programs-box');
+    pbox.innerHTML = '';
+    pres.data.forEach((pr) => {
+      programs.set(pr.id, pr.name);
+      const l = document.createElement('label');
+      l.className = 'check';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox'; cb.name = 'program'; cb.value = pr.id;
+      l.append(cb, ' ' + pr.name);
+      pbox.appendChild(l);
+    });
+
+    Filters.init({ regions, cells, programs }, loadList);
 
     // Підрозділи МП
     const ures = await db.from('mp_units').select('id, name').eq('active', true).order('name');
@@ -48,6 +72,7 @@ window.Persons = (() => {
     fillSelect($('f-disability_war_related'), OPT.disability_war_related);
     fillSelect($('f-mp_relation'), OPT.yes_no_unknown);
     fillSelect($('f-has_children'), OPT.yes_no_unknown);
+    fillSelect($('f-wounded'), OPT.yes_no_unknown);
     fillSelect($('f-mp_relation_type'), OPT.mp_relation_type);
     $('f-mp_relation_type').insertBefore(new Option('Оберіть…', ''), $('f-mp_relation_type').firstChild);
 
@@ -88,6 +113,12 @@ window.Persons = (() => {
           <input id="r${n}-bd" type="date" data-k="related_birth_date"><p class="hint" data-h="related_birth_date"></p></div>
         <div class="field"><label for="r${n}-status">Статус</label>
           <select id="r${n}-status" data-k="related_status"></select></div>
+        <div class="field" data-row-death><label for="r${n}-dd">Дата загибелі / смерті</label>
+          <input id="r${n}-dd" type="date" data-k="related_death_date"><p class="hint" data-h="related_death_date"></p></div>
+        <div class="field"><label for="r${n}-cs">Позивний</label>
+          <input id="r${n}-cs" data-k="related_callsign"></div>
+        <div class="field"><label for="r${n}-uc">В/ч (код частини)</label>
+          <input id="r${n}-uc" data-k="related_unit_code" placeholder="А0216"></div>
         <div class="field"><label for="r${n}-mp">Відношення до МП</label>
           <select id="r${n}-mp" data-k="related_mp"></select></div>
         <div class="field" data-row-mp><label for="r${n}-unit">Підрозділ</label>
@@ -112,12 +143,17 @@ window.Persons = (() => {
     q('related_mp').value = r.related_mp || 'Невідомо';
     q('related_unit').value = r.related_unit_id ? String(r.related_unit_id) : (r.related_unit_other ? 'other' : '');
     q('related_unit_other').value = r.related_unit_other || '';
+    q('related_death_date').value = r.related_death_date || '';
+    q('related_callsign').value = r.related_callsign || '';
+    q('related_unit_code').value = r.related_unit_code || '';
 
     const vis = () => {
       const mp = q('related_mp').value === 'Так';
       row.querySelector('[data-row-mp]').hidden = !mp;
       row.querySelector('[data-row-other]').hidden = !mp || q('related_unit').value !== 'other';
+      row.querySelector('[data-row-death]').hidden = !OPT.deceased_statuses.includes(q('related_status').value);
     };
+    q('related_status').addEventListener('change', vis);
     q('related_mp').addEventListener('change', vis);
     q('related_unit').addEventListener('change', vis);
     row.querySelector('.btn-remove').addEventListener('click', () => row.remove());
@@ -138,10 +174,28 @@ window.Persons = (() => {
           <input id="c${n}-bd" type="date" data-k="birth_date"><p class="hint" data-h="birth_date"></p></div>
         <div class="field"><label for="c${n}-name">ПІБ дитини</label>
           <input id="c${n}-name" data-k="full_name"></div>
+        <div class="field"><label for="c${n}-sex">Стать</label>
+          <select id="c${n}-sex" data-k="sex"></select></div>
+        <div class="field field-span"><label for="c${n}-sn">Особливі потреби</label>
+          <input id="c${n}-sn" data-k="special_needs" placeholder="Напр., потребує супроводу"></div>
       </div>
+      <p class="sublabel">Інтереси дитини</p>
+      <div class="checks checks-grid child-interests"></div>
       <button type="button" class="btn-link btn-remove">Прибрати</button>`;
     row.querySelector('[data-k="birth_date"]').value = c.birth_date || '';
     row.querySelector('[data-k="full_name"]').value = c.full_name || '';
+    fillSelect(row.querySelector('[data-k="sex"]'), OPT.child_sex, c.sex || 'Не вказано');
+    row.querySelector('[data-k="special_needs"]').value = c.special_needs || '';
+    const ibox = row.querySelector('.child-interests');
+    const have = new Set(c.interests || []);
+    OPT.child_interests.forEach((v) => {
+      const l = document.createElement('label');
+      l.className = 'check';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox'; cb.value = v; cb.checked = have.has(v);
+      l.append(cb, ' ' + v);
+      ibox.appendChild(l);
+    });
     row.querySelector('.btn-remove').addEventListener('click', () => row.remove());
     $('children-list').appendChild(row);
     return row;
@@ -164,6 +218,7 @@ window.Persons = (() => {
       el.hidden = f[el.dataset.showIf].value !== 'Так';
     });
     $('mp-unit-other-wrap').hidden = f.mp_relation.value !== 'Так' || f.mp_unit.value !== 'other';
+    $('death-wrap').hidden = !OPT.deceased_statuses.includes(f.military_status.value);
   }
 
   function bind() {
@@ -180,7 +235,7 @@ window.Persons = (() => {
       if (f.has_children.value !== 'Так') f.has_children.value = 'Так';
       addChildRow().querySelector('input').focus();
     });
-    ['f-has_disability', 'f-mp_relation', 'f-mp_unit'].forEach((id) =>
+    ['f-has_disability', 'f-mp_relation', 'f-mp_unit', 'f-military_status', 'f-wounded'].forEach((id) =>
       $(id).addEventListener('change', updateVisibility));
     $('search').addEventListener('input', () => {
       clearTimeout(searchTimer);
@@ -218,7 +273,7 @@ window.Persons = (() => {
 
     let query = db
       .from('persons_view')
-      .select('id, last_name, first_name, patronymic, phone, region_id, person_categories, family_categories, created_at', { count: 'exact' })
+      .select('id, last_name, first_name, patronymic, phone, region_id, person_categories, family_categories, created_at, critical_count, warning_count', { count: 'exact' })
       .order('created_at', { ascending: false })
       .limit(200);
 
@@ -270,6 +325,7 @@ window.Persons = (() => {
       tr.dataset.id = p.id;
       tr.tabIndex = 0;
 
+      tr.appendChild(qualityCell(p.critical_count, p.warning_count));
       addCell(tr, [p.last_name, p.first_name, p.patronymic].filter(Boolean).join(' '), 'cell-name');
       addCell(tr, V.formatPhone(p.phone) || '—');
       addCell(tr, regions.get(p.region_id) || '—');
@@ -294,6 +350,38 @@ window.Persons = (() => {
       addCell(tr, new Date(p.created_at).toLocaleDateString('uk-UA'));
       tbody.appendChild(tr);
     });
+  }
+
+  function qualityCell(crit, warn) {
+    const td = document.createElement('td');
+    td.className = 'cell-q';
+    if (!crit && !warn) {
+      td.innerHTML = '<span class="q-ok" title="Картка заповнена">✓</span>';
+      return td;
+    }
+    const parts = [];
+    if (crit) parts.push(`<span class="q-pill q-pill-crit" title="Критично: ${crit}">${crit}</span>`);
+    if (warn) parts.push(`<span class="q-pill q-pill-warn" title="Бажано доповнити: ${warn}">${warn}</span>`);
+    td.innerHTML = parts.join('');
+    return td;
+  }
+
+  // Блок «Що потрібно доповнити» в картці
+  async function showQuality(id) {
+    const box = $('quality-box');
+    box.hidden = true;
+    if (!id) return;
+    const { data, error } = await db.from('persons_view')
+      .select('issues_critical, issues_warning').eq('id', id).single();
+    if (error) { console.error(error); return; }
+    const fill = (ul, items) => {
+      ul.innerHTML = '';
+      items.forEach((t) => { const li = document.createElement('li'); li.textContent = t; ul.appendChild(li); });
+      ul.hidden = !items.length;
+    };
+    fill($('quality-critical'), data.issues_critical);
+    fill($('quality-warning'), data.issues_warning);
+    box.hidden = !data.issues_critical.length && !data.issues_warning.length;
   }
 
   function addCell(tr, text, cls) {
@@ -321,7 +409,7 @@ window.Persons = (() => {
     $('children-list').innerHTML = '';
 
     if (id) {
-      const { data, error } = await db.from('persons').select('*, person_veteran_statuses(status), military_relations(*), children(*)').eq('id', id).single();
+      const { data, error } = await db.from('persons').select('*, person_veteran_statuses(status), military_relations(*), children(*), person_programs(program_id)').eq('id', id).single();
       if (error) { console.error(error); toast('Не вдалося відкрити картку.'); return; }
       fillForm(data);
       $('form-title').textContent = [data.last_name, data.first_name, data.patronymic].filter(Boolean).join(' ');
@@ -330,6 +418,7 @@ window.Persons = (() => {
     }
 
     $('delete-btn').hidden = !(id && isAdmin);
+    await showQuality(id);
     updateVisibility();
     $('list-view').hidden = true;
     $('form-view').hidden = false;
@@ -359,6 +448,14 @@ window.Persons = (() => {
     f.mp_unit_other.value = p.mp_unit_other ?? '';
     const vs = new Set((p.person_veteran_statuses || []).map((x) => x.status));
     f.querySelectorAll('input[name="vet_status"]').forEach((cb) => { cb.checked = vs.has(cb.value); });
+
+    f.death_date.value = p.death_date || '';
+    f.military_unit_code.value = p.military_unit_code || '';
+    f.wounded.value = p.wounded;
+    f.wound_date.value = p.wound_date || '';
+    f.cell_id.value = p.cell_id ?? '';
+    const pids = new Set((p.person_programs || []).map((x) => String(x.program_id)));
+    f.querySelectorAll('input[name="program"]').forEach((cb) => { cb.checked = pids.has(cb.value); });
 
     f.has_children.value = p.has_children;
     f.children_count.value = p.children_count ?? '';
@@ -402,6 +499,22 @@ window.Persons = (() => {
 
     // Морська піхота
     rec.military_status = f.military_status.value;
+    rec.military_unit_code = f.military_unit_code.value.trim() || null;
+    rec.cell_id = f.cell_id.value ? Number(f.cell_id.value) : null;
+    rec.death_date = null;
+    if (OPT.deceased_statuses.includes(rec.military_status)) {
+      const dd = V.checkBirthDate(f.death_date.value);
+      if (dd.error) { setHint('death_date', dd.error); ok = false; }
+      else if (dd.value && rec.birth_date && dd.value < rec.birth_date) { setHint('death_date', 'Дата смерті раніше дати народження'); ok = false; }
+      else rec.death_date = dd.value;
+    }
+    rec.wounded = f.wounded.value;
+    rec.wound_date = null;
+    if (rec.wounded === 'Так') {
+      const wd = V.checkBirthDate(f.wound_date.value);
+      if (wd.error) { setHint('wound_date', wd.error); ok = false; } else rec.wound_date = wd.value;
+    }
+    const programIds = [...f.querySelectorAll('input[name="program"]:checked')].map((cb) => Number(cb.value));
     rec.mp_relation = f.mp_relation.value;
     if (rec.mp_relation === 'Так') {
       rec.mp_relation_type = f.mp_relation_type.value;
@@ -428,14 +541,25 @@ window.Persons = (() => {
         related_status: q('related_status'),
         related_mp: q('related_mp'),
         related_unit_id: null,
-        related_unit_other: null
+        related_unit_other: null,
+        related_callsign: q('related_callsign').trim() || null,
+        related_unit_code: q('related_unit_code').trim() || null,
+        related_death_date: null
       };
+      if (OPT.deceased_statuses.includes(r.related_status)) {
+        const dd = V.checkBirthDate(q('related_death_date'));
+        if (dd.error) { setRowHint(row, 'related_death_date', dd.error); ok = false; }
+        else r.related_death_date = dd.value;
+      }
       if (!r.relation_degree) { setRowHint(row, 'relation_degree', 'Оберіть ступінь спорідненості'); ok = false; }
       if (r.related_full_name.error) { setRowHint(row, 'related_full_name', r.related_full_name.error); ok = false; }
       r.related_full_name = r.related_full_name.value ?? null;
       const bd = V.checkBirthDate(q('related_birth_date'));
       if (bd.error) { setRowHint(row, 'related_birth_date', bd.error); ok = false; }
       r.related_birth_date = bd.value ?? null;
+      if (r.related_death_date && r.related_birth_date && r.related_death_date < r.related_birth_date) {
+        setRowHint(row, 'related_death_date', 'Дата смерті раніше дати народження'); ok = false;
+      }
       if (r.related_mp === 'Так') {
         const u = q('related_unit');
         r.related_unit_id = u && u !== 'other' ? Number(u) : null;
@@ -457,7 +581,13 @@ window.Persons = (() => {
         setRowHint(row, 'birth_date', 'Дитина не може бути старшою за батьків'); ok = false; return;
       }
       const name = row.querySelector('[data-k="full_name"]').value.trim();
-      children.push({ birth_date: bd.value, full_name: name || null });
+      children.push({
+        birth_date: bd.value,
+        full_name: name || null,
+        sex: row.querySelector('[data-k="sex"]').value,
+        special_needs: row.querySelector('[data-k="special_needs"]').value.trim() || null,
+        interests: [...row.querySelectorAll('.child-interests input:checked')].map((cb) => cb.value)
+      });
     });
     const cnt = f.children_count.value === '' ? null : Number(f.children_count.value);
     if (cnt !== null && (!Number.isInteger(cnt) || cnt < 0 || cnt > 30)) {
@@ -510,6 +640,10 @@ window.Persons = (() => {
       if (!error) error = (await db.from('military_relations').delete().eq('person_id', personId)).error;
       if (!error && relations.length) {
         error = (await db.from('military_relations').insert(relations.map((r) => ({ ...r, person_id: personId })))).error;
+      }
+      if (!error) error = (await db.from('person_programs').delete().eq('person_id', personId)).error;
+      if (!error && programIds.length) {
+        error = (await db.from('person_programs').insert(programIds.map((program_id) => ({ person_id: personId, program_id })))).error;
       }
       if (!error) error = (await db.from('children').delete().eq('person_id', personId)).error;
       if (!error && children.length) {

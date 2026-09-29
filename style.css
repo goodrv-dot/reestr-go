@@ -305,3 +305,64 @@ legend { font-weight: 600; font-size: 1.1rem; padding: 0 0.6rem 0 0; color: var(
 .check input { flex-shrink: 0; }
 .check { align-items: flex-start; }
 .check input { margin-top: 0.2rem; }
+
+/* ============ Вкладки, якість даних, мануал ============ */
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.topbar-left { display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; }
+.tabs { display: flex; gap: 0.25rem; }
+.tab {
+  background: transparent; color: #c9d7e0; border: 0; border-bottom: 3px solid transparent;
+  border-radius: 0; padding: 0.35rem 0.6rem; font-weight: 500;
+}
+.tab:hover { color: var(--white); }
+.tab.is-active { color: var(--white); border-bottom-color: var(--brass); }
+
+.cell-q { width: 1%; white-space: nowrap; }
+.q-pill {
+  display: inline-block; min-width: 1.5rem; margin-right: 0.25rem; padding: 0 0.4rem;
+  border-radius: 999px; font-size: 0.8rem; font-weight: 600; line-height: 1.4rem; text-align: center;
+}
+.q-pill-crit { background: #f6dcd8; color: var(--err); }
+.q-pill-warn { background: #f6ebcf; color: #7a5a10; }
+.q-ok { color: #2f6b4e; font-weight: 700; }
+
+.quality {
+  background: var(--white); border: 1px solid var(--line); border-radius: 8px;
+  padding: 1rem 1.25rem; margin: -0.5rem 0 1.75rem; max-width: 60rem;
+}
+.quality h2 { font-size: 1.05rem; margin: 0 0 0.6rem; }
+.q-list { margin: 0 0 0.6rem; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 0.35rem; }
+.q-list li { padding-left: 1.4rem; position: relative; }
+.q-list li::before {
+  content: ''; position: absolute; left: 0.2rem; top: 0.45rem; width: 0.6rem; height: 0.6rem; border-radius: 50%;
+}
+.q-critical li::before { background: var(--err); }
+.q-warning li::before { background: #d4a531; }
+.quality .muted { margin: 0; font-size: 0.85rem; }
+
+.field-span { grid-column: span 2; }
+@media (max-width: 760px) { .field-span { grid-column: auto; } }
+.child-interests { margin-bottom: 0.6rem; font-size: 0.95rem; }
+
+/* Мануал */
+.manual { max-width: 52rem; }
+.manual h1 { margin-bottom: 0.4rem; }
+.manual-lead { color: var(--muted); margin: 0 0 1.25rem; }
+.manual h2 { font-size: 1.3rem; margin: 2.25rem 0 0.6rem; padding-top: 0.5rem; border-top: 2px solid var(--line); color: var(--sea); }
+.manual h3 { font-size: 1.05rem; margin: 1.25rem 0 0.4rem; }
+.manual ul, .manual ol { padding-left: 1.3rem; }
+.manual li { margin-bottom: 0.35rem; }
+.toc { display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; padding: 0.8rem 1rem; background: var(--white); border: 1px solid var(--line); border-radius: 8px; }
+.toc a { color: var(--sea); }
+.m-table { width: 100%; background: var(--white); border: 1px solid var(--line); border-radius: 8px; margin: 0.5rem 0 0.75rem; font-size: 0.93rem; }
+.m-table td, .m-table th { vertical-align: top; }
+.m-table tbody tr { cursor: default; }
+.m-table tbody tr:hover { background: transparent; }
+.legend p { display: flex; gap: 0.6rem; align-items: baseline; margin: 0.4rem 0; }
+.dot { flex-shrink: 0; width: 0.75rem; height: 0.75rem; border-radius: 50%; display: inline-block; }
+.dot-crit { background: var(--err); }
+.dot-warn { background: #d4a531; }
+.dot-ok { background: #2f6b4e; }
+.tip { background: #eef3f6; border-left: 4px solid var(--sea); padding: 0.7rem 0.9rem; border-radius: 4px; }
+.manual code { background: #e7eef3; padding: 0.05rem 0.35rem; border-radius: 3px; }
+.grid + .check { margin-top: 0.75rem; }

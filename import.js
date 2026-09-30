@@ -64,8 +64,231 @@ window.Importer = (() => {
       detect: (hdr) => hdr.some((h) => clean(h).startsWith('10.')) && hdr.some((h) => /дитин/i.test(clean(h))),
       parse: parseKids
     }
-    // 200 і 300 — наступними кроками
+    ,
+    {
+      id: 'fallen_200',
+      label: 'Загиблі (200) — сповіщення родин',
+      program: 'Супровід родин загиблих (200)',
+      detect: (hdr) => hdr.some((h) => /отримувач сповіщення/i.test(clean(h))) && hdr.some((h) => /дата загибелі/i.test(clean(h))),
+      parse: parse200
+    },
+    {
+      id: 'wounded_300',
+      label: 'Поранені (300)',
+      program: 'Супровід поранених (300)',
+      detect: (hdr) => hdr.some((h) => /контакти родичів/i.test(clean(h))) && hdr.some((h) => /дата поранення/i.test(clean(h))),
+      parse: parse300
+    }
   ];
+
+  // Колонка за назвою (без урахування регістру, апострофів і пробілів)
+  const norm = (h) => clean(h).toLowerCase().replace(/[’'ʼ`]/g, '').replace(/\s+/g, ' ');
+  const byName = (re) => (h) => re.test(norm(h));
+
+  // Згода: реєстри ГО надходять з підтвердженою згодою на обробку
+  const GO_CONSENT_NOTE = 'Згода на обробку ПД: дані з бази ГО, підтверджені для обробки';
+
+  // Обласні центри та великі міста → область
+  const CITY_REGION = {
+    'вінниця': 'Вінницька', 'луцьк': 'Волинська', 'дніпро': 'Дніпропетровська', 'кривий ріг': 'Дніпропетровська',
+    'краматорськ': 'Донецька', 'слов’янськ': 'Донецька', 'маріуполь': 'Донецька', 'житомир': 'Житомирська',
+    'ужгород': 'Закарпатська', 'запоріжжя': 'Запорізька', 'івано-франківськ': 'Івано-Франківська',
+    'київ': 'м. Київ', 'біла церква': 'Київська', 'бровари': 'Київська', 'кропивницький': 'Кіровоградська',
+    'львів': 'Львівська', 'миколаїв': 'Миколаївська', 'одеса': 'Одеська', 'полтава': 'Полтавська',
+    'кременчук': 'Полтавська', 'рівне': 'Рівненська', 'суми': 'Сумська', 'тернопіль': 'Тернопільська',
+    'харків': 'Харківська', 'херсон': 'Херсонська', 'хмельницький': 'Хмельницька', 'черкаси': 'Черкаська',
+    'чернівці': 'Чернівецька', 'чернігів': 'Чернігівська'
+  };
+
+  // Адреса «м. Львів, вул. …» → населений пункт + область
+  function parseAddress(raw, regions, rec) {
+    const s = clean(raw).replace(/,\s*$/, '');
+    if (!s) return {};
+    const out = {};
+    for (const [id, name] of regions) {
+      const stem = name.replace(/ька$/, '').toLowerCase();
+      if (stem.length > 4 && s.toLowerCase().includes(stem)) { out.region_id = id; break; }
+    }
+    const m = s.match(/(?:^|,\s*)(?:м\.|місто|с\.|село|смт\.?|сел\.)\s*([^,]+)/i);
+    const place = clean(m ? m[1] : s.split(',')[0]);
+    if (place) out.settlement = place;
+    if (!out.region_id && place) {
+      const reg = CITY_REGION[place.toLowerCase().replace(/'/g, '’')];
+      const found = reg && [...regions].find(([, n]) => n === reg);
+      if (found) out.region_id = found[0];
+    }
+    if (!out.region_id) rec.warnings.push(`Область за адресою «${s}» не визначено — вкажіть вручну`);
+    return out;
+  }
+
+  const CELL_ALIASES = { 'і-ф': 'Івано-Франківськ', 'іф': 'Івано-Франківськ', 'київ': 'Київщина', 'луцьк': 'Волинь' };
+  function matchCell(raw, cells, rec) {
+    const s = clean(raw);
+    if (!s) return null;
+    const name = CELL_ALIASES[s.toLowerCase()] || s;
+    const f = [...cells].find(([, n]) => n.toLowerCase() === name.toLowerCase());
+    if (!f) rec.warnings.push(`Осередок «${s}» не знайдено в довіднику`);
+    return f ? f[0] : null;
+  }
+
+  function matchDegree(raw) {
+    const s = clean(raw).toLowerCase();
+    return OPT.relation_degree.find((d) => d.toLowerCase() === s) || null;
+  }
+
+  // ---------- Шаблон «200» ----------
+  function parse200(rows, hdr, ctx) {
+    const c = {
+      cell: col(hdr, byName(/^регіон$/)), fallen: col(hdr, byName(/^прізвище, імя/)),
+      callsign: col(hdr, byName(/^позивний/)), fbd: col(hdr, byName(/^дата народження/)),
+      fdd: col(hdr, byName(/^дата загибелі/)), vch: col(hdr, byName(/^військова частина/)),
+      brigade: col(hdr, byName(/^бригада/)), rec: col(hdr, byName(/^отримувач сповіщення/)),
+      degree: col(hdr, byName(/^спорідненість/)), addr: col(hdr, byName(/^адреса отримувача/)),
+      phone: col(hdr, byName(/^контакти отримувача/)), notes: col(hdr, byName(/^примітки/))
+    };
+    if ([c.fallen, c.rec, c.degree, c.phone].some((x) => x < 0)) throw new Error('У файлі бракує ключових колонок журналу «200».');
+    const out = [];
+    rows.forEach((r, i) => {
+      const g = (k) => (c[k] >= 0 ? r[c[k]] : null);
+      if (!clean(g('rec')) && !clean(g('fallen'))) return;
+      const rec = newRecord(i + 2);
+      const p = rec.person;
+
+      const fio = splitFio(g('rec'));
+      if (fio.error) rec.errors.push(`Отримувач: ${fio.error}`); else Object.assign(p, fio);
+      setPhone(rec, g('phone'));
+      Object.assign(p, parseAddress(g('addr'), ctx.regions, rec));
+      p.cell_id = matchCell(g('cell'), ctx.cells, rec);
+      p.consent_pd_at = new Date().toISOString();
+      rec.info.push(GO_CONSENT_NOTE);
+      const notes = clean(g('notes'));
+      if (notes) p.comment = notes;
+
+      const degree = matchDegree(g('degree'));
+      if (!degree) rec.warnings.push(`Спорідненість «${clean(g('degree')) || 'не вказано'}» не впізнано — уточніть`);
+      const mf = V.normalizeName(g('fallen'), false);
+      const fbd = toDate(g('fbd')), fdd = toDate(g('fdd'));
+      if (!fdd) rec.warnings.push('Не вказано дату загибелі');
+      if (fbd && fdd && fdd < fbd) rec.errors.push('Дата загибелі раніше дати народження');
+      const unit = matchUnit(clean(g('brigade')), ctx.units);
+      if (clean(g('brigade')) && !unit.id) rec.warnings.push(`Бригаду «${clean(g('brigade'))}» не знайдено в довіднику — записано текстом`);
+      rec.relations.push({
+        relation_degree: degree || 'Інший член сім’ї / родич',
+        related_full_name: mf.value || clean(g('fallen')) || null,
+        related_callsign: clean(g('callsign')) || null,
+        related_birth_date: fbd, related_death_date: fdd,
+        related_status: 'Загиблий', related_mp: 'Так',
+        related_unit_id: unit.id, related_unit_other: unit.other,
+        related_unit_code: clean(g('vch')) || null
+      });
+      rec.programs.push(ctx.programByName('Супровід родин загиблих (200)'));
+      out.push(rec);
+    });
+    return out;
+  }
+
+  // ---------- Шаблон «300» ----------
+  const FEMALE = ['Дружина', 'Мати', 'Сестра', 'Донька', 'Баба', 'Онука'];
+  function femSurname(s) {
+    if (/(ов|ев|єв|ін|їн)$/i.test(s)) return s + 'а';
+    if (/(ський|цький)$/i.test(s)) return s.replace(/ий$/i, 'а');
+    return s;
+  }
+
+  function parse300(rows, hdr, ctx) {
+    const c = {
+      fio: col(hdr, byName(/^піб$/)), bd: col(hdr, byName(/^дата народження/)),
+      phone: col(hdr, byName(/^номер телефону/)), vch: col(hdr, byName(/^в\/ч/)),
+      wd: col(hdr, byName(/^дата поранення/)), ubd: col(hdr, byName(/^убд$/)),
+      kin: col(hdr, byName(/^контакти родичів/)), notes: col(hdr, byName(/^примітки/))
+    };
+    if ([c.fio, c.kin].some((x) => x < 0)) throw new Error('У файлі бракує ключових колонок журналу «300».');
+    const out = [];
+    rows.forEach((r, i) => {
+      const g = (k) => (c[k] >= 0 ? r[c[k]] : null);
+      if (!clean(g('fio'))) return;
+      const row = i + 2;
+      const rec = newRecord(row);
+      const p = rec.person;
+
+      const fio = splitFio(g('fio'));
+      if (fio.error) rec.errors.push(`Військовий: ${fio.error}`); else Object.assign(p, fio);
+      setPhone(rec, g('phone'));
+      const bd = toDate(g('bd'));
+      if (bd) { const chk = V.checkBirthDate(bd); if (chk.error) rec.errors.push('Дата народження: ' + chk.error.toLowerCase()); else p.birth_date = bd; }
+      const vch = clean(g('vch'));
+      if (vch) {
+        const unit = matchUnit(vch, ctx.units);
+        if (unit.id) p.mp_unit_id = unit.id; else p.military_unit_code = vch;
+      }
+      p.wounded = 'Так';
+      p.wound_date = toDate(g('wd'));
+      if (!p.wound_date) rec.warnings.push('Не вказано дату поранення');
+      p.mp_relation = 'Так';
+      p.mp_relation_type = 'Діючий військовослужбовець МП';
+      p.military_status = 'Діючий військовослужбовець';
+      const notes = clean(g('notes'));
+      if (notes) p.comment = notes;
+      const died = /помер|загинув|загибел|смерт/i.test(notes);
+      if (died) {
+        p.military_status = 'Статус уточнюється';
+        rec.warnings.push(`У примітках: «${notes}» — перевірте статус (поставлено «Статус уточнюється»)`);
+      }
+      if (/^(так|є|\+|убд)/i.test(clean(g('ubd')))) rec.vets = ['Учасник бойових дій'];
+      p.consent_pd_at = new Date().toISOString();
+      rec.info.push(GO_CONSENT_NOTE);
+      rec.programs.push(ctx.programByName('Супровід поранених (300)'));
+      out.push(rec);
+
+      // Родичі з вільного тексту → окремі особи
+      String(g('kin') ?? '').split(/\n|;/).map((l) => l.trim()).filter(Boolean).forEach((line) => {
+        const phoneM = line.match(/(\+?\d[\d\s()-]{7,}\d)/);
+        const text = phoneM ? line.slice(0, phoneM.index) : line;
+        const parts = text.split(/\s*[-—–:]\s*/).map(clean).filter(Boolean);
+        const degree = matchDegree(parts[0] ? parts[0][0].toUpperCase() + parts[0].slice(1).toLowerCase() : '');
+        const name = parts.slice(degree ? 1 : 0).join(' ');
+        if (!name && !phoneM) { rec.warnings.push(`Не вдалося розібрати родича: «${line}»`); return; }
+
+        const kr = newRecord(row);
+        kr.isRelative = true;
+        const words = V.normalizeName(name, false).value?.split(' ') || [];
+        let last = null, first = null, patr = null;
+        if (words.length >= 2) [last, first, patr] = [words[0], words[1], words.slice(2).join(' ') || null];
+        else if (words.length === 1 && p.last_name) {
+          first = words[0];
+          last = FEMALE.includes(degree) ? femSurname(p.last_name) : p.last_name;
+          kr.warnings.push(`Прізвище «${last}» взято у військового — перевірте`);
+        }
+        if (!first) kr.errors.push(`Родич «${line}»: немає імені`);
+        Object.assign(kr.person, { last_name: last, first_name: first, patronymic: patr });
+        setPhone(kr, phoneM ? phoneM[1] : '');
+        if (!degree) kr.warnings.push(`Ступінь спорідненості «${parts[0] || ''}» не впізнано — уточніть`);
+        kr.person.consent_pd_at = new Date().toISOString();
+        kr.info.push('Родич пораненого з колонки «Контакти родичів»');
+        kr.relations.push({
+          relation_degree: degree || 'Інший член сім’ї / родич',
+          related_full_name: [p.last_name, p.first_name, p.patronymic].filter(Boolean).join(' ') || null,
+          related_birth_date: p.birth_date || null,
+          related_status: died ? 'Невідомо' : 'Діючий військовослужбовець',
+          related_mp: 'Так',
+          related_unit_id: p.mp_unit_id || null,
+          related_unit_code: p.military_unit_code || null
+        });
+        if (died) kr.warnings.push('Статус пораненого уточнюється — перевірте статус у зв’язку');
+        kr.programs.push(ctx.programByName('Супровід поранених (300)'));
+        out.push(kr);
+      });
+    });
+    return out;
+  }
+
+  function setPhone(rec, raw) {
+    const s = clean(raw);
+    const ph = V.normalizePhone(s);
+    if (ph.error) rec.errors.push(`Телефон «${s}»: невірний формат`);
+    else if (!ph.value) rec.warnings.push('Немає телефону: не потрапить у розсилку');
+    else { rec.person.phone = ph.value; if (ph.warning) rec.warnings.push(ph.warning); }
+  }
 
   // ---------- Шаблон «Діти МП» ----------
   function parseKids(rows, hdr, ctx) {
@@ -239,6 +462,8 @@ window.Importer = (() => {
       r.relations.forEach((rel) => {
         if (!prev.relations.some((x) => letters(x.related_full_name) === letters(rel.related_full_name))) prev.relations.push(rel);
       });
+      (r.vets || []).forEach((v) => { prev.vets = prev.vets || []; if (!prev.vets.includes(v)) prev.vets.push(v); });
+      r.programs.forEach((pid) => { if (!prev.programs.includes(pid)) prev.programs.push(pid); });
       r.warnings.forEach((w) => { if (!prev.warnings.includes(w)) prev.warnings.push(w); });
       r.info.forEach((w) => { if (!prev.info.includes(w)) prev.info.push(w); });
       prev.info.push(`Об’єднано з рядком ${r.rows[0]} (той самий телефон)`);
@@ -254,7 +479,7 @@ window.Importer = (() => {
     const found = new Map();
     for (let i = 0; i < phones.length; i += 150) {
       const { data, error } = await db.from('persons')
-        .select('id, phone, last_name, first_name, email, region_id, settlement, consent_pd_at, consent_messages, children(birth_date, full_name), military_relations(related_full_name), person_programs(program_id)')
+        .select('id, phone, last_name, first_name, email, region_id, settlement, cell_id, birth_date, consent_pd_at, consent_messages, children(birth_date, full_name), military_relations(related_full_name), person_programs(program_id)')
         .in('phone', phones.slice(i, i + 150));
       if (error) throw error;
       data.forEach((p) => found.set(p.phone, p));
@@ -281,10 +506,6 @@ window.Importer = (() => {
     const sel = $('imp-template');
     sel.innerHTML = '';
     TEMPLATES.forEach((t) => sel.add(new Option(t.label, t.id)));
-    sel.add(new Option('Загиблі (200) — незабаром', '', false, false));
-    sel.options[sel.options.length - 1].disabled = true;
-    sel.add(new Option('Поранені (300) — незабаром', '', false, false));
-    sel.options[sel.options.length - 1].disabled = true;
 
     $('imp-file').addEventListener('change', onFile);
     $('imp-run').addEventListener('click', runImport);
@@ -317,9 +538,16 @@ window.Importer = (() => {
       const all = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: null });
       header = all[0] || [];
       rawRows = all.slice(1);
+      let autoNote = '';
       if (!template.detect(header)) {
-        $('imp-status').textContent = 'Цей файл не схожий на обраний шаблон. Перевірте файл або шаблон.';
-        return;
+        const other = TEMPLATES.find((t) => t.detect(header));
+        if (!other) {
+          $('imp-status').textContent = 'Файл не схожий на жоден шаблон (Діти МП, 200, 300). Перевірте, що це потрібна таблиця.';
+          return;
+        }
+        template = other;
+        $('imp-template').value = other.id;
+        autoNote = `Шаблон визначено автоматично: «${other.label}». `;
       }
       const ctx = Persons.ctx();
       const progId = (name) => [...ctx.programs].find(([, n]) => n === name)?.[0];
@@ -329,7 +557,7 @@ window.Importer = (() => {
       await matchExisting(list);
       records = list;
       renderPreview();
-      $('imp-status').textContent = '';
+      $('imp-status').textContent = autoNote;
     } catch (err) {
       console.error(err);
       $('imp-status').textContent = err.message && !/fetch|network/i.test(err.message)
@@ -442,13 +670,13 @@ window.Importer = (() => {
     const p = { ...r.person, source: 'Excel', source_ref: fileName, import_batch_id: batchId };
     const { data, error } = await db.from('persons').insert(p).select('id').single();
     if (error) throw error;
-    await insertChildren(db, data.id, r.relations, r.children, r.programs.filter(Boolean));
+    await insertChildren(db, data.id, r.relations, r.children, r.programs.filter(Boolean), r.vets);
   }
 
   async function addToExisting(db, r) {
     const ex = r.existing;
     const patch = {};
-    ['email', 'region_id', 'settlement', 'consent_pd_at'].forEach((k) => { if (!ex[k] && r.person[k]) patch[k] = r.person[k]; });
+    ['email', 'region_id', 'settlement', 'cell_id', 'birth_date', 'consent_pd_at'].forEach((k) => { if (!ex[k] && r.person[k]) patch[k] = r.person[k]; });
     if (!ex.consent_messages && r.person.consent_messages) patch.consent_messages = true;
     if (Object.keys(patch).length) {
       const { error } = await db.from('persons').update(patch).eq('id', ex.id);
@@ -461,10 +689,15 @@ window.Importer = (() => {
       const { error } = await db.from('persons').update({ has_children: 'Так' }).eq('id', ex.id);
       if (error) throw error;
     }
-    await insertChildren(db, ex.id, rels, kids, progs);
+    await insertChildren(db, ex.id, rels, kids, progs, r.vets);
   }
 
-  async function insertChildren(db, personId, rels, kids, progs) {
+  async function insertChildren(db, personId, rels, kids, progs, vets) {
+    if (vets && vets.length) {
+      const { error } = await db.from('person_veteran_statuses')
+        .upsert(vets.map((status) => ({ person_id: personId, status })), { onConflict: 'person_id,status', ignoreDuplicates: true });
+      if (error) throw error;
+    }
     if (rels.length) {
       const { error } = await db.from('military_relations').insert(rels.map((x) => ({ ...x, person_id: personId })));
       if (error) throw error;

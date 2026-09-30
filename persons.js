@@ -230,12 +230,16 @@ window.Persons = (() => {
     $('person-form').addEventListener('submit', save);
     $('delete-btn').addEventListener('click', removePerson);
     $('add-relation-btn').addEventListener('click', () => {
-      addRelationRow().querySelector('select').focus();
+      const row = addRelationRow();
+      Ui.paint(row);
+      row.querySelector('select').focus();
     });
     $('add-child-btn').addEventListener('click', () => {
       const f = $('person-form');
       if (f.has_children.value !== 'Так') f.has_children.value = 'Так';
-      addChildRow().querySelector('input').focus();
+      const row = addChildRow();
+      Ui.paint(row);
+      row.querySelector('input').focus();
     });
     ['f-has_disability', 'f-mp_relation', 'f-mp_unit', 'f-military_status', 'f-wounded'].forEach((id) =>
       $(id).addEventListener('change', updateVisibility));
@@ -291,7 +295,7 @@ window.Persons = (() => {
     let query;
     try {
       ({ query } = await buildQuery(
-        'id, last_name, first_name, patronymic, phone, region_id, person_categories, family_categories, created_at, critical_count, warning_count',
+        'id, last_name, first_name, patronymic, phone, region_id, person_categories, family_categories, created_at, critical_count, warning_count, comment',
         { count: 'exact' }));
     } catch (e) {
       console.error(e);
@@ -357,7 +361,13 @@ window.Persons = (() => {
       if (!cats.length) td.textContent = '—';
       tr.appendChild(td);
 
-      addCell(tr, new Date(p.created_at).toLocaleDateString('uk-UA'));
+      const cm = document.createElement('td');
+      cm.className = 'cell-comment';
+      if (p.comment) {
+        cm.textContent = p.comment.length > 110 ? p.comment.slice(0, 110) + '…' : p.comment;
+        cm.title = p.comment;
+      } else cm.textContent = '—';
+      tr.appendChild(cm);
       tbody.appendChild(tr);
     });
   }
@@ -428,6 +438,7 @@ window.Persons = (() => {
     }
 
     $('delete-btn').hidden = !(id && isAdmin);
+    Ui.paint($('person-form'));
     await showQuality(id);
     updateVisibility();
     $('list-view').hidden = true;

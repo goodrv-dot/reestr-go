@@ -255,5 +255,24 @@ window.Filters = (() => {
     return [...new Set(data.map((r) => r.person_id))];
   }
 
-  return { init, apply, activeCount, reset };
+  // Людський опис активних фільтрів: ['Програми ГО: …', 'Є дитина віком: від 6 до 14 років', …]
+  function describe() {
+    const v = values();
+    const out = [];
+    defs.forEach((d) => {
+      if (!d.key || !(d.key in v)) return;
+      const val = v[d.key];
+      let text = '';
+      if (d.type === 'multi') text = val.map((x) => (d.options.find((o) => o.value === x) || {}).label || x).join(', ');
+      else if (d.type === 'bool') text = val ? 'Так' : 'Ні';
+      else if (d.type === 'select') text = (d.options.find((o) => o.value === val) || {}).label || val;
+      else if (d.type === 'range') {
+        text = [val.from !== null ? `від ${val.from}` : '', val.to !== null ? `до ${val.to}` : ''].filter(Boolean).join(' ') + ' років';
+      }
+      out.push(`${d.label}: ${text}`);
+    });
+    return out;
+  }
+
+  return { init, apply, activeCount, reset, describe };
 })();

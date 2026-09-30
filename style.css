@@ -422,3 +422,78 @@ tr.is-inactive td { color: var(--muted); }
   background: #eef3f6; padding: 0.7rem 1rem; border-radius: 6px; user-select: all; text-align: center;
 }
 .pwchange-btn { margin-top: 1.5rem; padding: 0.8rem 1rem; }
+
+/* ============ Живий інтерфейс: кольорові розділи ============ */
+.a-base    { --acc: #133c55; --acc-bg: #e6eef4; }
+.a-mil     { --acc: #4d5e2f; --acc-bg: #ebefdf; }
+.a-health  { --acc: #6b3f73; --acc-bg: #f1e7f3; }
+.a-mp      { --acc: #1d3b6e; --acc-bg: #e3e9f5; }
+.a-memory  { --acc: #7a2e2e; --acc-bg: #f5e6e4; }
+.a-kids    { --acc: #1f6f6b; --acc-bg: #e0f0ee; }
+.a-contact { --acc: #2f6b4e; --acc-bg: #e2f0e8; }
+.a-place   { --acc: #7a5230; --acc-bg: #f3eadf; }
+.a-org     { --acc: #8a6a24; --acc-bg: #f5edd9; }
+
+fieldset.fs-card {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-top: 4px solid var(--acc);
+  border-radius: 8px;
+  padding: 0.9rem 1.25rem 1rem;
+  margin: 0 0 1.25rem;
+}
+fieldset.fs-card > legend {
+  float: left; width: 100%; padding: 0; margin: 0 0 0.9rem;
+}
+fieldset.fs-card > legend + * { clear: both; }
+.sec-badge {
+  display: inline-flex; align-items: center; gap: 0.45rem;
+  padding: 0.3rem 0.75rem 0.3rem 0.6rem; border-radius: 999px;
+  background: var(--acc-bg); color: var(--acc); font-weight: 600; font-size: 1rem;
+}
+.sec-badge svg { flex-shrink: 0; }
+fieldset.fs-card .check input { accent-color: var(--acc); }
+fieldset.fs-card .row-card { border-left-color: var(--acc); }
+
+/* Групи фільтрів */
+.filter-group.a-base, .filter-group[class*="a-"] { margin: 1.1rem 0 0.5rem; }
+.filter-group .sec-badge { font-size: 0.92rem; }
+.filter-grid-acc { padding-left: 0.75rem; border-left: 3px solid var(--acc-bg); }
+.filter-grid-acc .filter.is-active .ms-value { border-color: var(--acc); background: var(--acc-bg); }
+
+/* Підсвітка значень у полях */
+select.paint[data-v="Так"]                          { background: #f5edd9; border-color: #b08a3e; }
+select.paint[data-v="Ні"]                           { background: #f1f3f4; }
+select.paint[data-v="Загиблий"],
+select.paint[data-v="Померлий ветеран"]             { background: #f5e6e4; border-color: #7a2e2e; color: #5c2020; font-weight: 600; }
+select.paint[data-v="Зниклий безвісти"],
+select.paint[data-v="Військовополонений"],
+select.paint[data-v="Статус уточнюється"]           { background: #fbf0d5; border-color: #b8871f; font-weight: 600; }
+select.paint[data-v="Звільнений з полону"]          { background: #e9f1e2; border-color: #5c7f3d; }
+select.paint[data-v="Діючий військовослужбовець"]   { background: #ebefdf; border-color: #4d5e2f; font-weight: 600; }
+select.paint[data-v="Ветеран"],
+select.paint[data-v="Звільнений з військової служби"] { background: #e3e9f5; border-color: #1d3b6e; font-weight: 600; }
+select.paint[data-v="Чоловіча"], select.paint[data-v="Хлопець"] { background: #e5eef8; }
+select.paint[data-v="Жіноча"],   select.paint[data-v="Дівчина"] { background: #f8e8ef; }
+select.paint[data-v="Telegram"] { background: #e3f1f9; }
+select.paint[data-v="WhatsApp"] { background: #e2f3e7; }
+select.paint[data-v="Viber"]    { background: #eee6f6; }
+
+/* Список: коментар */
+.cell-comment { max-width: 22rem; color: #3d4a57; font-size: 0.9rem; }
+
+/* Кнопка «Нагору» */
+.to-top {
+  position: fixed; right: 1.25rem; bottom: 1.25rem; z-index: 20;
+  width: 3rem; height: 3rem; border-radius: 50%;
+  border: 0; background: var(--sea); color: var(--white);
+  display: grid; place-items: center;
+  box-shadow: 0 6px 18px rgba(14, 45, 64, 0.35);
+}
+.to-top:hover { background: var(--sea-deep); }
+.to-top[hidden] { display: none !important; }
+@media (max-width: 760px) { .to-top { right: 0.9rem; bottom: 0.9rem; } }
+.filter-grid-acc .filter:has(select option:checked:not([value=""])) select,
+.filter-grid-acc .filter:has(.range input:not(:placeholder-shown)) .range input:not(:placeholder-shown) {
+  border-color: var(--acc); background: var(--acc-bg); font-weight: 600;
+}

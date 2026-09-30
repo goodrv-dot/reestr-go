@@ -116,10 +116,26 @@ window.Exporter = (() => {
         });
 
       const wb = XLSX.utils.book_new();
+      const info = [
+        ['Реєстр — вивантаження'],
+        [],
+        ['Дата і час', nowText()],
+        ['Вивантажив', Persons.ctx().operator.full_name],
+        [],
+        ['Умови вибірки'],
+        ...selection().map((l) => ['', l]),
+        [],
+        ['Осіб', persons.length],
+        ['Дітей', children.length],
+        ['Зв’язків з військовими', relations.length]
+      ];
+      const wsInfo = XLSX.utils.aoa_to_sheet(info);
+      wsInfo['!cols'] = [{ wch: 24 }, { wch: 70 }];
+      XLSX.utils.book_append_sheet(wb, wsInfo, 'Вибірка');
       addSheet(wb, 'Особи', sheetPersons);
       addSheet(wb, 'Діти', sheetChildren);
       addSheet(wb, 'Зв’язки', sheetRelations);
-      XLSX.writeFile(wb, `reiestr_${today()}.xlsx`);
+      XLSX.writeFile(wb, `reiestr_${stamp()}.xlsx`);
       await log('Excel', null, persons.length);
       Persons.toast(`Вивантажено: ${persons.length} осіб, ${children.length} дітей, ${relations.length} зв’язків`);
     } catch (e) {
@@ -205,16 +221,19 @@ window.Exporter = (() => {
   async function downloadCsv() {
     const { regions, cells } = Persons.ctx();
     const channel = $('csv-download').dataset.channel;
-    const header = ['phone', 'name', 'last_name', 'full_name', 'region', 'cell', 'family_category'];
+    const header = ['phone', 'name', 'last_name', 'full_name', 'region', 'cell', 'family_category', 'export_date', 'selection'];
+    const when = nowText();
+    const sel = `${channel}; ` + selection().join('; ');
     const rows = prepared.ok.map((p) => [
       p.phone.replace('+', ''), p.first_name, p.last_name, fio(p),
-      regions.get(p.region_id) || '', cells.get(p.cell_id) || '', (p.family_categories || []).join('; ')
+      regions.get(p.region_id) || '', cells.get(p.cell_id) || '', (p.family_categories || []).join('; '),
+      when, sel
     ]);
     const csv = [header, ...rows].map((r) => r.map(csvCell).join(',')).join('\r\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `sendpulse_${channel.toLowerCase()}_${today()}.csv`;
+    a.download = `sendpulse_${channel.toLowerCase()}_${stamp()}.csv`;
     a.click();
     URL.revokeObjectURL(a.href);
     await log('CSV SendPulse', channel, rows.length);
@@ -228,12 +247,23 @@ window.Exporter = (() => {
   }
 
   const today = () => new Date().toISOString().slice(0, 10);
+  const stamp = () => {
+    const d = new Date(), p = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`;
+  };
+  const nowText = () => new Date().toLocaleString('uk-UA', { dateStyle: 'short', timeStyle: 'short' });
+
+  // Опис вибірки: пошук + фільтри
+  function selection() {
+    const q = $('search').value.trim();
+    const lines = [...(q ? [`Пошук: ${q}`] : []), ...Filters.describe()];
+    return lines.length ? lines : ['Без фільтрів (увесь реєстр)'];
+  }
 
   // Журнал вивантажень (якщо таблиця існує)
   async function log(kind, channel, count) {
     try {
-      const filters = [$('search').value.trim() && `пошук: ${$('search').value.trim()}`, `фільтрів: ${Filters.activeCount()}`]
-        .filter(Boolean).join(', ');
+      const filters = selection().join('; ');
       await Persons.ctx().db.from('export_log').insert({ kind, channel, row_count: count, filters_note: filters });
     } catch (e) { console.warn('export_log', e); }
   }

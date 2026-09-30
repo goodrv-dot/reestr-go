@@ -82,7 +82,7 @@
         <p id="list-status" class="empty" hidden></p>
         <div class="table-wrap">
           <table id="persons-table" hidden>
-            <thead><tr><th class="cell-num">№</th><th><span class="sr-only">Стан даних</span></th><th>ПІБ</th><th>Телефон</th><th>Область</th><th>Категорії</th><th>Додано</th></tr></thead>
+            <thead><tr><th class="cell-num">№</th><th><span class="sr-only">Стан даних</span></th><th>ПІБ</th><th>Телефон</th><th>Область</th><th>Категорії</th><th>Коментар / Досьє</th></tr></thead>
             <tbody></tbody>
           </table>
         </div>
@@ -550,6 +550,10 @@
     </section>
   </main>
 
+  <button id="to-top" class="to-top" type="button" aria-label="Нагору" hidden>
+    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+
   <p id="toast" class="toast" role="status" hidden></p>
 
   <!-- Завантаження -->
@@ -559,6 +563,7 @@
   <script src="config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="options.js"></script>
+  <script src="ui.js"></script>
   <script src="validation.js"></script>
   <script src="filters.js"></script>
   <script src="persons.js"></script>

@@ -10,20 +10,30 @@ const ROLE_LABELS = { admin: 'Адміністратор', operator: 'Опера
 // ---------- Показ екранів ----------
 function showLogin(message) {
   $('loading').hidden = true;
+  $('pwchange-screen').hidden = true;
   $('app-screen').hidden = true;
   $('login-screen').hidden = false;
   setError(message || '');
   $('email').focus();
 }
 
-function showApp(operator) {
+function showApp(operator, userId) {
   $('loading').hidden = true;
   $('login-screen').hidden = true;
+  $('pwchange-screen').hidden = true;
   $('app-screen').hidden = false;
   $('user-name').textContent = operator.full_name;
   $('user-role').textContent = ROLE_LABELS[operator.role] || operator.role;
   startIdleTimer();
-  Persons.init(db, operator).then(() => { if (!window.__exp) { Exporter.init(); Importer.init(); window.__exp = true; } }).catch((e) => {
+  $('staff-tab').hidden = operator.role !== 'admin';
+  Persons.init(db, operator).then(() => {
+    if (!window.__exp) {
+      Exporter.init();
+      Importer.init();
+      if (operator.role === 'admin') Staff.init(db, userId);
+      window.__exp = true;
+    }
+  }).catch((e) => {
     console.error(e);
     alert('Не вдалося завантажити довідники. Оновіть сторінку.');
   });
@@ -38,7 +48,7 @@ function setError(text) {
 async function loadOperator(userId) {
   const { data, error } = await db
     .from('operators')
-    .select('full_name, role, can_export')
+    .select('full_name, role, can_export, must_change_password')
     .eq('user_id', userId)
     .maybeSingle();
   if (error) throw error;
@@ -53,7 +63,11 @@ async function enterWithSession(session) {
       showLogin('Цей обліковий запис не має доступу до реєстру. Зверніться до адміністратора.');
       return;
     }
-    showApp(operator);
+    if (operator.must_change_password) {
+      showPasswordChange(operator, session.user.id);
+      return;
+    }
+    showApp(operator, session.user.id);
   } catch (e) {
     console.error(e);
     showLogin('Не вдалося перевірити доступ. Перевірте інтернет і спробуйте ще раз.');
@@ -128,3 +142,37 @@ function stopIdleTimer() {
     showLogin();
   }
 })();
+
+// ---------- Зміна тимчасового пароля при першому вході ----------
+let pendingOperator = null;
+let pendingUserId = null;
+function showPasswordChange(operator, userId) {
+  pendingOperator = operator;
+  pendingUserId = userId;
+  $('loading').hidden = true;
+  $('login-screen').hidden = true;
+  $('app-screen').hidden = true;
+  $('pwchange-screen').hidden = false;
+  $('pw-new').focus();
+}
+
+$('pwchange-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const p1 = $('pw-new').value, p2 = $('pw-new2').value;
+  const err = (t) => { $('pwchange-error').textContent = t; $('pwchange-error').hidden = !t; };
+  if (p1.length < 10) return err('Пароль має містити щонайменше 10 символів.');
+  if (p1 !== p2) return err('Паролі не збігаються.');
+  err('');
+  $('pwchange-btn').disabled = true;
+  const { error } = await db.auth.updateUser({ password: p1 });
+  if (!error) await db.rpc('password_changed');
+  $('pwchange-btn').disabled = false;
+  if (error) {
+    console.error(error);
+    return err(/same|different/i.test(error.message)
+      ? 'Новий пароль має відрізнятися від тимчасового.'
+      : 'Не вдалося змінити пароль. Спробуйте ще раз.');
+  }
+  $('pw-new').value = ''; $('pw-new2').value = '';
+  showApp({ ...pendingOperator, must_change_password: false }, pendingUserId);
+});

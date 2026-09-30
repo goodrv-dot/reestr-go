@@ -1,5 +1,5 @@
 // Перемикання вкладок «Особи» / «Імпорт» / «Мануал»
-const VIEWS = { registry: 'registry-view', import: 'import-view', manual: 'manual-view' };
+const VIEWS = { registry: 'registry-view', import: 'import-view', staff: 'staff-view', manual: 'manual-view' };
 document.querySelectorAll('.tab').forEach((btn) => {
   btn.addEventListener('click', () => {
     const tab = btn.dataset.tab;

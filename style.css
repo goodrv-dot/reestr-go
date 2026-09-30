@@ -409,3 +409,16 @@ tr.st-warn { background: #fffbf1; }
 .imp-table td:nth-child(4) { white-space: nowrap; }
 .imp-steps { grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr)); }
 .cell-num { width: 1%; white-space: nowrap; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* ============ Співробітники ============ */
+tr.is-inactive td { color: var(--muted); }
+.staff-actions { white-space: nowrap; }
+.staff-actions .btn-link { margin: 0 0.9rem 0 0; }
+.btn-link-danger { color: var(--err); }
+#staff-table select { font: inherit; padding: 0.35rem 0.5rem; border: 1px solid var(--line); border-radius: var(--radius-field); }
+#staff-dialog .field { margin-bottom: 0.75rem; }
+.pw-value {
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: 1.5rem; letter-spacing: 0.08em;
+  background: #eef3f6; padding: 0.7rem 1rem; border-radius: 6px; user-select: all; text-align: center;
+}
+.pwchange-btn { margin-top: 1.5rem; padding: 0.8rem 1rem; }

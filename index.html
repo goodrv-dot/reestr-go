@@ -45,6 +45,7 @@
         <nav class="tabs" aria-label="Розділи">
           <button type="button" class="tab is-active" data-tab="registry" aria-current="page">Особи</button>
           <button type="button" class="tab" data-tab="import">Імпорт</button>
+          <button type="button" class="tab" data-tab="staff" id="staff-tab" hidden>Співробітники</button>
           <button type="button" class="tab" data-tab="manual">Мануал</button>
         </nav>
       </div>
@@ -271,6 +272,20 @@
       </section>
     </main>
 
+    <main id="staff-view" class="app-main" hidden>
+      <div class="list-head">
+        <h1>Співробітники</h1>
+        <button id="staff-add-btn" class="btn-primary" type="button">Додати співробітника</button>
+      </div>
+      <p class="muted imp-lead">Новий співробітник отримує тимчасовий пароль і змінює його при першому вході. Деактивований співробітник одразу втрачає доступ, але його дії залишаються в журналах.</p>
+      <div class="table-wrap">
+        <table id="staff-table" class="imp-table">
+          <thead><tr><th>Співробітник</th><th>Роль</th><th>Вивантаження</th><th>Стан</th><th>Дії</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </main>
+
     <main id="manual-view" class="app-main manual" hidden>
       <h1>Мануал оператора</h1>
       <p class="manual-lead">Коротко: як вносити людей, що означають позначки і як знайти потрібних людей для розсилки.</p>
@@ -285,6 +300,7 @@
         <a href="#m-export">Вивантаження</a>
         <a href="#m-phone">Телефони</a>
         <a href="#m-scenarios">Типові завдання</a>
+        <a href="#m-staff">Співробітники</a>
         <a href="#m-rules">Правила роботи з даними</a>
       </nav>
 
@@ -441,6 +457,16 @@
         </ol>
       </section>
 
+      <section id="m-staff">
+        <h2>Співробітники (для адміністратора)</h2>
+        <ul>
+          <li>«Співробітники» → «Додати співробітника»: пошта, ПІБ, роль, право на вивантаження. Система покаже <b>тимчасовий пароль один раз</b> — передайте його особисто.</li>
+          <li>При першому вході співробітник <b>обов’язково змінює пароль</b> на власний (щонайменше 10 символів).</li>
+          <li>Забув пароль — «Скинути пароль»: новий тимчасовий пароль, старий перестає діяти.</li>
+          <li>Людина пішла з ГО — «Деактивувати»: доступ зникає одразу, історія її дій зберігається. Повернути можна однією кнопкою.</li>
+        </ul>
+      </section>
+
       <section id="m-rules">
         <h2>Правила роботи з даними</h2>
         <ul>
@@ -475,6 +501,55 @@
     </div>
   </dialog>
 
+
+  <!-- Новий співробітник -->
+  <dialog id="staff-dialog" class="dialog" aria-labelledby="staff-title">
+    <h2 id="staff-title">Новий співробітник</h2>
+    <form id="staff-form" novalidate>
+      <div class="field"><label for="st-email">Електронна пошта</label><input id="st-email" name="email" type="email" required></div>
+      <div class="field"><label for="st-name">ПІБ</label><input id="st-name" name="full_name" required></div>
+      <div class="field"><label for="st-role">Роль</label>
+        <select id="st-role" name="role"><option value="operator">Оператор</option><option value="admin">Адміністратор</option></select></div>
+      <label class="check"><input type="checkbox" name="can_export"> Може вивантажувати списки (Excel, CSV)</label>
+      <p id="staff-form-error" class="form-error" role="alert" hidden></p>
+      <div class="form-actions">
+        <button id="staff-save" class="btn-primary" type="submit">Створити</button>
+        <button id="staff-cancel" class="btn-secondary" type="button">Скасувати</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Тимчасовий пароль -->
+  <dialog id="pw-dialog" class="dialog" aria-labelledby="pw-title">
+    <h2 id="pw-title">Тимчасовий пароль</h2>
+    <p>Для: <b id="pw-who"></b></p>
+    <p class="pw-value" id="pw-value"></p>
+    <p class="tip">Пароль показується <b>лише один раз</b>. Передайте його співробітнику особисто або телефоном, не в загальних чатах. При першому вході система попросить змінити пароль.</p>
+    <div class="form-actions">
+      <button id="pw-copy" class="btn-secondary" type="button">Скопіювати</button>
+      <button id="pw-close" class="btn-primary" type="button">Готово</button>
+    </div>
+  </dialog>
+
+  <!-- Зміна пароля при першому вході -->
+  <main id="pwchange-screen" class="login" hidden>
+    <section class="login-brand">
+      <p class="wordmark">Реєстр</p>
+      <p class="brand-lead">Перший вхід: встановіть власний пароль</p>
+    </section>
+    <section class="login-panel">
+      <form id="pwchange-form" class="login-form" novalidate>
+        <h1>Новий пароль</h1>
+        <label for="pw-new">Новий пароль (щонайменше 10 символів)</label>
+        <input id="pw-new" type="password" autocomplete="new-password" required>
+        <label for="pw-new2">Повторіть пароль</label>
+        <input id="pw-new2" type="password" autocomplete="new-password" required>
+        <p id="pwchange-error" class="form-error" role="alert" hidden></p>
+        <button id="pwchange-btn" type="submit" class="btn-primary pwchange-btn">Зберегти і увійти</button>
+      </form>
+    </section>
+  </main>
+
   <p id="toast" class="toast" role="status" hidden></p>
 
   <!-- Завантаження -->
@@ -489,6 +564,7 @@
   <script src="persons.js"></script>
   <script src="export.js"></script>
   <script src="import.js"></script>
+  <script src="staff.js"></script>
   <script src="nav.js"></script>
   <script src="app.js"></script>
 </body>

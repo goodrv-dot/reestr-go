@@ -408,3 +408,4 @@ tr.st-warn { background: #fffbf1; }
 .btn-rollback { color: var(--err); margin: 0; }
 .imp-table td:nth-child(4) { white-space: nowrap; }
 .imp-steps { grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr)); }
+.cell-num { width: 1%; white-space: nowrap; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }

@@ -329,11 +329,12 @@ window.Persons = (() => {
     setListStatus('');
     table.hidden = false;
 
-    rows.forEach((p) => {
+    rows.forEach((p, idx) => {
       const tr = document.createElement('tr');
       tr.dataset.id = p.id;
       tr.tabIndex = 0;
 
+      addCell(tr, String(idx + 1), 'cell-num');
       tr.appendChild(qualityCell(p.critical_count, p.warning_count));
       addCell(tr, [p.last_name, p.first_name, p.patronymic].filter(Boolean).join(' '), 'cell-name');
       addCell(tr, V.formatPhone(p.phone) || '—');

@@ -19,6 +19,15 @@ function tempPassword(len = 12) {
   return Array.from(buf, (n) => abc[n % abc.length]).join('');
 }
 
+// Рівень входу з токена (токен уже перевірено через getUser)
+function jwtAal(req: Request): string {
+  try {
+    const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '');
+    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    return payload.aal ?? '';
+  } catch { return ''; }
+}
+
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const ROLES = ['admin', 'operator'];
 
@@ -41,6 +50,12 @@ Deno.serve(async (req) => {
     const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
     const { data: me } = await admin.from('operators').select('role, active').eq('user_id', user.id).maybeSingle();
     if (!me || !me.active || me.role !== 'admin') return json({ error: 'Лише для адміністратора' }, 403);
+
+    // Якщо 2FA обов'язкова для адміністраторів — вимагаємо рівень aal2
+    const { data: setting } = await admin.from('app_settings').select('value').eq('key', 'mfa_required').maybeSingle();
+    if (setting && setting.value !== 'none' && jwtAal(req) !== 'aal2') {
+      return json({ error: 'Потрібен вхід із кодом 2FA' }, 403);
+    }
 
     const body = await req.json();
     const action = body.action;
@@ -69,6 +84,16 @@ Deno.serve(async (req) => {
       return json({ ok: true, password });
     }
 
+    if (action === 'mfa_status') {
+      const { data: ops } = await admin.from('operators').select('user_id');
+      const result: Record<string, boolean> = {};
+      for (const o of ops ?? []) {
+        const { data } = await admin.auth.admin.mfa.listFactors({ userId: o.user_id });
+        result[o.user_id] = (data?.factors ?? []).some((f: { status: string }) => f.status === 'verified');
+      }
+      return json({ ok: true, status: result });
+    }
+
     const userId = String(body.user_id ?? '');
     if (!userId) return json({ error: 'Не вказано співробітника' }, 400);
     const self = userId === user.id;
@@ -93,6 +118,15 @@ Deno.serve(async (req) => {
       if (error) return json({ error: 'Не вдалося змінити пароль' }, 500);
       await admin.from('operators').update({ must_change_password: true }).eq('user_id', userId);
       return json({ ok: true, password });
+    }
+
+    if (action === 'reset_mfa') {
+      if (self) return json({ error: 'Свою 2FA вимикайте в «Мій профіль»' }, 400);
+      const { data } = await admin.auth.admin.mfa.listFactors({ userId });
+      for (const f of data?.factors ?? []) {
+        await admin.auth.admin.mfa.deleteFactor({ id: f.id, userId });
+      }
+      return json({ ok: true });
     }
 
     if (action === 'deactivate' || action === 'activate') {

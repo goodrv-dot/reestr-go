@@ -555,3 +555,37 @@ tr.st-err  { background: var(--crit-bg); }
 tr.st-warn { background: var(--warn-bg); }
 .n-err  { color: var(--crit); }  .n-err::before  { background: var(--crit); }
 .n-warn { color: var(--warn-ink); } .n-warn::before { background: var(--warn); }
+
+/* ============ 2FA ============ */
+.profile-btn {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  background: transparent; color: var(--white); border: 1px solid transparent; padding: 0.3rem 0.6rem; font-weight: 500;
+}
+.profile-btn:hover { border-color: #5d8098; }
+.code-input {
+  font: inherit; font-size: 1.6rem; letter-spacing: 0.4em; text-align: center;
+  padding: 0.6rem; border: 1px solid var(--line); border-radius: var(--radius-field); width: 100%; max-width: 14rem;
+}
+.mfa-alt { margin-top: 1rem; align-self: flex-start; }
+.mfa-help { margin-top: 1rem; font-size: 0.88rem; }
+.enroll-steps { padding-left: 1.2rem; margin: 0 0 1rem; }
+.enroll-steps li { margin-bottom: 0.7rem; }
+.qr-box { background: #fff; padding: 0.6rem; border: 1px solid var(--line); border-radius: 8px; display: inline-block; margin: 0.6rem 0 0.3rem; }
+.qr-box img { display: block; }
+.secret summary { cursor: pointer; color: var(--sea); font-size: 0.9rem; }
+.secret-code { display: block; margin-top: 0.4rem; word-break: break-all; background: #eef3f6; padding: 0.4rem 0.6rem; border-radius: 4px; }
+.enroll-form { display: flex; flex-direction: column; gap: 0.75rem; align-items: flex-start; }
+.mfa-state { font-weight: 600; padding: 0.1rem 0.55rem; border-radius: 999px; font-size: 0.85rem; }
+.mfa-state.is-on { background: #dcefe4; color: #24583f; }
+.mfa-state.is-off { background: #eef1f3; color: var(--muted); }
+.pf-list { display: grid; grid-template-columns: max-content 1fr; gap: 0.3rem 1rem; margin: 0.75rem 0 1rem; }
+.pf-list dt { color: var(--muted); }
+.pf-list dd { margin: 0; font-weight: 500; }
+.pf-h3 { font-size: 1.05rem; margin: 1rem 0 0.3rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.pf-enroll:not(:empty) { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+.mfa-setting { background: var(--white); border: 1px solid var(--line); border-left: 4px solid var(--brass); border-radius: 8px; padding: 1rem 1.25rem; margin: 0 0 1.5rem; max-width: 60rem; }
+.mfa-setting h2 { font-size: 1.1rem; margin: 0 0 0.6rem; }
+.mfa-setting-row { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+.mfa-setting select { font: inherit; padding: 0.45rem 0.6rem; border: 1px solid var(--line); border-radius: var(--radius-field); }
+.mfa-setting .muted { margin: 0.6rem 0 0; }
+.dialog { max-height: 90vh; overflow: auto; }

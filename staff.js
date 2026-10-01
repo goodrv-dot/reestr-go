@@ -6,6 +6,7 @@ window.Staff = (() => {
   const $ = (id) => document.getElementById(id);
   let db = null;
   let me = null;
+  let mfaStatus = {};
 
   function init(client, userId) {
     db = client;
@@ -23,7 +24,36 @@ window.Staff = (() => {
       try { await navigator.clipboard.writeText($('pw-value').textContent); $('pw-copy').textContent = 'Скопійовано'; }
       catch { $('pw-copy').textContent = 'Виділіть і скопіюйте вручну'; }
     });
+    initMfaSetting();
     load();
+  }
+
+  async function initMfaSetting() {
+    const sel = $('mfa-required');
+    const { data } = await db.from('app_settings').select('value').eq('key', 'mfa_required').maybeSingle();
+    sel.value = data ? data.value : 'none';
+    sel.dataset.prev = sel.value;
+    sel.addEventListener('change', async () => {
+      const val = sel.value;
+      if (val !== 'none') {
+        const { data: aal } = await db.auth.mfa.getAuthenticatorAssuranceLevel();
+        if (aal.currentLevel !== 'aal2') {
+          alert('Спочатку підключіть 2FA собі: «Мій профіль» → «Увімкнути 2FA». Інакше ви втратите доступ до реєстру.');
+          sel.value = sel.dataset.prev;
+          return;
+        }
+        const who = val === 'all' ? 'усіх співробітників' : 'адміністраторів';
+        if (!confirm(`Зробити 2FA обов’язковою для ${who}? Хто ще не підключив 2FA, при наступному вході побачить екран підключення.`)) {
+          sel.value = sel.dataset.prev;
+          return;
+        }
+      }
+      const { error } = await db.from('app_settings')
+        .update({ value: val, updated_at: new Date().toISOString() }).eq('key', 'mfa_required');
+      if (error) { console.error(error); Persons.toast('Не вдалося зберегти налаштування'); sel.value = sel.dataset.prev; return; }
+      sel.dataset.prev = val;
+      Persons.toast(val === 'none' ? '2FA тепер за бажанням' : '2FA тепер обов’язкова');
+    });
   }
 
   async function call(payload) {
@@ -43,6 +73,7 @@ window.Staff = (() => {
     const tbody = $('staff-table').tBodies[0];
     tbody.innerHTML = '';
     if (error) { console.error(error); return; }
+    try { mfaStatus = (await call({ action: 'mfa_status' })).status || {}; } catch { mfaStatus = {}; }
     data.forEach((o) => tbody.appendChild(row(o)));
   }
 
@@ -79,6 +110,12 @@ window.Staff = (() => {
     tdExp.appendChild(lbl);
     tr.appendChild(tdExp);
 
+    // 2FA
+    const tdMfa = document.createElement('td');
+    const on = mfaStatus[o.user_id];
+    tdMfa.innerHTML = `<span class="mfa-state ${on ? 'is-on' : 'is-off'}">${on ? 'Увімкнено' : 'Вимкнено'}</span>`;
+    tr.appendChild(tdMfa);
+
     // Стан
     const tdState = document.createElement('td');
     tdState.textContent = !o.active ? 'Деактивовано' : o.must_change_password ? 'Очікує зміни пароля' : 'Активний';
@@ -94,6 +131,12 @@ window.Staff = (() => {
           const r = await act({ action: 'reset_password', user_id: o.user_id });
           if (r) showPassword(o.full_name, o.email, r.password);
         }));
+        if (mfaStatus[o.user_id]) {
+          tdAct.appendChild(btn('Скинути 2FA', async () => {
+            if (!confirm(`Скинути 2FA для ${o.full_name}? Використовуйте, якщо співробітник втратив телефон. Він підключить 2FA заново.`)) return;
+            act({ action: 'reset_mfa', user_id: o.user_id }, '2FA скинуто');
+          }));
+        }
         tdAct.appendChild(btn('Деактивувати', async () => {
           if (!confirm(`Деактивувати ${o.full_name}? Доступ до реєстру зникне одразу.`)) return;
           act({ action: 'deactivate', user_id: o.user_id }, 'Деактивовано');

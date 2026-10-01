@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Unbounded:wght@600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=202610010630">
+  <link rel="stylesheet" href="style.css?v=202610010645">
 </head>
 <body>
 
@@ -50,7 +50,10 @@
         </nav>
       </div>
       <div class="topbar-user">
-        <span id="user-name"></span>
+        <button id="profile-btn" class="profile-btn" type="button" title="Мій профіль">
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
+          <span id="user-name"></span>
+        </button>
         <span id="user-role" class="role"></span>
         <button id="logout-btn" class="btn-quiet" type="button">Вийти</button>
       </div>
@@ -287,10 +290,22 @@
         <h1>Співробітники</h1>
         <button id="staff-add-btn" class="btn-primary" type="button">Додати співробітника</button>
       </div>
+      <section class="mfa-setting" aria-labelledby="mfa-set-title">
+        <h2 id="mfa-set-title">Двофакторний вхід (2FA)</h2>
+        <div class="mfa-setting-row">
+          <label for="mfa-required">Обов’язкова для:</label>
+          <select id="mfa-required">
+            <option value="none">Нікого (за бажанням)</option>
+            <option value="admins">Адміністраторів</option>
+            <option value="all">Усіх співробітників</option>
+          </select>
+        </div>
+        <p class="muted">Коли 2FA обов’язкова, співробітник без неї після пароля побачить екран підключення і без коду не отримає доступу до даних. Перед увімкненням підключіть 2FA собі в «Мій профіль».</p>
+      </section>
       <p class="muted imp-lead">Новий співробітник отримує тимчасовий пароль і змінює його при першому вході. Деактивований співробітник одразу втрачає доступ, але його дії залишаються в журналах.</p>
       <div class="table-wrap">
         <table id="staff-table" class="imp-table">
-          <thead><tr><th>Співробітник</th><th>Роль</th><th>Вивантаження</th><th>Стан</th><th>Дії</th></tr></thead>
+          <thead><tr><th>Співробітник</th><th>Роль</th><th>Вивантаження</th><th>2FA</th><th>Стан</th><th>Дії</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
@@ -310,6 +325,7 @@
         <a href="#m-export">Вивантаження</a>
         <a href="#m-phone">Телефони</a>
         <a href="#m-scenarios">Типові завдання</a>
+        <a href="#m-2fa">2FA</a>
         <a href="#m-staff">Співробітники</a>
         <a href="#m-rules">Правила роботи з даними</a>
       </nav>
@@ -467,6 +483,19 @@
         </ol>
       </section>
 
+      <section id="m-2fa">
+        <h2>Двофакторний вхід (2FA)</h2>
+        <p>2FA захищає обліковий запис навіть тоді, коли пароль став відомий іншим: для входу потрібен ще й код із вашого телефона.</p>
+        <ol>
+          <li>Встановіть на телефон <b>Google Authenticator</b> або <b>Microsoft Authenticator</b>.</li>
+          <li>Натисніть на своє ім’я вгорі праворуч → <b>«Мій профіль»</b> → <b>«Увімкнути 2FA»</b>.</li>
+          <li>Відскануйте QR-код додатком і введіть 6 цифр, які він показує.</li>
+          <li>Далі при кожному вході після пароля вводьте свіжий код із додатку (він змінюється кожні 30 секунд).</li>
+        </ol>
+        <p><b>Втратили телефон?</b> Адміністратор на вкладці «Співробітники» натисне «Скинути 2FA», і ви підключите її заново.</p>
+        <p>Адміністратор може зробити 2FA <b>обов’язковою</b> (вкладка «Співробітники» → «Двофакторний вхід»). Тоді без неї доступу до даних не буде.</p>
+      </section>
+
       <section id="m-staff">
         <h2>Співробітники (для адміністратора)</h2>
         <ul>
@@ -564,23 +593,79 @@
     <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
   </button>
 
+
+  <!-- Код 2FA при вході -->
+  <main id="mfa-screen" class="login" hidden>
+    <section class="login-brand">
+      <p class="wordmark">Реєстр</p>
+      <p class="brand-lead">Двофакторний вхід</p>
+      <p class="brand-note">Код змінюється кожні 30 секунд. Інтернет на телефоні для цього не потрібен.</p>
+    </section>
+    <section class="login-panel">
+      <form id="mfa-form" class="login-form" novalidate>
+        <h1>Код із додатку</h1>
+        <label for="mfa-code">Відкрийте Google Authenticator (або інший додаток) і введіть 6 цифр для «Реєстр ГО»</label>
+        <input id="mfa-code" class="code-input" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000">
+        <p id="mfa-error" class="form-error" role="alert" hidden></p>
+        <button id="mfa-btn" type="submit" class="btn-primary pwchange-btn">Підтвердити</button>
+        <button id="mfa-logout" type="button" class="btn-link mfa-alt">Увійти під іншим обліковим записом</button>
+        <p class="muted mfa-help">Втратили телефон? Зверніться до адміністратора — він скине 2FA, і ви підключите її заново.</p>
+      </form>
+    </section>
+  </main>
+
+  <!-- Обов'язкове підключення 2FA -->
+  <main id="mfa-enroll-screen" class="login" hidden>
+    <section class="login-brand">
+      <p class="wordmark">Реєстр</p>
+      <p class="brand-lead">Підключіть двофакторний вхід</p>
+      <p class="brand-note">Адміністратор зробив 2FA обов’язковою. Це займе 2 хвилини і робиться один раз.</p>
+    </section>
+    <section class="login-panel">
+      <div class="login-form">
+        <h1>Налаштування 2FA</h1>
+        <div id="mfa-enroll-box"></div>
+        <button id="mfa-enroll-logout" type="button" class="btn-link mfa-alt">Вийти</button>
+      </div>
+    </section>
+  </main>
+
+  <!-- Мій профіль -->
+  <dialog id="profile-dialog" class="dialog" aria-labelledby="pf-title">
+    <h2 id="pf-title">Мій профіль</h2>
+    <dl class="pf-list">
+      <dt>ПІБ</dt><dd id="pf-name"></dd>
+      <dt>Пошта</dt><dd id="pf-email"></dd>
+      <dt>Роль</dt><dd id="pf-role"></dd>
+    </dl>
+    <h3 class="pf-h3">Двофакторний вхід (2FA): <span id="pf-mfa-status" class="mfa-state"></span></h3>
+    <p id="pf-mfa-note" class="muted"></p>
+    <div class="form-actions">
+      <button id="pf-mfa-on" class="btn-primary" type="button" hidden>Увімкнути 2FA</button>
+      <button id="pf-mfa-off" class="btn-secondary" type="button" hidden>Вимкнути 2FA</button>
+    </div>
+    <div id="pf-enroll-box" class="pf-enroll"></div>
+    <div class="form-actions"><button id="profile-close" class="btn-secondary" type="button">Закрити</button></div>
+  </dialog>
+
   <p id="toast" class="toast" role="status" hidden></p>
 
   <!-- Завантаження -->
   <p id="loading" class="loading">Завантаження…</p>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="config.js?v=202610010630"></script>
+  <script src="config.js?v=202610010645"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="options.js?v=202610010630"></script>
-  <script src="ui.js?v=202610010630"></script>
-  <script src="validation.js?v=202610010630"></script>
-  <script src="filters.js?v=202610010630"></script>
-  <script src="persons.js?v=202610010630"></script>
-  <script src="export.js?v=202610010630"></script>
-  <script src="import.js?v=202610010630"></script>
-  <script src="staff.js?v=202610010630"></script>
-  <script src="nav.js?v=202610010630"></script>
-  <script src="app.js?v=202610010630"></script>
+  <script src="options.js?v=202610010645"></script>
+  <script src="ui.js?v=202610010645"></script>
+  <script src="validation.js?v=202610010645"></script>
+  <script src="filters.js?v=202610010645"></script>
+  <script src="persons.js?v=202610010645"></script>
+  <script src="export.js?v=202610010645"></script>
+  <script src="import.js?v=202610010645"></script>
+  <script src="mfa.js?v=202610010645"></script>
+  <script src="staff.js?v=202610010645"></script>
+  <script src="nav.js?v=202610010645"></script>
+  <script src="app.js?v=202610010645"></script>
 </body>
 </html>

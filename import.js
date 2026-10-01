@@ -384,36 +384,43 @@ window.Importer = (() => {
       rec.programs.push(ctx.programByName('Супровід поранених (300)'));
       out.push(rec);
 
-      // Родичі з вільного тексту → окремі особи
-      String(g('kin') ?? '').split(/\n|;/).map((l) => l.trim()).filter(Boolean).forEach((line) => {
-        const ext = V.extractPhones(line);
-        const phoneM = ext.phones.length ? true : null;
-        const text = ext.rest;
-        const parts = text.split(/\s*[-—–:]\s*/).map(clean).filter(Boolean);
-        const degree = matchDegree(parts[0] ? parts[0][0].toUpperCase() + parts[0].slice(1).toLowerCase() : '');
-        const name = parts.slice(degree ? 1 : 0).join(' ');
-        if (!name && !phoneM) { rec.warnings.push(`Не вдалося розібрати родича: «${line}»`); return; }
-
+      // Родичі з «Контакти родичів» → окремі картки, пов’язані з цим бійцем
+      const soldierName = [p.last_name, p.first_name, p.patronymic].filter(Boolean).join(' ') || null;
+      const kinRaw = String(g('kin') ?? '');
+      if (kinRaw.trim() && isNote(V.extractPhones(kinRaw).rest) && !V.extractPhones(kinRaw).phones.length) {
+        addComment(rec, `Контакти родичів (з журналу): ${clean(kinRaw)}`);
+        return;
+      }
+      peopleChunks(kinRaw).filter((e) => e.name || e.degree || e.phones.length).forEach((e) => {
         const kr = newRecord(row);
         kr.isRelative = true;
-        const words = V.normalizeName(name, false).value?.split(' ') || [];
-        let last = null, first = null, patr = null;
-        if (words.length >= 2) [last, first, patr] = [words[0], words[1], words.slice(2).join(' ') || null];
-        else if (words.length === 1 && p.last_name) {
-          first = words[0];
-          last = FEMALE.includes(degree) ? femSurname(p.last_name) : p.last_name;
-          kr.warnings.push(`Прізвище «${last}» взято у військового — перевірте`);
+        kr.linkTo = rec;                       // після збереження бійця сюди підставимо його картку
+        kr.soldierLabel = soldierName;
+        const words = V.normalizeName(e.name, false).value?.split(' ') || [];
+        const surname = p.last_name ? (FEMALE.includes(e.degree) ? femSurname(p.last_name) : p.last_name) : null;
+        if (words.length >= 2) {
+          Object.assign(kr.person, { last_name: words[0], first_name: words[1], patronymic: words.slice(2).join(' ') || null });
+        } else if (words.length === 1 && surname) {
+          Object.assign(kr.person, { last_name: surname, first_name: words[0], patronymic: null,
+            name_check: true, name_check_note: 'вказано лише ім’я, прізвище підставлено з ПІБ бійця' });
+          kr.warnings.push(`Лише ім’я «${words[0]}» — прізвище «${surname}» підставлено, потрібно уточнити`);
+        } else if (!words.length && surname) {
+          const label = e.label || (e.degree ? e.degree.toLowerCase() : 'родич');
+          Object.assign(kr.person, { last_name: surname, first_name: label[0].toUpperCase() + label.slice(1), patronymic: null,
+            name_check: true, name_check_note: `у файлі лише «${label}» без імені` });
+          kr.warnings.push(`ПІБ не вказано (лише «${label}») — створено тимчасове ім’я, потрібно уточнити`);
+        } else {
+          kr.errors.push(`Родич «${clean(e.text)}»: не вдалося визначити ПІБ`);
         }
-        if (!first) kr.errors.push(`Родич «${line}»: немає імені`);
-        Object.assign(kr.person, { last_name: last, first_name: first, patronymic: patr });
-        if (ext.phones.length) addPhones(kr, ext.phones);
+        if (e.phones.length) addPhones(kr, e.phones);
         else kr.warnings.push('Немає телефону: не потрапить у розсилку');
-        if (!degree) kr.warnings.push(`Ступінь спорідненості «${parts[0] || ''}» не впізнано — уточніть`);
+        if (!e.degree) kr.warnings.push(`Ступінь спорідненості не впізнано — уточніть`);
+        else if (e.label && e.degree === 'Інший член сім’ї / родич') addComment(kr, `Спорідненість: ${e.label}`);
         kr.person.consent_pd_at = new Date().toISOString();
-        kr.info.push('Родич пораненого з колонки «Контакти родичів»');
+        kr.info.push(`Родич бійця ${soldierName || ''} (з колонки «Контакти родичів»)`);
         kr.relations.push({
-          relation_degree: degree || 'Інший член сім’ї / родич',
-          related_full_name: [p.last_name, p.first_name, p.patronymic].filter(Boolean).join(' ') || null,
+          relation_degree: e.degree || 'Інший член сім’ї / родич',
+          related_full_name: soldierName,
           related_birth_date: p.birth_date || null,
           related_status: died ? 'Невідомо' : 'Діючий військовослужбовець',
           related_mp: 'Так',
@@ -656,7 +663,7 @@ window.Importer = (() => {
   // Звірка з базою: хто вже є
   async function matchExisting(list) {
     const { db } = Persons.ctx();
-    const COLS = 'id, phone, extra_phones, last_name, first_name, patronymic, email, region_id, settlement, cell_id, birth_date, consent_pd_at, consent_messages, children(birth_date, full_name), military_relations(id, related_full_name, related_death_date, related_burial_date, related_burial_place, related_callsign, related_unit_code), person_programs(program_id)';
+    const COLS = 'id, phone, extra_phones, last_name, first_name, patronymic, email, region_id, settlement, cell_id, birth_date, consent_pd_at, consent_messages, children(birth_date, full_name), military_relations(id, related_full_name, related_death_date, related_burial_date, related_burial_place, related_callsign, related_unit_code, related_person_id), person_programs(program_id)';
     const allPhones = (r) => [r.person.phone, ...(r.person.extra_phones || [])].filter(Boolean);
     const phones = [...new Set(list.flatMap(allPhones))];
     const found = new Map();
@@ -789,6 +796,13 @@ window.Importer = (() => {
       span.textContent = `${count(s)} ${t}`;
       $('imp-summary').appendChild(span);
     });
+    const rel = records.filter((r) => r.isRelative).length;
+    if (rel) {
+      const info = document.createElement('span');
+      info.className = 'imp-chip imp-chip-info';
+      info.textContent = `Усього записів ${records.length} = ${records.length - rel} основних + ${rel} родичів`;
+      $('imp-summary').appendChild(info);
+    }
 
     const tbody = $('imp-preview').tBodies[0];
     tbody.innerHTML = '';
@@ -812,7 +826,18 @@ window.Importer = (() => {
       badge.className = 'st-badge'; badge.textContent = STATE[r.state].label;
       td0.append(cb, badge);
       tr.appendChild(td0);
-      cells.slice(1).forEach((t) => { const td = document.createElement('td'); td.textContent = t; tr.appendChild(td); });
+      cells.slice(1).forEach((t, k) => {
+        const td = document.createElement('td');
+        td.textContent = t;
+        if (k === 1 && r.isRelative) {
+          td.className = 'imp-relative';
+          const tag = document.createElement('span');
+          tag.className = 'tag'; tag.textContent = 'родич';
+          td.prepend(tag, ' ');
+        }
+        tr.appendChild(td);
+      });
+      if (r.isRelative) tr.classList.add('is-relative');
 
       const notes = document.createElement('td');
       const ul = document.createElement('ul');
@@ -853,8 +878,10 @@ window.Importer = (() => {
     let done = 0, failed = 0;
     for (const r of todo) {
       try {
-        if (r.existing) await addToExisting(db, r);
-        else await createNew(db, r, batch.id);
+        // Родич → посилання на картку свого бійця (бійця записано раніше в цьому ж імпорті)
+        if (r.linkTo && r.linkTo.savedId) r.relations.forEach((rel) => { rel.related_person_id = r.linkTo.savedId; });
+        if (r.existing) { await addToExisting(db, r); r.savedId = r.existing.id; }
+        else r.savedId = await createNew(db, r, batch.id);
         done++;
       } catch (e) {
         console.error(e);
@@ -879,6 +906,7 @@ window.Importer = (() => {
     const { data, error } = await db.from('persons').insert(p).select('id').single();
     if (error) throw error;
     await insertChildren(db, data.id, r.relations, r.children, r.programs.filter(Boolean), r.vets);
+    return data.id;
   }
 
   async function addToExisting(db, r) {
@@ -903,7 +931,7 @@ window.Importer = (() => {
       const old = (ex.military_relations || []).find((x) => letters(x.related_full_name) === letters(rel.related_full_name));
       if (!old) continue;
       const fix = {};
-      ['related_burial_date', 'related_burial_place', 'related_death_date', 'related_callsign', 'related_unit_code']
+      ['related_burial_date', 'related_burial_place', 'related_death_date', 'related_callsign', 'related_unit_code', 'related_person_id']
         .forEach((k) => { if (!old[k] && rel[k]) fix[k] = rel[k]; });
       if (Object.keys(fix).length) {
         const { error } = await db.from('military_relations').update(fix).eq('id', old.id);

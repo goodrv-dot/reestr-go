@@ -137,9 +137,38 @@ window.Persons = (() => {
         <div class="field" data-row-other><label for="r${n}-other">Назва підрозділу <span class="req">*</span></label>
           <input id="r${n}-other" data-k="related_unit_other"><p class="hint" data-h="related_unit_other"></p></div>
       </div>
+      <div class="row-links">
+        <button type="button" class="btn-link" data-act="pick">Обрати з реєстру</button>
+        <button type="button" class="btn-link" data-act="open" hidden>Відкрити картку військового →</button>
+        <span class="row-linked" hidden>✓ пов’язано з карткою в реєстрі</span>
+      </div>
+      <div class="row-kin" hidden></div>
       <button type="button" class="btn-link btn-remove">Прибрати</button>`;
 
     const q = (k) => row.querySelector(`[data-k="${k}"]`);
+    row.dataset.personId = r.related_person_id || '';
+    const showLink = () => {
+      const linked = !!row.dataset.personId;
+      row.querySelector('[data-act="open"]').hidden = !linked;
+      row.querySelector('.row-linked').hidden = !linked;
+    };
+    showLink();
+    row.querySelector('[data-act="pick"]').addEventListener('click', () => Picker.open((pp) => {
+      q('related_full_name').value = [pp.last_name, pp.first_name, pp.patronymic].filter(Boolean).join(' ');
+      q('related_birth_date').value = pp.birth_date || '';
+      q('related_status').value = OPT.related_status.includes(pp.military_status) ? pp.military_status : 'Невідомо';
+      q('related_mp').value = pp.mp_relation === 'Так' ? 'Так' : q('related_mp').value;
+      if (pp.mp_unit_id) q('related_unit').value = String(pp.mp_unit_id);
+      if (pp.military_unit_code) q('related_unit_code').value = pp.military_unit_code;
+      if (pp.death_date) q('related_death_date').value = pp.death_date;
+      if (pp.burial_date) q('related_burial_date').value = pp.burial_date;
+      row.dataset.personId = pp.id;
+      showLink();
+      row.querySelectorAll('select').forEach((x) => x.dispatchEvent(new Event('change', { bubbles: true })));
+    }));
+    row.querySelector('[data-act="open"]').addEventListener('click', () => {
+      if (confirm('Перейти до картки військового? Незбережені зміни в цій картці буде втрачено.')) openForm(row.dataset.personId);
+    });
     const degree = q('relation_degree');
     degree.add(new Option('Оберіть…', ''));
     OPT.relation_degree.forEach((v) => degree.add(new Option(v, v)));
@@ -173,6 +202,103 @@ window.Persons = (() => {
     vis();
     $('relations-list').appendChild(row);
     return row;
+  }
+
+  // ---------- Рідні в реєстрі (для картки військового) ----------
+  let currentCard = null;
+  async function loadKin(id) {
+    const box = $('kin-box');
+    box.hidden = !id;
+    $('kin-list').innerHTML = '';
+    if (!id) return;
+    const { data: me } = await db.from('persons')
+      .select('id, last_name, first_name, patronymic, birth_date, military_status, mp_relation, mp_unit_id, military_unit_code, death_date, burial_date')
+      .eq('id', id).single();
+    currentCard = me;
+    const fio = [me.last_name, me.first_name, me.patronymic].filter(Boolean).join(' ');
+    const [linked, byName] = await Promise.all([
+      db.from('military_relations')
+        .select('id, relation_degree, person:persons!military_relations_person_id_fkey(id, last_name, first_name, patronymic, phone)')
+        .eq('related_person_id', id),
+      db.from('military_relations')
+        .select('id, relation_degree, person:persons!military_relations_person_id_fkey(id, last_name, first_name, patronymic, phone)')
+        .is('related_person_id', null).eq('related_full_name', fio)
+    ]);
+    const ul = $('kin-list');
+    const item = (rel, suggested) => {
+      const li = document.createElement('li');
+      const pr = rel.person;
+      const name = [pr.last_name, pr.first_name, pr.patronymic].filter(Boolean).join(' ');
+      li.innerHTML = '<span class="kin-deg"></span> <button type="button" class="btn-link kin-open"></button> <span class="muted kin-phone"></span>';
+      li.querySelector('.kin-deg').textContent = rel.relation_degree + ' —';
+      li.querySelector('.kin-open').textContent = name;
+      li.querySelector('.kin-phone').textContent = V.formatPhone(pr.phone) || 'без телефону';
+      li.querySelector('.kin-open').addEventListener('click', () => openForm(pr.id));
+      if (suggested) {
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'btn-link kin-link'; b.textContent = 'Пов’язати';
+        b.title = 'У цього родича вказано військового з таким самим ПІБ — пов’язати з цією карткою';
+        b.addEventListener('click', async () => {
+          const { error } = await db.from('military_relations').update({ related_person_id: id }).eq('id', rel.id);
+          if (error) { toast('Не вдалося пов’язати'); return; }
+          toast('Пов’язано'); loadKin(id);
+        });
+        li.append(' ', b);
+        li.classList.add('is-suggested');
+      }
+      ul.appendChild(li);
+    };
+    (linked.data || []).forEach((r) => item(r, false));
+    (byName.data || []).filter((r) => r.person && r.person.id !== id).forEach((r) => item(r, true));
+    $('kin-empty').hidden = ul.children.length > 0;
+  }
+
+  // Інші рідні того ж військового (коли картки військового немає — напр., загиблий із «200»)
+  async function loadOtherKin(id) {
+    if (!id) return;
+    const rows = [...document.querySelectorAll('#relations-list .row-card')];
+    for (const row of rows) {
+      const name = row.querySelector('[data-k="related_full_name"]').value.trim();
+      const box = row.querySelector('.row-kin');
+      box.hidden = true; box.innerHTML = '';
+      if (!name) continue;
+      const { data } = await db.from('military_relations')
+        .select('relation_degree, person:persons!military_relations_person_id_fkey(id, last_name, first_name, patronymic, phone)')
+        .eq('related_full_name', name).neq('person_id', id).limit(20);
+      if (!data || !data.length) continue;
+      box.innerHTML = '<span class="muted">Інші рідні цього військового в реєстрі:</span> ';
+      data.forEach((r, k) => {
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'btn-link';
+        b.textContent = `${r.relation_degree} — ${[r.person.last_name, r.person.first_name].filter(Boolean).join(' ')}`;
+        b.addEventListener('click', () => { if (confirm('Перейти до цієї картки? Незбережені зміни буде втрачено.')) openForm(r.person.id); });
+        if (k) box.append(', ');
+        box.appendChild(b);
+      });
+      box.hidden = false;
+    }
+  }
+
+  function addRelative() {
+    const me = currentCard;
+    if (!me) return;
+    const fio = [me.last_name, me.first_name, me.patronymic].filter(Boolean).join(' ');
+    openForm(null, {
+      relativeOf: {
+        label: fio,
+        relation: {
+          related_person_id: me.id,
+          related_full_name: fio,
+          related_birth_date: me.birth_date,
+          related_status: OPT.related_status.includes(me.military_status) ? me.military_status : 'Невідомо',
+          related_mp: me.mp_relation === 'Так' ? 'Так' : 'Невідомо',
+          related_unit_id: me.mp_unit_id,
+          related_unit_code: me.military_unit_code,
+          related_death_date: me.death_date,
+          related_burial_date: me.burial_date
+        }
+      }
+    });
   }
 
   // ---------- Рядки: діти ----------
@@ -241,6 +367,7 @@ window.Persons = (() => {
     $('cancel-btn').addEventListener('click', showList);
     $('person-form').addEventListener('submit', save);
     $('delete-btn').addEventListener('click', removePerson);
+    $('kin-add').addEventListener('click', addRelative);
     $('add-relation-btn').addEventListener('click', () => {
       const row = addRelationRow();
       Ui.paint(row);
@@ -484,7 +611,7 @@ window.Persons = (() => {
   }
 
   // ---------- Форма ----------
-  async function openForm(id) {
+  async function openForm(id, opts = {}) {
     const f = $('person-form');
     f.reset();
     clearHints();
@@ -505,11 +632,17 @@ window.Persons = (() => {
         + (data.source_ref ? ` · файл «${data.source_ref}»` : '');
       $('form-meta').hidden = false;
     } else {
-      $('form-title').textContent = 'Нова особа';
+      $('form-title').textContent = opts.relativeOf ? `Новий родич: ${opts.relativeOf.label}` : 'Нова особа';
       $('form-meta').hidden = true;
+      if (opts.relativeOf) {
+        const row = addRelationRow(opts.relativeOf.relation);
+        Ui.paint(row);
+      }
     }
 
     $('delete-btn').hidden = !(id && isAdmin);
+    loadKin(id).catch((e) => console.error(e));
+    loadOtherKin(id).catch((e) => console.error(e));
     Ui.paint($('person-form'));
     await showQuality(id);
     updateVisibility();
@@ -651,6 +784,7 @@ window.Persons = (() => {
         related_mp: q('related_mp'),
         related_unit_id: null,
         related_unit_other: null,
+        related_person_id: row.dataset.personId || null,
         related_callsign: q('related_callsign').trim() || null,
         related_unit_code: q('related_unit_code').trim() || null,
         related_death_date: null,
@@ -848,5 +982,5 @@ window.Persons = (() => {
     return !!$('search').value.trim() || Filters.activeCount() > 0;
   }
 
-  return { init, showList, buildQuery, ctx, toast, resetAll, hasSelection };
+  return { init, showList, buildQuery, ctx, toast, resetAll, hasSelection, openForm };
 })();

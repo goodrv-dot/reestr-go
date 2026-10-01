@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Unbounded:wght@600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=202610011229">
+  <link rel="stylesheet" href="style.css?v=202610011259">
 </head>
 <body>
 
@@ -123,6 +123,15 @@
           <ul id="quality-critical" class="q-list q-critical"></ul>
           <ul id="quality-warning" class="q-list q-warning"></ul>
           <p class="muted">Список оновлюється після збереження. Розшифровка — у розділі «Мануал».</p>
+        </section>
+
+        <section id="kin-box" class="kin-box" hidden aria-labelledby="kin-title">
+          <div class="kin-head">
+            <h2 id="kin-title">Рідні в реєстрі</h2>
+            <button id="kin-add" type="button" class="btn-secondary btn-small">+ Додати родича</button>
+          </div>
+          <ul id="kin-list" class="kin-list"></ul>
+          <p id="kin-empty" class="muted">Ще немає пов’язаних рідних. Якщо ця людина — військовий, додайте рідних кнопкою праворуч.</p>
         </section>
 
         <form id="person-form" novalidate>
@@ -391,6 +400,7 @@
       <nav class="toc" aria-label="Зміст">
         <a href="#m-start">Основи</a>
         <a href="#m-card">Картка особи</a>
+        <a href="#m-kin">Рідні та зв’язки</a>
         <a href="#m-auto">Автоматичні категорії</a>
         <a href="#m-quality">Підсвітка: що доповнити</a>
         <a href="#m-filters">Фільтри</a>
@@ -424,6 +434,19 @@
           <li><b>Діти</b> — дата народження обов’язкова: вік рахується сам і завжди актуальний. Вказуйте інтереси дитини — за ними роблять тематичні розсилки (табори, спорт).</li>
           <li><b>Вік ніколи не вписується числом</b> — лише дата народження. Для загиблих вік рахується на момент загибелі.</li>
           <li><b>Програми ГО</b> — у яких програмах бере участь людина (200, 300, Діти МП). За ними можна фільтрувати.</li>
+        </ul>
+      </section>
+
+      <section id="m-kin">
+        <h2>Рідні та зв’язки між картками</h2>
+        <ul>
+          <li>Кожна людина — <b>окрема картка</b> зі своїми даними (телефон, згода, діти). Картки пов’язані між собою.</li>
+          <li>У картці військового (поранений, загиблий без встановленої родини тощо) вгорі блок <b>«Рідні в реєстрі»</b>: хто з рідних уже внесений. Клік по імені відкриває картку родича.</li>
+          <li><b>«+ Додати родича»</b> відкриває нову картку, де зв’язок із цим військовим уже заповнений — внесіть лише дані родича.</li>
+          <li>У картці родича в блоці «Пов’язані військові особи» кнопка <b>«Обрати з реєстру»</b> зв’язує з наявною карткою військового, а «Відкрити картку військового →» переходить до неї.</li>
+          <li>Якщо в «Рідні в реєстрі» є рядок з кнопкою <b>«Пов’язати»</b> — це людина, у якої вказано військового з таким самим ПІБ, але зв’язок ще не підтверджено.</li>
+          <li>Для загиблих із журналу «200» картки самого загиблого зазвичай немає: тоді в картці родича під блоком зв’язку видно <b>«Інші рідні цього військового»</b>.</li>
+          <li>Фільтр <b>«Роль у реєстрі»</b> (група «Стан картки») показує окремо військових або окремо родичів.</li>
         </ul>
       </section>
 
@@ -769,27 +792,37 @@
     </form>
   </dialog>
 
+
+  <!-- Обрати з реєстру -->
+  <dialog id="pick-dialog" class="dialog" aria-labelledby="pick-title">
+    <h2 id="pick-title">Обрати військового з реєстру</h2>
+    <div class="field"><label for="pick-q">Прізвище (і ім’я)</label><input id="pick-q" autocomplete="off" placeholder="Напр., Койко Віктор"></div>
+    <ul id="pick-list" class="pick-list"></ul>
+    <div class="form-actions"><button id="pick-close" class="btn-secondary" type="button">Закрити</button></div>
+  </dialog>
+
   <p id="toast" class="toast" role="status" hidden></p>
 
   <!-- Завантаження -->
   <p id="loading" class="loading">Завантаження…</p>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="config.js?v=202610011229"></script>
+  <script src="config.js?v=202610011259"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="options.js?v=202610011229"></script>
-  <script src="ui.js?v=202610011229"></script>
-  <script src="validation.js?v=202610011229"></script>
-  <script src="filters.js?v=202610011229"></script>
-  <script src="segments.js?v=202610011229"></script>
-  <script src="persons.js?v=202610011229"></script>
-  <script src="export.js?v=202610011229"></script>
-  <script src="import.js?v=202610011229"></script>
-  <script src="mfa.js?v=202610011229"></script>
-  <script src="staff.js?v=202610011229"></script>
-  <script src="ua-map.js?v=202610011229"></script>
-  <script src="dashboard.js?v=202610011229"></script>
-  <script src="nav.js?v=202610011229"></script>
-  <script src="app.js?v=202610011229"></script>
+  <script src="options.js?v=202610011259"></script>
+  <script src="ui.js?v=202610011259"></script>
+  <script src="validation.js?v=202610011259"></script>
+  <script src="filters.js?v=202610011259"></script>
+  <script src="segments.js?v=202610011259"></script>
+  <script src="picker.js?v=202610011259"></script>
+  <script src="persons.js?v=202610011259"></script>
+  <script src="export.js?v=202610011259"></script>
+  <script src="import.js?v=202610011259"></script>
+  <script src="mfa.js?v=202610011259"></script>
+  <script src="staff.js?v=202610011259"></script>
+  <script src="ua-map.js?v=202610011259"></script>
+  <script src="dashboard.js?v=202610011259"></script>
+  <script src="nav.js?v=202610011259"></script>
+  <script src="app.js?v=202610011259"></script>
 </body>
 </html>

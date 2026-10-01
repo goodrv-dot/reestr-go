@@ -462,7 +462,7 @@ window.Persons = (() => {
     let query;
     try {
       ({ query } = await buildQuery(
-        'id, last_name, first_name, patronymic, phone, extra_phones, region_id, person_categories, family_categories, created_at, critical_count, warning_count, comment, touchpoint, created_by, source',
+        'id, is_extra, last_name, first_name, patronymic, phone, extra_phones, region_id, person_categories, family_categories, created_at, critical_count, warning_count, comment, touchpoint, created_by, source',
         { count: 'exact' }));
     } catch (e) {
       console.error(e);
@@ -487,6 +487,7 @@ window.Persons = (() => {
     tbody.innerHTML = '';
     const filtered = q || Filters.activeCount() > 0;
     $('count').textContent = filtered ? `${count} знайдено` : `${count}`;
+    countExtras(count).catch(() => {});
     $('list-note').hidden = count <= rows.length;
     $('list-note').textContent = `Показано перші ${rows.length} з ${count}. Уточніть пошук або фільтри.`;
 
@@ -507,7 +508,17 @@ window.Persons = (() => {
 
       addCell(tr, String(idx + 1), 'cell-num');
       tr.appendChild(qualityCell(p.critical_count, p.warning_count));
-      addCell(tr, [p.last_name, p.first_name, p.patronymic].filter(Boolean).join(' '), 'cell-name');
+      const nm = document.createElement('td');
+      nm.className = 'cell-name';
+      nm.textContent = [p.last_name, p.first_name, p.patronymic].filter(Boolean).join(' ');
+      if (p.is_extra) {
+        const t = document.createElement('span');
+        t.className = 'tag tag-extra';
+        t.textContent = 'додаткова · родич';
+        t.title = 'Додаткова картка родича — створена з контактів родичів або кнопкою «Додати родича», не з основного списку файлу';
+        nm.append(document.createElement('br'), t);
+      }
+      tr.appendChild(nm);
       const ph = document.createElement('td');
       ph.className = 'cell-phone';
       ph.textContent = V.formatPhone(p.phone) || '—';
@@ -550,6 +561,13 @@ window.Persons = (() => {
       tr.appendChild(who);
       tbody.appendChild(tr);
     });
+  }
+
+  async function countExtras(total) {
+    const { query } = await buildQuery('id', { count: 'exact', head: true });
+    const { count } = await query.eq('is_extra', true);
+    $('count-split').textContent = count ? `основних ${total - count} + додаткових (родичі) ${count}` : '';
+    $('count-split').hidden = !count;
   }
 
   function longCell(text) {
@@ -635,6 +653,7 @@ window.Persons = (() => {
       $('form-title').textContent = opts.relativeOf ? `Новий родич: ${opts.relativeOf.label}` : 'Нова особа';
       $('form-meta').hidden = true;
       if (opts.relativeOf) {
+        $('person-form').is_extra.checked = true;
         const row = addRelationRow(opts.relativeOf.relation);
         Ui.paint(row);
       }
@@ -664,6 +683,7 @@ window.Persons = (() => {
     f.touchpoint.value = p.touchpoint ?? '';
     f.region_id.value = p.region_id ?? '';
     f.vkmpu_member.checked = p.vkmpu_member;
+    f.is_extra.checked = !!p.is_extra;
     f.consent_messages.checked = p.consent_messages;
     f.unsubscribed.checked = p.unsubscribed;
     f.consent_pd.checked = !!p.consent_pd_at;
@@ -871,6 +891,7 @@ window.Persons = (() => {
     rec.comment = f.comment.value.trim() || null;
     rec.touchpoint = f.touchpoint.value.trim() || null;
     rec.vkmpu_member = f.vkmpu_member.checked;
+    rec.is_extra = f.is_extra.checked;
     rec.consent_messages = f.consent_messages.checked;
     rec.unsubscribed = f.unsubscribed.checked;
     rec.consent_pd_at = f.consent_pd.checked ? (editingConsentAt || new Date().toISOString()) : null;

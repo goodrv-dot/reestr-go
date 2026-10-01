@@ -21,7 +21,9 @@ window.Filters = (() => {
         { value: 'ok', label: 'Все заповнено' }] },
       { key: 'card_role', label: 'Роль у реєстрі', type: 'select', options: [
         { value: 'military', label: 'Військові (боєць, ветеран, загиблий)' },
-        { value: 'relative', label: 'Родичі військових' }] },
+        { value: 'relative', label: 'Родичі військових' },
+        { value: 'main', label: 'Основні картки (з основного списку)' },
+        { value: 'extra', label: 'Додаткові картки родичів' }] },
       { key: 'program_ids', label: 'Програми ГО', type: 'multi', op: 'overlaps', options: toOpts(programs) },
       { key: 'cell_id', label: 'Осередок ГО', type: 'multi', op: 'in', options: toOpts(cells) },
 
@@ -232,6 +234,8 @@ window.Filters = (() => {
       if (d.key === 'card_role') {
         if (val === 'military') query = query.neq('military_status', 'Не застосовується');
         if (val === 'relative') query = query.eq('has_related_military', true);
+        if (val === 'main') query = query.eq('is_extra', false);
+        if (val === 'extra') query = query.eq('is_extra', true);
       } else if (d.key === 'quality') {
         if (val === 'crit') query = query.gt('critical_count', 0);
         if (val === 'warn') query = query.eq('critical_count', 0).gt('warning_count', 0);

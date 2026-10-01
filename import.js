@@ -257,6 +257,7 @@ window.Importer = (() => {
             else entries.push(e);
           }
         } else {
+          e.fromContacts = true;     // родич, знайдений у «Контактах» — додаткова картка
           entries.push(e);
         }
       });
@@ -323,6 +324,7 @@ window.Importer = (() => {
         if (!e.degree) rec.warnings.push(`Спорідненість «${e.label || clean(g('degree')) || 'не вказано'}» не впізнано — уточніть`);
         else if (e.label && e.degree === 'Інший член сім’ї / родич') addComment(rec, `Спорідненість: ${e.label}`);
         if (entries.length > 1) rec.info.push(`Одна з ${entries.length} осіб у рядку`);
+        if (e.fromContacts) { p.is_extra = true; rec.isRelative = true; }
         baseFill(rec, k === 0);
         rec.relations.push({ ...relTemplate, relation_degree: e.degree || 'Інший член сім’ї / родич' });
         out.push(rec);
@@ -394,6 +396,7 @@ window.Importer = (() => {
       peopleChunks(kinRaw).filter((e) => e.name || e.degree || e.phones.length).forEach((e) => {
         const kr = newRecord(row);
         kr.isRelative = true;
+        kr.person.is_extra = true;
         kr.linkTo = rec;                       // після збереження бійця сюди підставимо його картку
         kr.soldierLabel = soldierName;
         const words = V.normalizeName(e.name, false).value?.split(' ') || [];
@@ -800,7 +803,7 @@ window.Importer = (() => {
     if (rel) {
       const info = document.createElement('span');
       info.className = 'imp-chip imp-chip-info';
-      info.textContent = `Усього записів ${records.length} = ${records.length - rel} основних + ${rel} родичів`;
+      info.textContent = `Усього записів ${records.length} = ${records.length - rel} основних + ${rel} додаткових (родичі)`;
       $('imp-summary').appendChild(info);
     }
 
@@ -832,7 +835,7 @@ window.Importer = (() => {
         if (k === 1 && r.isRelative) {
           td.className = 'imp-relative';
           const tag = document.createElement('span');
-          tag.className = 'tag'; tag.textContent = 'родич';
+          tag.className = 'tag tag-extra'; tag.textContent = 'додаткова · родич';
           td.prepend(tag, ' ');
         }
         tr.appendChild(td);

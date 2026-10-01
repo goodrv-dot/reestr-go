@@ -691,3 +691,5 @@ tr.st-warn { background: var(--warn-bg); }
 .imp-chip-info { background: #e3e9f5; color: #1d3b6e; }
 tr.is-relative td:nth-child(3) { padding-left: 1.6rem; }
 .imp-relative .tag { margin-right: 0.3rem; }
+.tag-extra { background: #f3eadf; color: #7a5230; font-weight: 600; font-size: 0.75rem; margin-top: 0.25rem; }
+.count-split { font-size: 0.85rem; }

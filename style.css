@@ -507,3 +507,20 @@ select.paint[data-v="Viber"]    { background: #eee6f6; }
 }
 #registry-view { max-width: 100rem; }
 .cell-phone { white-space: nowrap; }
+
+/* Швидкий фільтр за станом картки */
+.qchips { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin: 0 0 1rem; }
+.qchips-label { margin-right: 0.25rem; }
+.qchip {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  padding: 0.35rem 0.8rem; border-radius: 999px; font-weight: 500;
+  background: var(--white); border: 1px solid var(--line); color: var(--ink);
+}
+.qchip b { font-weight: 700; font-variant-numeric: tabular-nums; }
+.qchip:hover { border-color: var(--sea); }
+.qchip[aria-pressed="true"] { background: var(--sea); border-color: var(--sea); color: var(--white); }
+.qchip-crit[aria-pressed="true"] { background: var(--err); border-color: var(--err); }
+.qchip-warn[aria-pressed="true"] { background: #b8871f; border-color: #b8871f; }
+.qchip-ok[aria-pressed="true"]   { background: #2f6b4e; border-color: #2f6b4e; }
+.qchip .q-pill { margin: 0; min-width: 1.2rem; line-height: 1.2rem; }
+.qchip[aria-pressed="true"] .q-ok { color: var(--white); }

@@ -247,6 +247,9 @@ window.Persons = (() => {
     });
     ['f-has_disability', 'f-mp_relation', 'f-mp_unit', 'f-military_status', 'f-wounded'].forEach((id) =>
       $(id).addEventListener('change', updateVisibility));
+    document.querySelectorAll('.qchip').forEach((b) => b.addEventListener('click', () => {
+      Filters.setQuality(Filters.getQuality() === b.dataset.q ? '' : b.dataset.q);
+    }));
     $('search').addEventListener('input', () => {
       clearTimeout(searchTimer);
       searchTimer = setTimeout(loadList, 300);
@@ -283,7 +286,7 @@ window.Persons = (() => {
 
   // Запит з урахуванням пошуку і фільтрів (для списку та експорту)
   // Повертає { query } (див. коментар у Filters.apply)
-  async function buildQuery(columns, opts) {
+  async function buildQuery(columns, opts, skip) {
     let query = db.from('persons_view').select(columns, opts);
     const q = currentSearch();
     if (q) {
@@ -292,10 +295,30 @@ window.Persons = (() => {
       if (digits.length >= 3) parts.push(`phone.ilike.%${digits}%`);
       query = query.or(parts.join(','));
     }
-    return Filters.apply(query, db);
+    return Filters.apply(query, db, skip);
+  }
+
+  // Лічильники для кнопок «Критичні / Бажано доповнити / Заповнені»
+  async function loadQualityCounts() {
+    const variants = {
+      crit: (q) => q.gt('critical_count', 0),
+      warn: (q) => q.eq('critical_count', 0).gt('warning_count', 0),
+      ok:   (q) => q.eq('critical_count', 0).eq('warning_count', 0)
+    };
+    const all = await Promise.all(Object.entries(variants).map(async ([k, f]) => {
+      const { query } = await buildQuery('id', { count: 'exact', head: true }, ['quality']);
+      const { count, error } = await f(query);
+      return [k, error ? null : count];
+    }));
+    const total = all.reduce((sum, [, c]) => sum + (c || 0), 0);
+    all.forEach(([k, c]) => { $('qc-' + k).textContent = c ?? '…'; });
+    $('qc-all').textContent = total;
+    const cur = Filters.getQuality();
+    document.querySelectorAll('.qchip').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.q === cur)));
   }
 
   async function loadList() {
+    loadQualityCounts().catch((e) => console.error(e));
     let query;
     try {
       ({ query } = await buildQuery(

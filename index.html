@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Unbounded:wght@600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=202610010620">
+  <link rel="stylesheet" href="style.css?v=202610010625">
 </head>
 <body>
 
@@ -78,6 +78,13 @@
           </button>
         </div>
         <div id="filters-panel" class="filters" hidden></div>
+        <div class="qchips" role="group" aria-label="Швидкий фільтр за станом картки">
+          <span class="muted qchips-label">Стан картки:</span>
+          <button type="button" class="qchip" data-q="" aria-pressed="true">Усі <b id="qc-all">…</b></button>
+          <button type="button" class="qchip qchip-crit" data-q="crit" aria-pressed="false"><span class="q-pill q-pill-crit" aria-hidden="true">!</span> Критичні <b id="qc-crit">…</b></button>
+          <button type="button" class="qchip qchip-warn" data-q="warn" aria-pressed="false"><span class="q-pill q-pill-warn" aria-hidden="true">!</span> Бажано доповнити <b id="qc-warn">…</b></button>
+          <button type="button" class="qchip qchip-ok" data-q="ok" aria-pressed="false"><span class="q-ok" aria-hidden="true">✓</span> Заповнені <b id="qc-ok">…</b></button>
+        </div>
         <p id="list-note" class="muted list-note" hidden></p>
         <p id="list-status" class="empty" hidden></p>
         <div class="table-wrap">
@@ -563,17 +570,17 @@
   <p id="loading" class="loading">Завантаження…</p>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="config.js?v=202610010620"></script>
+  <script src="config.js?v=202610010625"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="options.js?v=202610010620"></script>
-  <script src="ui.js?v=202610010620"></script>
-  <script src="validation.js?v=202610010620"></script>
-  <script src="filters.js?v=202610010620"></script>
-  <script src="persons.js?v=202610010620"></script>
-  <script src="export.js?v=202610010620"></script>
-  <script src="import.js?v=202610010620"></script>
-  <script src="staff.js?v=202610010620"></script>
-  <script src="nav.js?v=202610010620"></script>
-  <script src="app.js?v=202610010620"></script>
+  <script src="options.js?v=202610010625"></script>
+  <script src="ui.js?v=202610010625"></script>
+  <script src="validation.js?v=202610010625"></script>
+  <script src="filters.js?v=202610010625"></script>
+  <script src="persons.js?v=202610010625"></script>
+  <script src="export.js?v=202610010625"></script>
+  <script src="import.js?v=202610010625"></script>
+  <script src="staff.js?v=202610010625"></script>
+  <script src="nav.js?v=202610010625"></script>
+  <script src="app.js?v=202610010625"></script>
 </body>
 </html>

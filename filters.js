@@ -210,8 +210,9 @@ window.Filters = (() => {
   // Повертає { query } — обгортка потрібна, бо запит Supabase «thenable»:
   // якщо повернути його напряму з async-функції, він одразу виконається.
   // Фільтр за віком дитини потребує окремого запиту до таблиці children.
-  async function apply(query, db) {
+  async function apply(query, db, skip = []) {
     const v = values();
+    skip.forEach((k) => delete v[k]);
     const NONE = '00000000-0000-0000-0000-000000000000';
 
     for (const d of defs) {
@@ -274,5 +275,17 @@ window.Filters = (() => {
     return out;
   }
 
-  return { init, apply, activeCount, reset, describe };
+  // Швидкий фільтр за станом картки (кнопки над таблицею)
+  function setQuality(val) {
+    const sel = document.getElementById('flt-quality');
+    if (!sel) return;
+    sel.value = val;
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  function getQuality() {
+    const sel = document.getElementById('flt-quality');
+    return sel ? sel.value : '';
+  }
+
+  return { init, apply, activeCount, reset, describe, setQuality, getQuality };
 })();

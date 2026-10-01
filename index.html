@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Unbounded:wght@600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=202610010801">
+  <link rel="stylesheet" href="style.css?v=202610010852">
 </head>
 <body>
 
@@ -81,6 +81,11 @@
             Фільтри <span id="filters-count" class="badge" hidden></span>
           </button>
           <button id="reset-all" class="btn-link reset-all" type="button" hidden>Скинути все</button>
+        </div>
+        <div id="preset-chip" class="preset-chip" hidden>
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18M7 8h10"/></svg>
+          <span></span>
+          <button id="preset-clear" type="button" class="preset-x" aria-label="Прибрати цей відбір">✕</button>
         </div>
         <div class="segbar">
           <label for="segment-select" class="segbar-label">Сегмент:</label>
@@ -492,6 +497,7 @@
           <li>«Зберегти як PNG» — картинка з заголовком, умовами, датою і списком областей для звітів.</li>
           <li>«Без області» — люди, у яких область не вказана: їх варто доповнити.</li>
           <li><b>Поховання</b>: оберіть період (місяць або кілька) чи клацніть стовпчик на графіку «по місяцях». Рахуються загиблі з датою поховання — кожен один раз, область за осередком ГО. Дати поховання беруться з журналу «200» (колонка «Дата поховання») або вносяться в картці у блоці пов’язаної особи.</li>
+          <li>Клік по області в режимі «Поховання» відкриває <b>саме родини загиблих, похованих у цьому періоді</b> (а не всіх людей області). Над таблицею з’явиться бордова плашка з умовою — натисніть ✕, щоб її прибрати. Людей у списку може бути більше, ніж поховань: у реєстрі можуть бути кілька родичів одного загиблого.</li>
           <li>Кнопка <b>«Скинути фільтри»</b> (і «Скинути все» на вкладці «Особи») прибирає пошук, сегмент і всі фільтри.</li>
         </ul>
       </section>
@@ -757,21 +763,21 @@
   <p id="loading" class="loading">Завантаження…</p>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="config.js?v=202610010801"></script>
+  <script src="config.js?v=202610010852"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="options.js?v=202610010801"></script>
-  <script src="ui.js?v=202610010801"></script>
-  <script src="validation.js?v=202610010801"></script>
-  <script src="filters.js?v=202610010801"></script>
-  <script src="segments.js?v=202610010801"></script>
-  <script src="persons.js?v=202610010801"></script>
-  <script src="export.js?v=202610010801"></script>
-  <script src="import.js?v=202610010801"></script>
-  <script src="mfa.js?v=202610010801"></script>
-  <script src="staff.js?v=202610010801"></script>
-  <script src="ua-map.js?v=202610010801"></script>
-  <script src="dashboard.js?v=202610010801"></script>
-  <script src="nav.js?v=202610010801"></script>
-  <script src="app.js?v=202610010801"></script>
+  <script src="options.js?v=202610010852"></script>
+  <script src="ui.js?v=202610010852"></script>
+  <script src="validation.js?v=202610010852"></script>
+  <script src="filters.js?v=202610010852"></script>
+  <script src="segments.js?v=202610010852"></script>
+  <script src="persons.js?v=202610010852"></script>
+  <script src="export.js?v=202610010852"></script>
+  <script src="import.js?v=202610010852"></script>
+  <script src="mfa.js?v=202610010852"></script>
+  <script src="staff.js?v=202610010852"></script>
+  <script src="ua-map.js?v=202610010852"></script>
+  <script src="dashboard.js?v=202610010852"></script>
+  <script src="nav.js?v=202610010852"></script>
+  <script src="app.js?v=202610010852"></script>
 </body>
 </html>

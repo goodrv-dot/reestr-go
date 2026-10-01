@@ -257,6 +257,7 @@ window.Persons = (() => {
       Filters.setQuality(Filters.getQuality() === b.dataset.q ? '' : b.dataset.q);
     }));
     $('reset-all').addEventListener('click', resetAll);
+    $('preset-clear').addEventListener('click', () => Filters.clearPreset());
     $('search').addEventListener('input', () => {
       clearTimeout(searchTimer);
       searchTimer = setTimeout(loadList, 300);

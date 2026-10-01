@@ -222,22 +222,23 @@ window.Dashboard = (() => {
     const all = [];
     for (let from = 0; ; from += 1000) {
       const { data, error } = await db.from('military_relations')
-        .select('related_full_name, related_death_date, related_burial_date, persons!inner(region_id, cell_id)')
+        .select('related_full_name, related_death_date, related_burial_date, persons!inner(id, region_id, cell_id)')
         .eq('related_status', 'Загиблий').not('related_burial_date', 'is', null)
         .order('id').range(from, from + 999);
       if (error) { console.error(error); $('dash-status').textContent = 'Не вдалося завантажити поховання.'; burials = []; return; }
       all.push(...data);
       if (data.length < 1000) break;
     }
-    const seen = new Set();
+    const seen = new Map();
     burials = [];
     all.forEach((r) => {
       const key = (r.related_full_name || '').toLowerCase().replace(/\s+/g, ' ').trim() + '|' + (r.related_death_date || r.related_burial_date);
-      if (seen.has(key)) return;
-      seen.add(key);
+      if (seen.has(key)) { seen.get(key).personIds.push(r.persons.id); return; }   // ще один родич того ж загиблого
       const rid = cellRegion.get(r.persons.cell_id) || r.persons.region_id;
       const name = regions.get(rid);
-      burials.push({ month: r.related_burial_date.slice(0, 7), region: name && name !== 'За кордоном' ? name : null });
+      const item = { month: r.related_burial_date.slice(0, 7), region: name && name !== 'За кордоном' ? name : null, personIds: [r.persons.id] };
+      seen.set(key, item);
+      burials.push(item);
     });
     const ms = burialMonths();
     const last = ms[ms.length - 1] || new Date().toISOString().slice(0, 7);
@@ -305,7 +306,24 @@ window.Dashboard = (() => {
   }
 
   // Клік по області → «Особи» з фільтром області
+  // (для поховань — саме родини загиблих, похованих у цьому періоді)
   function openRegion(name) {
+    if (metric === 'burials') {
+      const ids = [];
+      let n = 0;
+      (burials || []).forEach((b) => {
+        if (b.region !== name) return;
+        if (period.from && b.month < period.from) return;
+        if (period.to && b.month > period.to) return;
+        n++;
+        ids.push(...b.personIds);
+      });
+      Persons.resetAll();
+      Filters.setPreset(ids, `Поховання: ${periodText()}, ${name} — родини ${n} загиблих`);
+      document.querySelector('.tab[data-tab="registry"]').click();
+      Persons.toast(`Родини загиблих: ${name}, ${periodText()}`);
+      return;
+    }
     const { regions } = Persons.ctx();
     const id = [...regions].find(([, n]) => n === name)?.[0];
     if (!id) return;

@@ -6,6 +6,7 @@
 window.Filters = (() => {
   let defs = [];
   let onChange = () => {};
+  let preset = null;   // відбір за списком осіб із дашборду: { ids: [...], label: '…' }
   const $ = (id) => document.getElementById(id);
 
   function buildDefs({ regions, cells, programs }) {
@@ -197,9 +198,11 @@ window.Filters = (() => {
     return out;
   }
 
-  function activeCount() { return Object.keys(values()).length; }
+  function activeCount() { return Object.keys(values()).length + (preset ? 1 : 0); }
 
   function reset() {
+    preset = null;
+    renderPreset();
     document.querySelectorAll('#filters-panel .ms-list input').forEach((c) => { c.checked = false; });
     document.querySelectorAll('#filters-panel .filter').forEach((w) => { if (w.querySelector('.ms-value')) updateSummary(w); });
     document.querySelectorAll('#filters-panel select').forEach((s) => { s.value = ''; });
@@ -214,6 +217,9 @@ window.Filters = (() => {
   async function apply(query, db, skip = []) {
     const v = values();
     skip.forEach((k) => delete v[k]);
+    if (preset && !skip.includes('preset')) {
+      query = query.in('id', preset.ids.length ? preset.ids : ['00000000-0000-0000-0000-000000000000']);
+    }
     const NONE = '00000000-0000-0000-0000-000000000000';
 
     for (const d of defs) {
@@ -260,7 +266,7 @@ window.Filters = (() => {
   // Людський опис активних фільтрів: ['Програми ГО: …', 'Є дитина віком: від 6 до 14 років', …]
   function describe() {
     const v = values();
-    const out = [];
+    const out = preset ? [preset.label] : [];
     defs.forEach((d) => {
       if (!d.key || !(d.key in v)) return;
       const val = v[d.key];
@@ -314,5 +320,23 @@ window.Filters = (() => {
     changed();
   }
 
-  return { init, apply, activeCount, reset, describe, setQuality, getQuality, getState, setState };
+  // Відбір за конкретними особами (з дашборду), показується окремою плашкою
+  function setPreset(ids, label) {
+    preset = { ids: [...new Set(ids)], label };
+    renderPreset();
+    changed();
+  }
+  function clearPreset() {
+    preset = null;
+    renderPreset();
+    changed();
+  }
+  function renderPreset() {
+    const chip = document.getElementById('preset-chip');
+    if (!chip) return;
+    chip.hidden = !preset;
+    if (preset) chip.querySelector('span').textContent = preset.label;
+  }
+
+  return { init, apply, activeCount, reset, describe, setQuality, getQuality, getState, setState, setPreset, clearPreset };
 })();

@@ -163,7 +163,7 @@ window.Importer = (() => {
       p.consent_pd_at = new Date().toISOString();
       rec.info.push(GO_CONSENT_NOTE);
       const notes = clean(g('notes'));
-      if (notes) p.comment = notes;
+      if (notes) addComment(rec, notes);
 
       const degree = matchDegree(g('degree'));
       if (!degree) rec.warnings.push(`Спорідненість «${clean(g('degree')) || 'не вказано'}» не впізнано — уточніть`);
@@ -234,7 +234,7 @@ window.Importer = (() => {
       p.mp_relation_type = 'Діючий військовослужбовець МП';
       p.military_status = 'Діючий військовослужбовець';
       const notes = clean(g('notes'));
-      if (notes) p.comment = notes;
+      if (notes) addComment(rec, notes);
       const died = /помер|загинув|загибел|смерт/i.test(notes);
       if (died) {
         p.military_status = 'Статус уточнюється';
@@ -298,9 +298,22 @@ window.Importer = (() => {
       return;
     }
     const { phones, bad } = V.extractPhones(s);
-    if (!phones.length) { rec.errors.push(`Телефон «${s}»: невірний формат`); return; }
+    if (!phones.length) {
+      // Не відкидаємо людину: номер зберігаємо в коментарі, щоб оператор виправив у картці
+      const d = s.replace(/\D/g, '');
+      const why = d.startsWith('0') && d.length === 11 ? 'зайва цифра'
+        : d.startsWith('0') && d.length === 9 ? 'бракує цифри'
+        : d.length < 9 ? 'замало цифр' : 'невідомий формат';
+      rec.warnings.push(`Телефон «${s}» не розпізнано (${why}) — збережено в коментарі, виправте в картці`);
+      addComment(rec, `Телефон з файлу (не розпізнано): ${s}`);
+      return;
+    }
     addPhones(rec, phones);
     if (bad.length) rec.warnings.push(`Частину телефону не розпізнано: «${bad.join(', ')}» — перевірте`);
+  }
+
+  function addComment(rec, text) {
+    rec.person.comment = rec.person.comment ? `${rec.person.comment}\n${text}` : text;
   }
 
   function addPhones(rec, phones) {

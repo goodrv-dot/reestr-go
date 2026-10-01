@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Unbounded:wght@600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=202610010655">
+  <link rel="stylesheet" href="style.css?v=202610010734">
 </head>
 <body>
 
@@ -44,6 +44,7 @@
         <span class="wordmark wordmark-small">Реєстр</span>
         <nav class="tabs" aria-label="Розділи">
           <button type="button" class="tab is-active" data-tab="registry" aria-current="page">Особи</button>
+          <button type="button" class="tab" data-tab="dashboard">Дашборд</button>
           <button type="button" class="tab" data-tab="import">Імпорт</button>
           <button type="button" class="tab" data-tab="staff" id="staff-tab" hidden>Співробітники</button>
           <button type="button" class="tab" data-tab="manual">Мануал</button>
@@ -257,6 +258,42 @@
         </form>
       </section>
     </main>
+    <main id="dashboard-view" class="app-main dash" hidden>
+      <div class="list-head">
+        <h1 id="dash-title">Осіб по областях</h1>
+        <div class="head-actions">
+          <button id="dash-refresh" class="btn-secondary btn-small" type="button">Оновити</button>
+          <button id="dash-png" class="btn-secondary btn-small" type="button">Зберегти як PNG</button>
+        </div>
+      </div>
+      <p id="dash-cond" class="muted dash-cond"></p>
+      <p class="muted dash-hint">Карта враховує пошук, фільтри й сегмент з вкладки «Особи». Клік по області відкриває список її людей.</p>
+      <div class="dash-metrics" role="group" aria-label="Що показувати">
+        <button type="button" class="qchip dash-metric" data-m="persons" aria-pressed="true">Осіб</button>
+        <button type="button" class="qchip dash-metric" data-m="children" aria-pressed="false">Дітей</button>
+        <button type="button" class="qchip dash-metric" data-m="minors" aria-pressed="false">Неповнолітніх дітей</button>
+        <button type="button" class="qchip dash-metric" data-m="critical" aria-pressed="false">Критичні картки</button>
+      </div>
+      <p id="dash-status" class="imp-status" role="status"></p>
+      <div class="dash-grid">
+        <div class="dash-card">
+          <div class="dash-legend">
+            <span id="dash-legend-min">0</span><span class="dash-gradient" aria-hidden="true"></span><span id="dash-legend-max">0</span>
+          </div>
+          <div id="dash-map-wrap" class="dash-map-wrap">
+            <svg id="dash-map" role="img" aria-label="Карта України по областях"></svg>
+            <div id="dash-tip" class="dash-tip" hidden></div>
+          </div>
+          <p class="muted dash-src">Межі областей © OpenStreetMap</p>
+        </div>
+        <div class="dash-card">
+          <p class="dash-total"><b id="dash-total">0</b> <span id="dash-total-label">осіб</span></p>
+          <p class="muted dash-extra">Без області: <b id="dash-noregion">0</b> · За кордоном: <b id="dash-abroad">0</b></p>
+          <ul id="dash-list" class="dash-list"></ul>
+        </div>
+      </div>
+    </main>
+
     <main id="import-view" class="app-main" hidden>
       <h1>Імпорт з Excel</h1>
       <p class="muted imp-lead">Оберіть шаблон і файл. До запису в реєстр ви побачите попередній перегляд: хто новий, кого буде доповнено, що перевірити і де помилки.</p>
@@ -329,6 +366,7 @@
         <a href="#m-auto">Автоматичні категорії</a>
         <a href="#m-quality">Підсвітка: що доповнити</a>
         <a href="#m-filters">Фільтри</a>
+        <a href="#m-dash">Дашборд</a>
         <a href="#m-import">Імпорт</a>
         <a href="#m-export">Вивантаження</a>
         <a href="#m-phone">Телефони</a>
@@ -424,6 +462,18 @@
           <li>Між різними фільтрами — <b>«І»</b>: УБД <i>і</i> Родина МП <i>і</i> Полтавська область.</li>
           <li>Список оновлюється сам. Кнопка «Скинути всі фільтри» повертає повний список.</li>
           <li>«Є дитина віком 11–14» — знайде людей, у яких хоча б одна дитина цього віку.</li>
+        </ul>
+      </section>
+
+      <section id="m-dash">
+        <h2>Дашборд (карта)</h2>
+        <ul>
+          <li>Вкладка «Дашборд» показує карту України: чим темніша область, тим більше людей. Наведіть мишку — побачите число.</li>
+          <li>Перемикачі вгорі: <b>Осіб / Дітей / Неповнолітніх дітей / Критичні картки</b>.</li>
+          <li>Карта <b>враховує пошук, фільтри й сегмент</b> з вкладки «Особи». Наприклад, оберіть сегмент «Родини загиблих — табори» — і побачите, в яких областях такі родини.</li>
+          <li>Клік по області (на карті чи в списку) відкриває «Особи» з фільтром цієї області.</li>
+          <li>«Зберегти як PNG» — картинка з заголовком, умовами, датою і списком областей для звітів.</li>
+          <li>«Без області» — люди, у яких область не вказана: їх варто доповнити.</li>
         </ul>
       </section>
 
@@ -688,19 +738,21 @@
   <p id="loading" class="loading">Завантаження…</p>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="config.js?v=202610010655"></script>
+  <script src="config.js?v=202610010734"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="options.js?v=202610010655"></script>
-  <script src="ui.js?v=202610010655"></script>
-  <script src="validation.js?v=202610010655"></script>
-  <script src="filters.js?v=202610010655"></script>
-  <script src="segments.js?v=202610010655"></script>
-  <script src="persons.js?v=202610010655"></script>
-  <script src="export.js?v=202610010655"></script>
-  <script src="import.js?v=202610010655"></script>
-  <script src="mfa.js?v=202610010655"></script>
-  <script src="staff.js?v=202610010655"></script>
-  <script src="nav.js?v=202610010655"></script>
-  <script src="app.js?v=202610010655"></script>
+  <script src="options.js?v=202610010734"></script>
+  <script src="ui.js?v=202610010734"></script>
+  <script src="validation.js?v=202610010734"></script>
+  <script src="filters.js?v=202610010734"></script>
+  <script src="segments.js?v=202610010734"></script>
+  <script src="persons.js?v=202610010734"></script>
+  <script src="export.js?v=202610010734"></script>
+  <script src="import.js?v=202610010734"></script>
+  <script src="mfa.js?v=202610010734"></script>
+  <script src="staff.js?v=202610010734"></script>
+  <script src="ua-map.js?v=202610010734"></script>
+  <script src="dashboard.js?v=202610010734"></script>
+  <script src="nav.js?v=202610010734"></script>
+  <script src="app.js?v=202610010734"></script>
 </body>
 </html>

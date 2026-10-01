@@ -247,7 +247,7 @@ window.Persons = (() => {
     });
     ['f-has_disability', 'f-mp_relation', 'f-mp_unit', 'f-military_status', 'f-wounded'].forEach((id) =>
       $(id).addEventListener('change', updateVisibility));
-    document.querySelectorAll('.qchip').forEach((b) => b.addEventListener('click', () => {
+    document.querySelectorAll('.qchips .qchip').forEach((b) => b.addEventListener('click', () => {
       Filters.setQuality(Filters.getQuality() === b.dataset.q ? '' : b.dataset.q);
     }));
     $('search').addEventListener('input', () => {
@@ -314,7 +314,7 @@ window.Persons = (() => {
     all.forEach(([k, c]) => { $('qc-' + k).textContent = c ?? '…'; });
     $('qc-all').textContent = total;
     const cur = Filters.getQuality();
-    document.querySelectorAll('.qchip').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.q === cur)));
+    document.querySelectorAll('.qchips .qchip').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.q === cur)));
   }
 
   async function loadList() {

@@ -237,6 +237,20 @@ window.Dashboard = (() => {
       all.push(...data);
       if (data.length < 1000) break;
     }
+    // Картки самих загиблих (коли родину не встановлено)
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await db.from('persons')
+        .select('id, last_name, first_name, patronymic, death_date, burial_date, region_id, cell_id')
+        .eq('military_status', 'Загиблий').not('burial_date', 'is', null)
+        .order('id').range(from, from + 999);
+      if (error) { console.error(error); break; }
+      data.forEach((p) => all.push({
+        related_full_name: [p.last_name, p.first_name, p.patronymic].filter(Boolean).join(' '),
+        related_death_date: p.death_date, related_burial_date: p.burial_date,
+        persons: { id: p.id, region_id: p.region_id, cell_id: p.cell_id }
+      }));
+      if (data.length < 1000) break;
+    }
     const seen = new Map();
     burials = [];
     all.forEach((r) => {

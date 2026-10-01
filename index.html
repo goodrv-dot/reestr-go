@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Unbounded:wght@600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=202610011212">
+  <link rel="stylesheet" href="style.css?v=202610011229">
 </head>
 <body>
 
@@ -151,6 +151,8 @@
                 <select id="f-military_status" name="military_status"></select></div>
               <div class="field" id="death-wrap" hidden><label for="f-death_date">Дата смерті</label>
                 <input id="f-death_date" name="death_date" type="date"><p class="hint" id="h-death_date"></p></div>
+              <div class="field" id="burial-wrap" hidden><label for="f-burial_date">Дата поховання</label>
+                <input id="f-burial_date" name="burial_date" type="date"><p class="hint" id="h-burial_date"></p></div>
               <div class="field"><label for="f-military_unit_code">В/ч (код частини)</label>
                 <input id="f-military_unit_code" name="military_unit_code" placeholder="А0216"></div>
               <div class="field"><label for="f-wounded">Поранення</label>
@@ -518,6 +520,9 @@
         <h3>Особливості шаблонів</h3>
         <ul>
           <li><b>200</b>: у реєстр потрапляє <b>отримувач сповіщення</b> (член родини), загиблий — як пов’язана особа з датою загибелі, позивним і в/ч. Колонка «Регіон» стає осередком ГО, область визначається за адресою.</li>
+          <li><b>200, складні комірки.</b> Кілька отримувачів через «/», «\» чи з нового рядка — кожен стане окремою карткою (телефони розподіляються по черзі). «Кийдалюк Ілона 066… тітка: Ірина 097…» — дві людини. Якщо в «Контактах» написано «мати Ольга 096…» чи «Батько - 066…» — це теж окремі родичі.</li>
+          <li>Якщо в комірці лише ім’я («Наталія») або лише «батько» — картку створено з тимчасовим ПІБ (прізвище загиблого) і <b>червоною позначкою «ПІБ неповне»</b>. Уточніть ПІБ і збережіть картку — позначка зникне.</li>
+          <li>Якщо замість отримувача написано коментар («Дані про родину відсутні…») — створюється <b>картка самого загиблого</b> з коментарем; коли знайдуться рідні, додайте їх.</li>
           <li><b>300</b>: у реєстр потрапляє <b>сам поранений</b>, а кожен родич з колонки «Контакти родичів» — <b>окремою особою</b> зі зв’язком. Якщо в родича лише ім’я, прізвище береться у військового — перевірте його (жовта позначка). Якщо в примітках є «помер» чи «загинув», статус стає «Статус уточнюється».</li>
           <li>Згода на обробку ПД для 200 і 300 ставиться автоматично: реєстри надходять з бази ГО з підтвердженою згодою. Згоду на повідомлення уточнюйте окремо.</li>
         </ul>
@@ -770,21 +775,21 @@
   <p id="loading" class="loading">Завантаження…</p>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="config.js?v=202610011212"></script>
+  <script src="config.js?v=202610011229"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="options.js?v=202610011212"></script>
-  <script src="ui.js?v=202610011212"></script>
-  <script src="validation.js?v=202610011212"></script>
-  <script src="filters.js?v=202610011212"></script>
-  <script src="segments.js?v=202610011212"></script>
-  <script src="persons.js?v=202610011212"></script>
-  <script src="export.js?v=202610011212"></script>
-  <script src="import.js?v=202610011212"></script>
-  <script src="mfa.js?v=202610011212"></script>
-  <script src="staff.js?v=202610011212"></script>
-  <script src="ua-map.js?v=202610011212"></script>
-  <script src="dashboard.js?v=202610011212"></script>
-  <script src="nav.js?v=202610011212"></script>
-  <script src="app.js?v=202610011212"></script>
+  <script src="options.js?v=202610011229"></script>
+  <script src="ui.js?v=202610011229"></script>
+  <script src="validation.js?v=202610011229"></script>
+  <script src="filters.js?v=202610011229"></script>
+  <script src="segments.js?v=202610011229"></script>
+  <script src="persons.js?v=202610011229"></script>
+  <script src="export.js?v=202610011229"></script>
+  <script src="import.js?v=202610011229"></script>
+  <script src="mfa.js?v=202610011229"></script>
+  <script src="staff.js?v=202610011229"></script>
+  <script src="ua-map.js?v=202610011229"></script>
+  <script src="dashboard.js?v=202610011229"></script>
+  <script src="nav.js?v=202610011229"></script>
+  <script src="app.js?v=202610011229"></script>
 </body>
 </html>

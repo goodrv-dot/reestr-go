@@ -136,6 +136,56 @@ window.Importer = (() => {
     return OPT.relation_degree.find((d) => d.toLowerCase() === s) || null;
   }
 
+  // ---------- Розбір комірок з людьми (журнал «200») ----------
+  // Як пишуть ступінь спорідненості → значення довідника
+  const DEGREE_WORDS = [
+    [/^(мати|мама|матір|матері)$/i, 'Мати'], [/^(батько|тато|отець)$/i, 'Батько'],
+    [/^(дружина|жінка|вдова)$/i, 'Дружина'], [/^(чоловік)$/i, 'Чоловік'], [/^(син)$/i, 'Син'],
+    [/^(донька|дочка|доч)$/i, 'Донька'], [/^(брат)$/i, 'Брат'], [/^(сестра)$/i, 'Сестра'],
+    [/^(дід|дідусь)$/i, 'Дід'], [/^(баба|бабуся)$/i, 'Баба'], [/^(онук)$/i, 'Онук'], [/^(онука)$/i, 'Онука'],
+    [/^(тітка|тьотя|дядько|дядя|племінник|племінниця|свекруха|теща|тесть|свекор|невістка|зять|кум|кума|опікун|піклувальник)$/i, 'Інший член сім’ї / родич']
+  ];
+  function detectDegree(text) {
+    const t = clean(text).replace(/^[\s,;:–—\-]+/, '');
+    const m = t.match(/^([\p{L}’']+)\s*[:\-–—,]?\s*(.*)$/u);
+    if (m) {
+      const hit = DEGREE_WORDS.find(([re]) => re.test(m[1]));
+      if (hit) return { degree: hit[1], label: m[1].toLowerCase(), rest: clean(m[2]) };
+    }
+    return { degree: null, label: null, rest: t };
+  }
+
+  // Схоже на коментар, а не на ПІБ
+  function isNote(text) {
+    const t = clean(text);
+    if (!t) return false;
+    if (/(відсутн|немає|невідом|не встановл|інформац|рахуєть|не знайд|не вдалос|уточню|надійшл)/i.test(t)) return true;
+    // речення: крапка і далі нове слово з великої, або дуже довгий шматок без розділювачів
+    if (/[.!?]\s+\p{Lu}\p{Ll}/u.test(t)) return true;
+    return String(text).split(/[\/\\;\n]+/).some((seg) => clean(seg).split(' ').length >= 7);
+  }
+
+  // Комірка → частини «[ступінь] [ПІБ] [телефони]»: розділювачі /, \, ;, новий рядок і межі телефонів
+  function peopleChunks(text) {
+    const out = [];
+    String(text ?? '').split(/[\/\\;\n]+/).map((x) => x.trim()).filter(Boolean).forEach((part) => {
+      const re = /\+?\d[\d\s().\-]{6,}\d/g;
+      let last = 0, m, cur = null;
+      const startText = (t) => {
+        t = t.replace(/^[\s,;:–—\-]+|[\s,;:–—\-]+$/g, '').trim();
+        if (t) { cur = { text: t, phones: [] }; out.push(cur); return true; }
+        return false;
+      };
+      while ((m = re.exec(part))) {
+        if (!startText(part.slice(last, m.index)) && !cur) { cur = { text: '', phones: [] }; out.push(cur); }
+        cur.phones.push(...V.extractPhones(m[0]).phones);
+        last = re.lastIndex;
+      }
+      startText(part.slice(last));
+    });
+    return out.map((c) => { const d = detectDegree(c.text); return { ...c, degree: d.degree, label: d.label, name: d.rest }; });
+  }
+
   // ---------- Шаблон «200» ----------
   function parse200(rows, hdr, ctx) {
     const c = {
@@ -148,37 +198,28 @@ window.Importer = (() => {
       bdate: col(hdr, byName(/^дата поховання/)), bplace: col(hdr, byName(/^місце поховання/))
     };
     if ([c.fallen, c.rec, c.degree, c.phone].some((x) => x < 0)) throw new Error('У файлі бракує ключових колонок журналу «200».');
+    const program = ctx.programByName('Супровід родин загиблих (200)');
     const out = [];
+
     rows.forEach((r, i) => {
-      const g = (k) => (c[k] >= 0 ? r[c[k]] : null);
-      if (!clean(g('rec')) && !clean(g('fallen'))) return;
-      const rec = newRecord(i + 2);
-      const p = rec.person;
+      const raw = (k) => (c[k] >= 0 ? r[c[k]] : null);
+      const g = raw;
+      if (!clean(g('rec')) && !clean(g('fallen')) && !clean(g('phone'))) return;
+      const row = i + 2;
 
-      const fio = splitFio(splitNameCell(rec, g('rec')));
-      if (fio.error) rec.errors.push(`Отримувач: ${fio.error}`); else Object.assign(p, fio);
-      setPhone(rec, g('phone'));
-      Object.assign(p, parseAddress(g('addr'), ctx.regions, rec));
-      p.cell_id = matchCell(g('cell'), ctx.cells, rec);
-      p.consent_pd_at = new Date().toISOString();
-      rec.info.push(GO_CONSENT_NOTE);
-      const notes = clean(g('notes'));
-      if (notes) addComment(rec, notes);
-
-      const degree = matchDegree(g('degree'));
-      if (!degree) rec.warnings.push(`Спорідненість «${clean(g('degree')) || 'не вказано'}» не впізнано — уточніть`);
-      const mf = V.normalizeName(g('fallen'), false);
+      // --- Загиблий ---
+      const fallenName = V.normalizeName(splitNameCell({ person: {}, warnings: [], info: [] }, g('fallen')), false).value || clean(g('fallen')) || null;
+      const fallenParts = (fallenName || '').split(' ');
       const fbd = toDate(g('fbd')), fdd = toDate(g('fdd'));
-      if (!fdd) rec.warnings.push('Не вказано дату загибелі');
-      if (fbd && fdd && fdd < fbd) rec.errors.push('Дата загибелі раніше дати народження');
       const bdate = toDate(g('bdate'));
-      if (bdate && fdd && bdate < fdd) rec.warnings.push('Дата поховання раніше дати загибелі — перевірте');
-      if (bdate && bdate > new Date().toISOString().slice(0, 10)) rec.warnings.push('Дата поховання в майбутньому — перевірте');
       const unit = matchUnit(clean(g('brigade')), ctx.units);
-      if (clean(g('brigade')) && !unit.id) rec.warnings.push(`Бригаду «${clean(g('brigade'))}» не знайдено в довіднику — записано текстом`);
-      rec.relations.push({
-        relation_degree: degree || 'Інший член сім’ї / родич',
-        related_full_name: mf.value || clean(g('fallen')) || null,
+      const common = [];   // попередження, спільні для всіх записів рядка
+      if (!fdd) common.push('Не вказано дату загибелі');
+      if (bdate && fdd && bdate < fdd) common.push('Дата поховання раніше дати загибелі — перевірте');
+      if (bdate && bdate > new Date().toISOString().slice(0, 10)) common.push('Дата поховання в майбутньому — перевірте');
+      if (clean(g('brigade')) && !unit.id) common.push(`Бригаду «${clean(g('brigade'))}» не знайдено в довіднику — записано текстом`);
+      const relTemplate = {
+        related_full_name: fallenName,
         related_callsign: clean(g('callsign')) || null,
         related_birth_date: fbd, related_death_date: fdd,
         related_status: 'Загиблий', related_mp: 'Так',
@@ -186,9 +227,106 @@ window.Importer = (() => {
         related_unit_code: clean(g('vch')) || null,
         related_burial_date: bdate,
         related_burial_place: clean(g('bplace')) || null
+      };
+
+      // --- Хто в комірках «Отримувач» і «Контакти» ---
+      const notes = [];
+      const recRaw = String(g('rec') ?? '');
+      const recNoPhones = V.extractPhones(recRaw).rest;
+      let entries = [];
+      if (isNote(recNoPhones)) notes.push(`Отримувач (з журналу): ${clean(recRaw)}`);
+      else entries = peopleChunks(recRaw).filter((x) => x.name || x.degree || x.phones.length);
+
+      const degreeList = clean(g('degree')).split(/\s*[\/\\;,]\s*/).filter(Boolean);
+      entries.forEach((e, k) => {
+        if (!e.degree && degreeList[k]) {
+          const d = matchDegree(degreeList[k][0].toUpperCase() + degreeList[k].slice(1).toLowerCase());
+          e.degree = d; e.label = d ? null : degreeList[k];
+        }
       });
-      rec.programs.push(ctx.programByName('Супровід родин загиблих (200)'));
-      out.push(rec);
+
+      peopleChunks(String(g('phone') ?? '')).forEach((e) => {
+        if (!e.name && !e.degree) {
+          const free = entries.filter((x) => !x.phones.length);
+          if (free.length > 1 && e.phones.length > 1) {
+            // кілька людей і кілька номерів — по одному за порядком, решта першому
+            e.phones.forEach((ph, k) => (free[k] || free[0]).phones.push(ph));
+          } else {
+            const target = free[0] || entries[0];
+            if (target) target.phones.push(...e.phones);
+            else entries.push(e);
+          }
+        } else {
+          entries.push(e);
+        }
+      });
+      if (!entries.some((e) => e.phones.length) && clean(g('phone')) && !V.extractPhones(String(g('phone'))).phones.length) {
+        notes.push(`Телефон з файлу (не розпізнано): ${clean(g('phone'))}`);
+      }
+
+      const baseFill = (rec, first) => {
+        const p = rec.person;
+        if (first) Object.assign(p, parseAddress(g('addr'), ctx.regions, rec));
+        p.cell_id = matchCell(g('cell'), ctx.cells, rec);
+        p.consent_pd_at = new Date().toISOString();
+        rec.info.push(GO_CONSENT_NOTE);
+        if (first) {
+          const n = clean(g('notes'));
+          if (n) addComment(rec, n);
+          notes.forEach((t) => addComment(rec, t));
+        }
+        common.forEach((w) => rec.warnings.push(w));
+        rec.programs.push(program);
+      };
+
+      // --- Родину не встановлено → картка самого загиблого ---
+      if (!entries.length) {
+        const rec = newRecord(row);
+        const p = rec.person;
+        const fio = splitFio(fallenName);
+        if (fio.error) { rec.errors.push(`Загиблий: ${fio.error}`); out.push(rec); return; }
+        Object.assign(p, fio, {
+          military_status: 'Загиблий', birth_date: fbd, death_date: fdd, burial_date: bdate,
+          mp_relation: 'Так', mp_relation_type: 'Загиблий військовослужбовець МП',
+          mp_unit_id: unit.id, mp_unit_other: unit.other, military_unit_code: clean(g('vch')) || null
+        });
+        baseFill(rec, true);
+        if (clean(g('callsign'))) addComment(rec, `Позивний: ${clean(g('callsign'))}`);
+        if (clean(g('bplace'))) addComment(rec, `Місце поховання: ${clean(g('bplace'))}`);
+        rec.warnings.push('Родину не встановлено — внесено картку самого загиблого. Коли знайдуться рідні, додайте їх.');
+        out.push(rec);
+        return;
+      }
+
+      // --- Кожна людина — окрема картка зі зв’язком із загиблим ---
+      entries.forEach((e, k) => {
+        const rec = newRecord(row);
+        const p = rec.person;
+        const words = V.normalizeName(e.name, false).value?.split(' ') || [];
+        const surname = fallenParts[0] ? (FEMALE.includes(e.degree) ? femSurname(fallenParts[0]) : fallenParts[0]) : null;
+        if (words.length >= 2) {
+          Object.assign(p, { last_name: words[0], first_name: words[1], patronymic: words.slice(2).join(' ') || null });
+        } else if (words.length === 1 && surname) {
+          Object.assign(p, { last_name: surname, first_name: words[0], patronymic: null,
+            name_check: true, name_check_note: 'вказано лише ім’я, прізвище підставлено з ПІБ загиблого' });
+          rec.warnings.push(`Лише ім’я «${words[0]}» — прізвище «${surname}» підставлено, потрібно уточнити`);
+        } else if (!words.length && surname) {
+          const label = e.label || (e.degree ? e.degree.toLowerCase() : 'родич');
+          Object.assign(p, { last_name: surname, first_name: label[0].toUpperCase() + label.slice(1), patronymic: null,
+            name_check: true, name_check_note: `у файлі лише «${label}» без імені` });
+          rec.warnings.push(`ПІБ не вказано (лише «${label}») — створено тимчасове ім’я, потрібно уточнити`);
+        } else {
+          rec.errors.push(`Не вдалося визначити ПІБ отримувача: «${clean(e.text) || clean(recRaw)}»`);
+        }
+        if (e.phones.length) addPhones(rec, e.phones);
+        else rec.warnings.push('Немає телефону: не потрапить у розсилку');
+        if (!e.degree) rec.warnings.push(`Спорідненість «${e.label || clean(g('degree')) || 'не вказано'}» не впізнано — уточніть`);
+        else if (e.label && e.degree === 'Інший член сім’ї / родич') addComment(rec, `Спорідненість: ${e.label}`);
+        if (entries.length > 1) rec.info.push(`Одна з ${entries.length} осіб у рядку`);
+        baseFill(rec, k === 0);
+        rec.relations.push({ ...relTemplate, relation_degree: e.degree || 'Інший член сім’ї / родич' });
+        out.push(rec);
+      });
     });
     return out;
   }

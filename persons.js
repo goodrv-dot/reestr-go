@@ -232,6 +232,7 @@ window.Persons = (() => {
     });
     $('mp-unit-other-wrap').hidden = f.mp_relation.value !== 'Так' || f.mp_unit.value !== 'other';
     $('death-wrap').hidden = !OPT.deceased_statuses.includes(f.military_status.value);
+    $('burial-wrap').hidden = $('death-wrap').hidden;
   }
 
   function bind() {
@@ -547,6 +548,7 @@ window.Persons = (() => {
     f.querySelectorAll('input[name="vet_status"]').forEach((cb) => { cb.checked = vs.has(cb.value); });
 
     f.death_date.value = p.death_date || '';
+    f.burial_date.value = p.burial_date || '';
     f.military_unit_code.value = p.military_unit_code || '';
     f.wounded.value = p.wounded;
     f.wound_date.value = p.wound_date || '';
@@ -602,11 +604,18 @@ window.Persons = (() => {
     rec.military_unit_code = f.military_unit_code.value.trim() || null;
     rec.cell_id = f.cell_id.value ? Number(f.cell_id.value) : null;
     rec.death_date = null;
+    rec.burial_date = null;
+    rec.name_check = false;          // оператор переглянув і зберіг картку — ПІБ підтверджено
+    rec.name_check_note = null;
     if (OPT.deceased_statuses.includes(rec.military_status)) {
       const dd = V.checkBirthDate(f.death_date.value);
       if (dd.error) { setHint('death_date', dd.error); ok = false; }
       else if (dd.value && rec.birth_date && dd.value < rec.birth_date) { setHint('death_date', 'Дата смерті раніше дати народження'); ok = false; }
       else rec.death_date = dd.value;
+      const bu = V.checkBirthDate(f.burial_date.value);
+      if (bu.error) { setHint('burial_date', bu.error); ok = false; }
+      else if (bu.value && rec.death_date && bu.value < rec.death_date) { setHint('burial_date', 'Раніше дати смерті'); ok = false; }
+      else rec.burial_date = bu.value;
     }
     rec.wounded = f.wounded.value;
     rec.wound_date = null;

@@ -102,7 +102,9 @@ window.V = (() => {
       .replace(/([A-Za-zА-ЯІЇЄҐ])\.(?=[A-Za-zА-ЯІЇЄҐ])/g, '$1. ');          // «Т.П.» → «Т. П.»
     if (!s) return required ? { error: 'Обов’язкове поле' } : { value: null };
     if (!/^[A-Za-zА-Яа-яІіЇїЄєҐґЁё’.\- ]+$/.test(s)) return { error: 'Лише літери, апостроф, дефіс і крапка (ініціали)' };
-    s = s.replace(/(^|[ \-])(\p{L})/gu, (m, sep, ch) => sep + ch.toUpperCase());
+    // «ШЕВЧЕНКО» → «Шевченко» (слова, написані повністю великими)
+    s = s.split(/([ \-])/).map((w) => (w.length > 1 && w === w.toUpperCase() && /\p{L}{2}/u.test(w) ? w.toLowerCase() : w)).join('');
+    s = s.replace(/(^|[ \-’])(\p{L})/gu, (m, sep, ch) => (sep === '’' ? m : sep + ch.toUpperCase()));
     return { value: s };
   }
 

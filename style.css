@@ -524,3 +524,34 @@ select.paint[data-v="Viber"]    { background: #eee6f6; }
 .qchip-ok[aria-pressed="true"]   { background: #2f6b4e; border-color: #2f6b4e; }
 .qchip .q-pill { margin: 0; min-width: 1.2rem; line-height: 1.2rem; }
 .qchip[aria-pressed="true"] .q-ok { color: var(--white); }
+
+/* ============ Чіткіше розрізнення: червоний vs жовтий ============ */
+:root { --crit: #c62828; --crit-bg: #fde8e8; --warn: #f2b705; --warn-bg: #fff6cc; --warn-ink: #5c4300; }
+
+/* Позначки в таблиці */
+.q-pill-crit { background: var(--crit); color: #fff; }
+.q-pill-warn { background: var(--warn); color: var(--warn-ink); }
+
+/* Кнопки швидкого фільтра */
+.qchip-crit .q-pill { background: var(--crit); color: #fff; }
+.qchip-warn .q-pill { background: var(--warn); color: var(--warn-ink); }
+.qchip-crit[aria-pressed="true"] { background: var(--crit); border-color: var(--crit); color: #fff; }
+.qchip-crit[aria-pressed="true"] .q-pill { background: #fff; color: var(--crit); }
+.qchip-warn[aria-pressed="true"] { background: var(--warn); border-color: #d9a400; color: var(--warn-ink); }
+.qchip-warn[aria-pressed="true"] .q-pill { background: var(--warn-ink); color: var(--warn); }
+
+/* Блок «Що потрібно доповнити» в картці */
+.q-critical li::before { background: var(--crit); }
+.q-warning li::before { background: var(--warn); box-shadow: 0 0 0 1px #c99700; }
+
+/* Мануал: легенда */
+.dot-crit { background: var(--crit); }
+.dot-warn { background: var(--warn); box-shadow: 0 0 0 1px #c99700; }
+
+/* Імпорт */
+.st-err  .st-badge, .imp-chip.st-err  { background: var(--crit); color: #fff; }
+.st-warn .st-badge, .imp-chip.st-warn { background: var(--warn); color: var(--warn-ink); }
+tr.st-err  { background: var(--crit-bg); }
+tr.st-warn { background: var(--warn-bg); }
+.n-err  { color: var(--crit); }  .n-err::before  { background: var(--crit); }
+.n-warn { color: var(--warn-ink); } .n-warn::before { background: var(--warn); }

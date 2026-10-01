@@ -497,3 +497,13 @@ select.paint[data-v="Viber"]    { background: #eee6f6; }
 .filter-grid-acc .filter:has(.range input:not(:placeholder-shown)) .range input:not(:placeholder-shown) {
   border-color: var(--acc); background: var(--acc-bg); font-weight: 600;
 }
+
+/* Хто заповнив, мета картки, закріплена панель */
+.cell-who { white-space: nowrap; font-size: 0.9rem; }
+.form-meta { margin: -1rem 0 1.25rem; }
+@media (min-width: 761px) {
+  .topbar { position: sticky; top: 0; z-index: 15; }
+  .manual section, .manual h2 { scroll-margin-top: 5rem; }
+}
+#registry-view { max-width: 100rem; }
+.cell-phone { white-space: nowrap; }

@@ -82,7 +82,7 @@
         <p id="list-status" class="empty" hidden></p>
         <div class="table-wrap">
           <table id="persons-table" hidden>
-            <thead><tr><th class="cell-num">№</th><th><span class="sr-only">Стан даних</span></th><th>ПІБ</th><th>Телефон</th><th>Область</th><th>Категорії</th><th>Коментар / Досьє</th></tr></thead>
+            <thead><tr><th class="cell-num">№</th><th><span class="sr-only">Стан даних</span></th><th>ПІБ</th><th>Телефон</th><th>Область</th><th>Категорії</th><th>Точка дотику</th><th>Коментар / Досьє</th><th>Хто заповнив</th></tr></thead>
             <tbody></tbody>
           </table>
         </div>
@@ -92,6 +92,7 @@
       <section id="form-view" hidden>
         <button id="back-btn" class="btn-link" type="button">Назад до списку</button>
         <h1 id="form-title">Нова особа</h1>
+        <p id="form-meta" class="form-meta muted" hidden></p>
         <section id="quality-box" class="quality" hidden aria-labelledby="quality-title">
           <h2 id="quality-title">Що потрібно доповнити</h2>
           <ul id="quality-critical" class="q-list q-critical"></ul>
@@ -223,7 +224,9 @@
             <label class="check"><input type="checkbox" name="vkmpu_member"> Член ВКМПУ</label>
             <p class="sublabel">Програми ГО <span class="muted">(можна обрати кілька)</span></p>
             <div id="programs-box" class="checks checks-grid"></div>
-            <div class="field field-wide"><label for="f-comment">Коментар</label>
+            <div class="field field-wide"><label for="f-touchpoint">Точка дотику</label>
+              <textarea id="f-touchpoint" name="touchpoint" rows="2" placeholder="Де і як познайомились, через кого вийшли на контакт, за яких обставин"></textarea></div>
+            <div class="field field-wide"><label for="f-comment">Коментар / Досьє</label>
               <textarea id="f-comment" name="comment" rows="3"></textarea></div>
           </fieldset>
 

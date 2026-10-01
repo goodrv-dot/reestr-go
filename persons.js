@@ -13,6 +13,7 @@ window.Persons = (() => {
   const regions = new Map();
   const cells = new Map();
   const programs = new Map();
+  const staff = new Map();   // user_id → ПІБ співробітника
   let units = [];          // підрозділи МП для рядків зв’язків
   let rowSeq = 0;          // унікальні id для полів у рядках
   const $ = (id) => document.getElementById(id);
@@ -58,6 +59,9 @@ window.Persons = (() => {
       l.append(cb, ' ' + pr.name);
       pbox.appendChild(l);
     });
+
+    const ops = await db.from('operators').select('user_id, full_name');
+    if (!ops.error && Array.isArray(ops.data)) ops.data.forEach((o) => staff.set(o.user_id, o.full_name));
 
     Filters.init({ regions, cells, programs }, loadList);
 
@@ -295,7 +299,7 @@ window.Persons = (() => {
     let query;
     try {
       ({ query } = await buildQuery(
-        'id, last_name, first_name, patronymic, phone, region_id, person_categories, family_categories, created_at, critical_count, warning_count, comment',
+        'id, last_name, first_name, patronymic, phone, region_id, person_categories, family_categories, created_at, critical_count, warning_count, comment, touchpoint, created_by, source',
         { count: 'exact' }));
     } catch (e) {
       console.error(e);
@@ -341,7 +345,7 @@ window.Persons = (() => {
       addCell(tr, String(idx + 1), 'cell-num');
       tr.appendChild(qualityCell(p.critical_count, p.warning_count));
       addCell(tr, [p.last_name, p.first_name, p.patronymic].filter(Boolean).join(' '), 'cell-name');
-      addCell(tr, V.formatPhone(p.phone) || '—');
+      addCell(tr, V.formatPhone(p.phone) || '—', 'cell-phone');
       addCell(tr, regions.get(p.region_id) || '—');
 
       const cats = [...new Set([...(p.person_categories || []), ...(p.family_categories || [])])];
@@ -361,15 +365,31 @@ window.Persons = (() => {
       if (!cats.length) td.textContent = '—';
       tr.appendChild(td);
 
-      const cm = document.createElement('td');
-      cm.className = 'cell-comment';
-      if (p.comment) {
-        cm.textContent = p.comment.length > 110 ? p.comment.slice(0, 110) + '…' : p.comment;
-        cm.title = p.comment;
-      } else cm.textContent = '—';
-      tr.appendChild(cm);
+      tr.appendChild(longCell(p.touchpoint));
+      tr.appendChild(longCell(p.comment));
+
+      const who = document.createElement('td');
+      who.className = 'cell-who';
+      who.innerHTML = '<span></span><br><span class="muted"></span>';
+      who.firstChild.textContent = staff.get(p.created_by) || '—';
+      who.lastChild.textContent = sourceLabel(p.source);
+      tr.appendChild(who);
       tbody.appendChild(tr);
     });
+  }
+
+  function longCell(text) {
+    const td = document.createElement('td');
+    td.className = 'cell-comment';
+    if (text) {
+      td.textContent = text.length > 110 ? text.slice(0, 110) + '…' : text;
+      td.title = text;
+    } else td.textContent = '—';
+    return td;
+  }
+
+  function sourceLabel(src) {
+    return { 'Вручну': 'вручну', 'Excel': 'імпорт Excel', 'Анкета': 'анкета', 'Google Таблиця': 'Google Таблиця' }[src] || src || '';
   }
 
   function qualityCell(crit, warn) {
@@ -433,8 +453,12 @@ window.Persons = (() => {
       if (error) { console.error(error); toast('Не вдалося відкрити картку.'); return; }
       fillForm(data);
       $('form-title').textContent = [data.last_name, data.first_name, data.patronymic].filter(Boolean).join(' ');
+      $('form-meta').textContent = `Додав(ла): ${staff.get(data.created_by) || 'невідомо'} · ${sourceLabel(data.source)} · ${new Date(data.created_at).toLocaleDateString('uk-UA')}`
+        + (data.source_ref ? ` · файл «${data.source_ref}»` : '');
+      $('form-meta').hidden = false;
     } else {
       $('form-title').textContent = 'Нова особа';
+      $('form-meta').hidden = true;
     }
 
     $('delete-btn').hidden = !(id && isAdmin);
@@ -452,6 +476,7 @@ window.Persons = (() => {
     ['last_name', 'first_name', 'patronymic', 'birth_date', 'email', 'settlement', 'comment',
      'sex', 'preferred_messenger', 'is_idp'].forEach((k) => { f[k].value = p[k] ?? ''; });
     f.phone.value = V.formatPhone(p.phone);
+    f.touchpoint.value = p.touchpoint ?? '';
     f.region_id.value = p.region_id ?? '';
     f.vkmpu_member.checked = p.vkmpu_member;
     f.consent_messages.checked = p.consent_messages;
@@ -636,6 +661,7 @@ window.Persons = (() => {
     rec.region_id = f.region_id.value ? Number(f.region_id.value) : null;
     rec.settlement = f.settlement.value.trim() || null;
     rec.comment = f.comment.value.trim() || null;
+    rec.touchpoint = f.touchpoint.value.trim() || null;
     rec.vkmpu_member = f.vkmpu_member.checked;
     rec.consent_messages = f.consent_messages.checked;
     rec.unsubscribed = f.unsubscribed.checked;
@@ -735,7 +761,7 @@ window.Persons = (() => {
   }
 
   function ctx() {
-    return { db, operator, regions, cells, programs, units: new Map(units.map((u) => [u.id, u.name])) };
+    return { db, operator, regions, cells, programs, staff, sourceLabel, units: new Map(units.map((u) => [u.id, u.name])) };
   }
 
   return { init, showList, buildQuery, ctx, toast };

@@ -86,7 +86,10 @@ window.Exporter = (() => {
         'Член ВКМПУ': yn(p.vkmpu_member),
         'Категорії особи': (p.person_categories || []).join('; '), 'Категорії родини': (p.family_categories || []).join('; '),
         'Критично доповнити': (p.issues_critical || []).length, 'Бажано доповнити': (p.issues_warning || []).length,
-        'Коментар': p.comment || ''
+        'Точка дотику': p.touchpoint || '',
+        'Коментар / Досьє': p.comment || '',
+        'Хто заповнив': Persons.ctx().staff.get(p.created_by) || '',
+        'Джерело': Persons.ctx().sourceLabel(p.source)
       }));
 
       const sheetChildren = children

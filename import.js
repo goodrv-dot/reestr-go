@@ -25,11 +25,27 @@ window.Importer = (() => {
     }
     if (v instanceof Date) return `${v.getFullYear()}-${pad(v.getMonth() + 1)}-${pad(v.getDate())}`;
     const s = clean(v);
-    let m = s.match(/^(\d{1,2})[.,/](\d{1,2})[.,/](\d{4})/);
-    if (m) return `${m[3]}-${pad(m[2])}-${pad(m[1])}`;
+    let m = s.match(/^(\d{1,2})[.,/\-](\d{1,2})[.,/\-](\d{2,4})/);
+    if (m) {
+      let [, a, b, y] = m;
+      let day = +a, mon = +b;
+      if (mon > 12 && day <= 12) { [day, mon] = [mon, day]; lastDateFix = 'день і місяць переставлено'; }   // 12/25/2012 (американський формат)
+      let year = +y;
+      if (year < 100) {                                           // 0012 → 2012, 98 → 1998
+        const cy = new Date().getFullYear() % 100;
+        year = year <= cy ? 2000 + year : 1900 + year;
+        lastDateFix = (lastDateFix ? lastDateFix + ', ' : '') + `рік «${y}» прочитано як ${year}`;
+      }
+      if (mon < 1 || mon > 12 || day < 1 || day > 31) return null;
+      const iso = `${year}-${pad(mon)}-${pad(day)}`;
+      return isNaN(new Date(iso + 'T00:00:00')) ? null : iso;
+    }
     m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
     return m ? `${m[1]}-${m[2]}-${m[3]}` : null;
   }
+  // Пояснення, якщо дату довелося виправити (читається одразу після toDate)
+  let lastDateFix = '';
+  function toDateNote(v) { lastDateFix = ''; const iso = toDate(v); return { iso, fix: lastDateFix }; }
 
   // «Прізвище Ім’я По батькові» → частини
   function splitFio(raw) {
@@ -513,10 +529,33 @@ window.Importer = (() => {
       const rec = newRecord(excelRow);
       const p = rec.person;
 
-      // Представник
-      const fio = splitFio(splitNameCell(rec, g('rep')));
+      // Представник (може бути кілька через кому; цифри в ПІБ; лише одне слово)
+      const repParts = splitNameCell(rec, g('rep')).split(/\s*[,;\/\\]\s*/).filter(Boolean);
+      const childSurname = (V.normalizeName(clean(g('child')), false).value || '').split(' ')[0] || '';
+      const repFio = (raw) => {
+        let t = clean(raw), note = '';
+        if (/\d/.test(t)) { t = t.replace(/\d+/g, ' ').replace(/\s+/g, ' ').trim(); note = 'у ПІБ були цифри — прибрано'; }
+        const f = splitFio(t);
+        if (!f.error) return note ? { ...f, name_check: true, name_check_note: note } : f;
+        const words = (V.normalizeName(t, false).value || '').split(' ').filter(Boolean);
+        if (words.length === 1) {
+          if (childSurname && letters(words[0]) === letters(childSurname)) {
+            return { last_name: words[0], first_name: 'Представник', patronymic: null, name_check: true, name_check_note: 'вказано лише прізвище' };
+          }
+          if (childSurname) {
+            return { last_name: childSurname, first_name: words[0], patronymic: null, name_check: true, name_check_note: 'вказано одне слово, прізвище взято з прізвища дитини' };
+          }
+          return { last_name: words[0], first_name: 'Представник', patronymic: null, name_check: true, name_check_note: 'вказано одне слово' };
+        }
+        return { error: f.error };
+      };
+      const fio = repFio(repParts[0] || '');
       if (fio.error) rec.errors.push(`Представник: ${fio.error}`);
-      else Object.assign(p, fio);
+      else {
+        Object.assign(p, fio);
+        if (fio.name_check) rec.warnings.push(`ПІБ представника: ${fio.name_check_note} — потрібно уточнити (у реєстрі буде червона позначка)`);
+      }
+      const extraReps = repParts.slice(1).map(repFio).filter((f) => !f.error);
       setPhone(rec, g('phone'));
 
       const em = V.normalizeEmail(g('email'));
@@ -593,13 +632,32 @@ window.Importer = (() => {
       rec.programs.push(ctx.programByName(TEMPLATES[0].program));
       p.has_children = rec.children.length ? 'Так' : 'Невідомо';
       out.push(rec);
+
+      // Другий представник з тієї ж анкети → додаткова картка (без дітей, щоб не дублювати)
+      extraReps.forEach((f) => {
+        const kr = newRecord(rec.rows[0]);
+        kr.isRelative = true;
+        Object.assign(kr.person, f, { is_extra: true, region_id: p.region_id || null, settlement: p.settlement || null,
+          consent_pd_at: p.consent_pd_at || null, has_children: rec.children.length ? 'Так' : 'Невідомо' });
+        kr.relations = rec.relations.map((x) => ({ ...x }));
+        kr.programs = [...rec.programs];
+        // якщо в анкеті кілька телефонів — другий віддаємо другому представнику
+        const ph = (p.extra_phones || []).shift();
+        if (ph) { kr.person.phone = ph; kr.info.push('Телефон — другий номер з анкети'); }
+        kr.warnings.push(ph ? 'Другий представник з тієї ж анкети — діти записані в основній картці'
+          : 'Другий представник з тієї ж анкети — телефону немає, діти записані в основній картці');
+        if (f.name_check) kr.warnings.push(`ПІБ: ${f.name_check_note} — потрібно уточнити`);
+        addComment(kr, `Другий представник з анкети, основна картка: ${[p.last_name, p.first_name].filter(Boolean).join(' ')}`);
+        out.push(kr);
+      });
     });
     return out;
   }
 
   function makeChild(name, bd, sex, interests, needs, ts, rec) {
-    const iso = toDate(bd);
+    const { iso, fix } = toDateNote(bd);
     const nm = clean(name);
+    if (iso && fix) rec.warnings.push(`Дитина «${nm}»: дату «${clean(bd)}» виправлено (${fix}) → ${iso.split('-').reverse().join('.')} — перевірте`);
     if (!iso) { rec.errors.push(`Дитина «${nm || 'без імені'}»: немає або невірна дата народження`); return null; }
     const chk = V.checkBirthDate(iso);
     if (chk.error) { rec.errors.push(`Дитина «${nm}»: ${chk.error.toLowerCase()}`); return null; }

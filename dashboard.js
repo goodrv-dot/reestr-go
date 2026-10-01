@@ -20,6 +20,14 @@ window.Dashboard = (() => {
   let rows = [];
   let byRegion = new Map();   // назва області → значення
   let ready = false;
+  // Області, які завжди показуємо у списку (навіть з нулем)
+  const ALWAYS = ['Луганська', 'Автономна Республіка Крим'];
+  const short = (n) => (n === 'Автономна Республіка Крим' ? 'АР Крим' : n);
+  function fullList() {
+    const list = [...byRegion.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'uk'));
+    ALWAYS.forEach((n) => { if (!byRegion.has(n)) list.push([n, 0]); });
+    return list;
+  }
 
   function init() {
     if (ready) return;
@@ -82,7 +90,7 @@ window.Dashboard = (() => {
     const tip = $('dash-tip');
     const showTip = (el, ev) => {
       const v = byRegion.get(el.dataset.name) || 0;
-      tip.textContent = `${el.dataset.name}: ${v}`;
+      tip.textContent = `${short(el.dataset.name)}: ${v}`;
       tip.hidden = false;
       const box = $('dash-map-wrap').getBoundingClientRect();
       const x = ev ? ev.clientX - box.left : el.getBoundingClientRect().left - box.left + 20;
@@ -192,17 +200,17 @@ window.Dashboard = (() => {
     $('dash-abroad').textContent = abroad;
 
     // Список
-    const list = [...byRegion.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'uk'));
+    const list = fullList();
     const ul = $('dash-list');
     ul.innerHTML = '';
-    if (!list.length) ul.innerHTML = '<li class="muted">Немає даних за цими умовами</li>';
+    if (!byRegion.size) ul.innerHTML = '<li class="muted">Немає даних за цими умовами</li>';
     list.forEach(([name, v]) => {
       const li = document.createElement('li');
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.className = 'dash-row';
+      btn.className = 'dash-row' + (v ? '' : ' is-zero');
       btn.innerHTML = '<span class="dash-name"></span><span class="dash-bar"><i></i></span><b></b>';
-      btn.querySelector('.dash-name').textContent = name;
+      btn.querySelector('.dash-name').textContent = short(name);
       btn.querySelector('i').style.width = `${(v / (max || 1)) * 100}%`;
       btn.querySelector('i').style.background = color(v / (max || 1));
       btn.querySelector('b').textContent = v;
@@ -338,7 +346,7 @@ window.Dashboard = (() => {
   async function downloadPng() {
     const map = $('dash-map').cloneNode(true);
     const [vx, vy, vw, vh] = UA_MAP.viewBox.split(' ').map(Number);
-    const list = [...byRegion.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'uk'));
+    const list = fullList();
     const perCol = Math.ceil(list.length / 3) || 1;
     const W = 1400, mapH = Math.round(W * vh / vw), head = 150, listH = perCol * 30 + 30, foot = 50, H = head + mapH + listH + foot;
     const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
@@ -362,7 +370,7 @@ window.Dashboard = (() => {
       <text x="40" y="98" font-family="Arial, sans-serif" font-size="20" fill="#5b6875">${esc(cond).slice(0, 140)}</text>
       <text x="40" y="128" font-family="Arial, sans-serif" font-size="20" fill="#5b6875">Усього: ${esc($('dash-total').textContent)} · ${new Date().toLocaleDateString('uk-UA')}</text>
       <svg x="20" y="${head}" width="${W - 40}" height="${mapH}" viewBox="${UA_MAP.viewBox}">${inner}</svg>
-      ${list.map(([n, v], i) => `<text x="${40 + Math.floor(i / perCol) * 440}" y="${head + mapH + 30 + (i % perCol) * 30}" font-family="Arial, sans-serif" font-size="20" fill="#16222e">${esc(n)} — <tspan font-weight="700">${v}</tspan></text>`).join('')}
+      ${list.map(([n, v], i) => `<text x="${40 + Math.floor(i / perCol) * 440}" y="${head + mapH + 30 + (i % perCol) * 30}" font-family="Arial, sans-serif" font-size="20" fill="#16222e">${esc(short(n))} — <tspan font-weight="700">${v}</tspan></text>`).join('')}
       <text x="40" y="${H - 22}" font-family="Arial, sans-serif" font-size="16" fill="#8a96a1">Реєстр ГО · межі областей © OpenStreetMap</text>
     </svg>`;
     const img = new Image();

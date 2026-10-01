@@ -667,3 +667,5 @@ tr.st-warn { background: var(--warn-bg); }
 .preset-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .preset-x { background: none; border: 0; color: #7a2e2e; font-size: 1rem; padding: 0 0.3rem; line-height: 1; }
 .preset-x:hover { color: var(--err); }
+.dash-row.is-zero { color: var(--muted); }
+.dash-row.is-zero b { font-weight: 500; }

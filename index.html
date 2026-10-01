@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Unbounded:wght@600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=202610011113">
+  <link rel="stylesheet" href="style.css?v=202610011201">
 </head>
 <body>
 
@@ -210,8 +210,12 @@
           <fieldset>
             <legend>Контакти й розсилки</legend>
             <div class="grid">
-              <div class="field"><label for="f-phone">Телефон</label>
+              <div class="field"><label for="f-phone">Телефон 1 (основний)</label>
                 <input id="f-phone" name="phone" type="tel" inputmode="tel" placeholder="050 123 45 67"><p class="hint" id="h-phone"></p></div>
+              <div class="field"><label for="f-phone2">Телефон 2</label>
+                <input id="f-phone2" name="phone2" type="tel" inputmode="tel"><p class="hint" id="h-phone2"></p></div>
+              <div class="field"><label for="f-phone3">Телефон 3</label>
+                <input id="f-phone3" name="phone3" type="tel" inputmode="tel"><p class="hint" id="h-phone3"></p></div>
               <div class="field"><label for="f-email">Електронна пошта</label>
                 <input id="f-email" name="email" type="email"><p class="hint" id="h-email"></p></div>
               <div class="field"><label for="f-preferred_messenger">Бажаний месенджер</label>
@@ -550,7 +554,10 @@
             <tr><td>+48 512 345 678</td><td>іноземний, залишиться як є</td></tr>
           </tbody>
         </table>
-        <p>Один номер — одна особа: якщо номер уже є в реєстрі, система не дасть створити дублікат. Знайдіть цю особу пошуком.</p>
+        <p>У картці можна вказати <b>до трьох телефонів</b>: перший — основний (на нього йдуть розсилки), Телефон 2 і 3 — додаткові. У списку додаткові видно як «+1», «+2» (наведіть мишку).</p>
+        <p><b>Іноземні номери</b> (наприклад, Нідерланди 31…, Польща 48…) приймаються навіть без «+», але позначаються жовтим «Іноземний номер — перевірте».</p>
+        <p>При імпорті система сама розбирає складні комірки: <i>«0503412973 0956061889»</i> → два телефони; <i>«Іванова Марія 0501234567»</i> у колонці ПІБ → ПІБ окремо, телефон окремо; ініціали «Т.П.» теж розуміє.</p>
+        <p>Один номер — одна особа: якщо номер уже є в реєстрі (основним чи додатковим), система не дасть створити дублікат. Пошук за повним номером знаходить і додаткові телефони.</p>
       </section>
 
       <section id="m-scenarios">
@@ -763,21 +770,21 @@
   <p id="loading" class="loading">Завантаження…</p>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="config.js?v=202610011113"></script>
+  <script src="config.js?v=202610011201"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="options.js?v=202610011113"></script>
-  <script src="ui.js?v=202610011113"></script>
-  <script src="validation.js?v=202610011113"></script>
-  <script src="filters.js?v=202610011113"></script>
-  <script src="segments.js?v=202610011113"></script>
-  <script src="persons.js?v=202610011113"></script>
-  <script src="export.js?v=202610011113"></script>
-  <script src="import.js?v=202610011113"></script>
-  <script src="mfa.js?v=202610011113"></script>
-  <script src="staff.js?v=202610011113"></script>
-  <script src="ua-map.js?v=202610011113"></script>
-  <script src="dashboard.js?v=202610011113"></script>
-  <script src="nav.js?v=202610011113"></script>
-  <script src="app.js?v=202610011113"></script>
+  <script src="options.js?v=202610011201"></script>
+  <script src="ui.js?v=202610011201"></script>
+  <script src="validation.js?v=202610011201"></script>
+  <script src="filters.js?v=202610011201"></script>
+  <script src="segments.js?v=202610011201"></script>
+  <script src="persons.js?v=202610011201"></script>
+  <script src="export.js?v=202610011201"></script>
+  <script src="import.js?v=202610011201"></script>
+  <script src="mfa.js?v=202610011201"></script>
+  <script src="staff.js?v=202610011201"></script>
+  <script src="ua-map.js?v=202610011201"></script>
+  <script src="dashboard.js?v=202610011201"></script>
+  <script src="nav.js?v=202610011201"></script>
+  <script src="app.js?v=202610011201"></script>
 </body>
 </html>

@@ -155,7 +155,7 @@ window.Importer = (() => {
       const rec = newRecord(i + 2);
       const p = rec.person;
 
-      const fio = splitFio(g('rec'));
+      const fio = splitFio(splitNameCell(rec, g('rec')));
       if (fio.error) rec.errors.push(`Отримувач: ${fio.error}`); else Object.assign(p, fio);
       setPhone(rec, g('phone'));
       Object.assign(p, parseAddress(g('addr'), ctx.regions, rec));
@@ -217,7 +217,7 @@ window.Importer = (() => {
       const rec = newRecord(row);
       const p = rec.person;
 
-      const fio = splitFio(g('fio'));
+      const fio = splitFio(splitNameCell(rec, g('fio')));
       if (fio.error) rec.errors.push(`Військовий: ${fio.error}`); else Object.assign(p, fio);
       setPhone(rec, g('phone'));
       const bd = toDate(g('bd'));
@@ -248,8 +248,9 @@ window.Importer = (() => {
 
       // Родичі з вільного тексту → окремі особи
       String(g('kin') ?? '').split(/\n|;/).map((l) => l.trim()).filter(Boolean).forEach((line) => {
-        const phoneM = line.match(/(\+?\d[\d\s()-]{7,}\d)/);
-        const text = phoneM ? line.slice(0, phoneM.index) : line;
+        const ext = V.extractPhones(line);
+        const phoneM = ext.phones.length ? true : null;
+        const text = ext.rest;
         const parts = text.split(/\s*[-—–:]\s*/).map(clean).filter(Boolean);
         const degree = matchDegree(parts[0] ? parts[0][0].toUpperCase() + parts[0].slice(1).toLowerCase() : '');
         const name = parts.slice(degree ? 1 : 0).join(' ');
@@ -267,7 +268,8 @@ window.Importer = (() => {
         }
         if (!first) kr.errors.push(`Родич «${line}»: немає імені`);
         Object.assign(kr.person, { last_name: last, first_name: first, patronymic: patr });
-        setPhone(kr, phoneM ? phoneM[1] : '');
+        if (ext.phones.length) addPhones(kr, ext.phones);
+        else kr.warnings.push('Немає телефону: не потрапить у розсилку');
         if (!degree) kr.warnings.push(`Ступінь спорідненості «${parts[0] || ''}» не впізнано — уточніть`);
         kr.person.consent_pd_at = new Date().toISOString();
         kr.info.push('Родич пораненого з колонки «Контакти родичів»');
@@ -288,12 +290,38 @@ window.Importer = (() => {
     return out;
   }
 
+  // Телефони з комірки (може бути кілька): перший — основний, решта — додаткові
   function setPhone(rec, raw) {
     const s = clean(raw);
-    const ph = V.normalizePhone(s);
-    if (ph.error) rec.errors.push(`Телефон «${s}»: невірний формат`);
-    else if (!ph.value) rec.warnings.push('Немає телефону: не потрапить у розсилку');
-    else { rec.person.phone = ph.value; if (ph.warning) rec.warnings.push(ph.warning); }
+    if (!s) {
+      if (!rec.person.phone) rec.warnings.push('Немає телефону: не потрапить у розсилку');
+      return;
+    }
+    const { phones, bad } = V.extractPhones(s);
+    if (!phones.length) { rec.errors.push(`Телефон «${s}»: невірний формат`); return; }
+    addPhones(rec, phones);
+    if (bad.length) rec.warnings.push(`Частину телефону не розпізнано: «${bad.join(', ')}» — перевірте`);
+  }
+
+  function addPhones(rec, phones) {
+    const p = rec.person;
+    p.extra_phones = p.extra_phones || [];
+    phones.forEach((ph) => {
+      if (p.phone === ph.value || p.extra_phones.includes(ph.value)) return;
+      if (!p.phone) p.phone = ph.value; else p.extra_phones.push(ph.value);
+      if (ph.warning && !rec.warnings.includes(ph.warning)) rec.warnings.push(ph.warning);
+    });
+    if (p.extra_phones.length) rec.info.push(`Телефонів: ${1 + p.extra_phones.length} (основний + додаткові)`);
+  }
+
+  // ПІБ, у якому заодно записано телефон: «Іванова Марія 0501234567»
+  function splitNameCell(rec, raw) {
+    const { phones, rest } = V.extractPhones(clean(raw));
+    if (phones.length) {
+      addPhones(rec, phones);
+      rec.info.push('Телефон знайдено в колонці з ПІБ — розділено');
+    }
+    return rest;
   }
 
   // ---------- Шаблон «Діти МП» ----------
@@ -325,14 +353,10 @@ window.Importer = (() => {
       const p = rec.person;
 
       // Представник
-      const fio = splitFio(g('rep'));
+      const fio = splitFio(splitNameCell(rec, g('rep')));
       if (fio.error) rec.errors.push(`Представник: ${fio.error}`);
       else Object.assign(p, fio);
-
-      const ph = V.normalizePhone(clean(g('phone')));
-      if (ph.error) rec.errors.push(`Телефон «${clean(g('phone'))}»: невірний формат`);
-      else if (!ph.value) rec.warnings.push('Немає телефону: не потрапить у розсилку');
-      else { p.phone = ph.value; if (ph.warning) rec.warnings.push(ph.warning); }
+      setPhone(rec, g('phone'));
 
       const em = V.normalizeEmail(g('email'));
       if (em.error) rec.warnings.push(`Email «${clean(g('email'))}» невірний — не буде записаний`);
@@ -481,13 +505,20 @@ window.Importer = (() => {
   // Звірка з базою: хто вже є
   async function matchExisting(list) {
     const { db } = Persons.ctx();
-    const COLS = 'id, phone, last_name, first_name, patronymic, email, region_id, settlement, cell_id, birth_date, consent_pd_at, consent_messages, children(birth_date, full_name), military_relations(id, related_full_name, related_death_date, related_burial_date, related_burial_place, related_callsign, related_unit_code), person_programs(program_id)';
-    const phones = [...new Set(list.map((r) => r.person.phone).filter(Boolean))];
+    const COLS = 'id, phone, extra_phones, last_name, first_name, patronymic, email, region_id, settlement, cell_id, birth_date, consent_pd_at, consent_messages, children(birth_date, full_name), military_relations(id, related_full_name, related_death_date, related_burial_date, related_burial_place, related_callsign, related_unit_code), person_programs(program_id)';
+    const allPhones = (r) => [r.person.phone, ...(r.person.extra_phones || [])].filter(Boolean);
+    const phones = [...new Set(list.flatMap(allPhones))];
     const found = new Map();
-    for (let i = 0; i < phones.length; i += 150) {
-      const { data, error } = await db.from('persons').select(COLS).in('phone', phones.slice(i, i + 150));
-      if (error) throw error;
-      data.forEach((p) => found.set(p.phone, p));
+    const remember = (p) => [p.phone, ...(p.extra_phones || [])].filter(Boolean).forEach((ph) => { if (!found.has(ph)) found.set(ph, p); });
+    for (let i = 0; i < phones.length; i += 100) {
+      const chunk = phones.slice(i, i + 100);
+      const [a, b] = await Promise.all([
+        db.from('persons').select(COLS).in('phone', chunk),
+        db.from('persons').select(COLS).overlaps('extra_phones', chunk)
+      ]);
+      if (a.error) throw a.error;
+      if (b.error) throw b.error;
+      [...a.data, ...b.data].forEach(remember);
     }
     // Без телефону — шукаємо за ПІБ (лише точний і єдиний збіг), щоб повторний імпорт не дублював
     const noPhone = list.filter((r) => !r.person.phone && r.person.last_name && !r.errors.length);
@@ -503,7 +534,7 @@ window.Importer = (() => {
     }
     list.forEach((r) => {
       if (r.errors.length) { r.state = 'error'; r.include = false; return; }
-      let ex = found.get(r.person.phone);
+      let ex = allPhones(r).map((ph) => found.get(ph)).find(Boolean);
       if (!ex && !r.person.phone && r.person.last_name) {
         const k = letters(r.person.last_name) + '|' + letters(r.person.first_name) + '|' + letters(r.person.patronymic);
         const m = byName.get(k);
@@ -704,6 +735,12 @@ window.Importer = (() => {
     const patch = {};
     ['email', 'region_id', 'settlement', 'cell_id', 'birth_date', 'consent_pd_at'].forEach((k) => { if (!ex[k] && r.person[k]) patch[k] = r.person[k]; });
     if (!ex.consent_messages && r.person.consent_messages) patch.consent_messages = true;
+    const known = new Set([ex.phone, ...(ex.extra_phones || [])].filter(Boolean));
+    const newPhones = [r.person.phone, ...(r.person.extra_phones || [])].filter((ph) => ph && !known.has(ph));
+    if (newPhones.length) {
+      if (!ex.phone) { patch.phone = newPhones.shift(); }
+      if (newPhones.length) patch.extra_phones = [...(ex.extra_phones || []), ...newPhones];
+    }
     if (Object.keys(patch).length) {
       const { error } = await db.from('persons').update(patch).eq('id', ex.id);
       if (error) throw error;

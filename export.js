@@ -72,7 +72,7 @@ window.Exporter = (() => {
       const sheetPersons = persons.map((p) => ({
         'Прізвище': p.last_name, 'Ім’я': p.first_name, 'По батькові': p.patronymic || '',
         'Дата народження': d(p.birth_date), 'Вік': p.age ?? '', 'Стать': p.sex,
-        'Телефон': p.phone || '', 'Email': p.email || '', 'Месенджер': p.preferred_messenger,
+        'Телефон': p.phone || '', 'Додаткові телефони': (p.extra_phones || []).join(', '), 'Email': p.email || '', 'Месенджер': p.preferred_messenger,
         'Згода на обробку ПД': d(p.consent_pd_at), 'Згода на повідомлення': yn(p.consent_messages), 'Відписався': yn(p.unsubscribed),
         'Військовий статус': p.military_status, 'Дата смерті': d(p.death_date),
         'Статуси ветерана': (p.veteran_statuses || []).join('; '),

@@ -9,6 +9,7 @@ window.Persons = (() => {
   let started = false;
   let editingId = null;
   let editingConsentAt = null;
+  let extraKeep = [];
   let searchTimer = null;
   const regions = new Map();
   const cells = new Map();
@@ -273,12 +274,12 @@ window.Persons = (() => {
       if (tr && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openForm(tr.dataset.id); }
     });
 
-    // Телефон: одразу виправляємо формат, коли поле втрачає фокус
-    $('f-phone').addEventListener('blur', () => {
-      const r = V.normalizePhone($('f-phone').value);
-      if (r.value) $('f-phone').value = V.formatPhone(r.value);
-      setHint('phone', r.error, r.warning);
-    });
+    // Телефони: одразу виправляємо формат, коли поле втрачає фокус
+    ['phone', 'phone2', 'phone3'].forEach((k) => $('f-' + k).addEventListener('blur', () => {
+      const r = V.normalizePhone($('f-' + k).value);
+      if (r.value) $('f-' + k).value = V.formatPhone(r.value);
+      setHint(k, r.error, r.warning);
+    }));
   }
 
   // ---------- Список ----------
@@ -301,6 +302,8 @@ window.Persons = (() => {
       const parts = [`last_name.ilike.%${q}%`, `first_name.ilike.%${q}%`, `patronymic.ilike.%${q}%`];
       const digits = q.replace(/\D/g, '');
       if (digits.length >= 3) parts.push(`phone.ilike.%${digits}%`);
+      const full = digits.length >= 9 ? V.normalizePhone(digits).value : null;
+      if (full) parts.push(`extra_phones.cs.{${full}}`);   // повний номер шукаємо й серед додаткових
       query = query.or(parts.join(','));
     }
     return Filters.apply(query, db, skip);
@@ -331,7 +334,7 @@ window.Persons = (() => {
     let query;
     try {
       ({ query } = await buildQuery(
-        'id, last_name, first_name, patronymic, phone, region_id, person_categories, family_categories, created_at, critical_count, warning_count, comment, touchpoint, created_by, source',
+        'id, last_name, first_name, patronymic, phone, extra_phones, region_id, person_categories, family_categories, created_at, critical_count, warning_count, comment, touchpoint, created_by, source',
         { count: 'exact' }));
     } catch (e) {
       console.error(e);
@@ -377,7 +380,18 @@ window.Persons = (() => {
       addCell(tr, String(idx + 1), 'cell-num');
       tr.appendChild(qualityCell(p.critical_count, p.warning_count));
       addCell(tr, [p.last_name, p.first_name, p.patronymic].filter(Boolean).join(' '), 'cell-name');
-      addCell(tr, V.formatPhone(p.phone) || '—', 'cell-phone');
+      const ph = document.createElement('td');
+      ph.className = 'cell-phone';
+      ph.textContent = V.formatPhone(p.phone) || '—';
+      const nx = (p.extra_phones || []).length;
+      if (nx) {
+        const more = document.createElement('span');
+        more.className = 'tag tag-more';
+        more.textContent = `+${nx}`;
+        more.title = p.extra_phones.map(V.formatPhone).join(', ');
+        ph.append(' ', more);
+      }
+      tr.appendChild(ph);
       addCell(tr, regions.get(p.region_id) || '—');
 
       const cats = [...new Set([...(p.person_categories || []), ...(p.family_categories || [])])];
@@ -477,6 +491,7 @@ window.Persons = (() => {
     editingId = id;
     editingConsentAt = null;
     $('consent-date').textContent = '';
+    extraKeep = [];
     $('relations-list').innerHTML = '';
     $('children-list').innerHTML = '';
 
@@ -508,6 +523,10 @@ window.Persons = (() => {
     ['last_name', 'first_name', 'patronymic', 'birth_date', 'email', 'settlement', 'comment',
      'sex', 'preferred_messenger', 'is_idp'].forEach((k) => { f[k].value = p[k] ?? ''; });
     f.phone.value = V.formatPhone(p.phone);
+    const ex = p.extra_phones || [];
+    f.phone2.value = V.formatPhone(ex[0] || '');
+    f.phone3.value = V.formatPhone(ex[1] || '');
+    extraKeep = ex.slice(2);   // якщо з імпорту прийшло більше трьох — не губимо
     f.touchpoint.value = p.touchpoint ?? '';
     f.region_id.value = p.region_id ?? '';
     f.vkmpu_member.checked = p.vkmpu_member;
@@ -567,6 +586,9 @@ window.Persons = (() => {
     apply('patronymic', V.normalizeName(f.patronymic.value, false));
     apply('birth_date', V.checkBirthDate(f.birth_date.value));
     apply('phone',      V.normalizePhone(f.phone.value));
+    const p2 = V.normalizePhone(f.phone2.value), p3 = V.normalizePhone(f.phone3.value);
+    if (p2.error) { setHint('phone2', p2.error); ok = false; } else if (p2.warning) setHint('phone2', null, p2.warning);
+    if (p3.error) { setHint('phone3', p3.error); ok = false; } else if (p3.warning) setHint('phone3', null, p3.warning);
     apply('email',      V.normalizeEmail(f.email.value));
 
     // Інвалідність
@@ -694,6 +716,10 @@ window.Persons = (() => {
       return;
     }
 
+    // Додаткові телефони; якщо основний порожній — піднімаємо перший додатковий
+    let extras = [p2.value, p3.value, ...extraKeep].filter(Boolean);
+    if (!rec.phone && extras.length) rec.phone = extras.shift();
+    rec.extra_phones = [...new Set(extras.filter((x) => x !== rec.phone))];
     rec.sex = f.sex.value;
     rec.preferred_messenger = f.preferred_messenger.value;
     rec.is_idp = f.is_idp.value;

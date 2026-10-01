@@ -113,6 +113,7 @@ window.Exporter = (() => {
             'ПІБ військового': r.related_full_name || '', 'Позивний': r.related_callsign || '',
             'Дата народження': d(r.related_birth_date), 'Дата загибелі / смерті': d(r.related_death_date),
             'Вік (на момент смерті)': years(r.related_birth_date, r.related_death_date),
+            'Дата поховання': d(r.related_burial_date), 'Місце поховання': r.related_burial_place || '',
             'Статус': r.related_status, 'МП': r.related_mp,
             'Підрозділ': unitName(r.related_unit_id, r.related_unit_other), 'В/ч': r.related_unit_code || ''
           };

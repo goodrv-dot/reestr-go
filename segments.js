@@ -124,5 +124,11 @@ window.Segments = (() => {
     return `Сегмент: ${current.name}` + ($('segment-dirty').hidden ? '' : ' (умови змінено)');
   }
 
-  return { init, label };
+  function clear() {
+    current = null;
+    if ($('segment-select')) $('segment-select').value = '';
+    refreshButtons(false);
+  }
+
+  return { init, label, clear };
 })();

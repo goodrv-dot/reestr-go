@@ -121,6 +121,10 @@ window.Persons = (() => {
           <select id="r${n}-status" data-k="related_status"></select></div>
         <div class="field" data-row-death><label for="r${n}-dd">Дата загибелі / смерті</label>
           <input id="r${n}-dd" type="date" data-k="related_death_date"><p class="hint" data-h="related_death_date"></p></div>
+        <div class="field" data-row-death><label for="r${n}-bd2">Дата поховання</label>
+          <input id="r${n}-bd2" type="date" data-k="related_burial_date"><p class="hint" data-h="related_burial_date"></p></div>
+        <div class="field" data-row-death><label for="r${n}-bp">Місце поховання</label>
+          <input id="r${n}-bp" data-k="related_burial_place"></div>
         <div class="field"><label for="r${n}-cs">Позивний</label>
           <input id="r${n}-cs" data-k="related_callsign"></div>
         <div class="field"><label for="r${n}-uc">В/ч (код частини)</label>
@@ -150,6 +154,8 @@ window.Persons = (() => {
     q('related_unit').value = r.related_unit_id ? String(r.related_unit_id) : (r.related_unit_other ? 'other' : '');
     q('related_unit_other').value = r.related_unit_other || '';
     q('related_death_date').value = r.related_death_date || '';
+    q('related_burial_date').value = r.related_burial_date || '';
+    q('related_burial_place').value = r.related_burial_place || '';
     q('related_callsign').value = r.related_callsign || '';
     q('related_unit_code').value = r.related_unit_code || '';
 
@@ -157,7 +163,7 @@ window.Persons = (() => {
       const mp = q('related_mp').value === 'Так';
       row.querySelector('[data-row-mp]').hidden = !mp;
       row.querySelector('[data-row-other]').hidden = !mp || q('related_unit').value !== 'other';
-      row.querySelector('[data-row-death]').hidden = !OPT.deceased_statuses.includes(q('related_status').value);
+      row.querySelectorAll('[data-row-death]').forEach((el) => { el.hidden = !OPT.deceased_statuses.includes(q('related_status').value); });
     };
     q('related_status').addEventListener('change', vis);
     q('related_mp').addEventListener('change', vis);
@@ -250,6 +256,7 @@ window.Persons = (() => {
     document.querySelectorAll('.qchips .qchip').forEach((b) => b.addEventListener('click', () => {
       Filters.setQuality(Filters.getQuality() === b.dataset.q ? '' : b.dataset.q);
     }));
+    $('reset-all').addEventListener('click', resetAll);
     $('search').addEventListener('input', () => {
       clearTimeout(searchTimer);
       searchTimer = setTimeout(loadList, 300);
@@ -318,6 +325,7 @@ window.Persons = (() => {
   }
 
   async function loadList() {
+    $('reset-all').hidden = !hasSelection();
     loadQualityCounts().catch((e) => console.error(e));
     let query;
     try {
@@ -613,12 +621,19 @@ window.Persons = (() => {
         related_unit_other: null,
         related_callsign: q('related_callsign').trim() || null,
         related_unit_code: q('related_unit_code').trim() || null,
-        related_death_date: null
+        related_death_date: null,
+        related_burial_date: null,
+        related_burial_place: null
       };
       if (OPT.deceased_statuses.includes(r.related_status)) {
         const dd = V.checkBirthDate(q('related_death_date'));
         if (dd.error) { setRowHint(row, 'related_death_date', dd.error); ok = false; }
         else r.related_death_date = dd.value;
+        const bu = V.checkBirthDate(q('related_burial_date'));
+        if (bu.error) { setRowHint(row, 'related_burial_date', bu.error); ok = false; }
+        else if (bu.value && r.related_death_date && bu.value < r.related_death_date) { setRowHint(row, 'related_burial_date', 'Раніше дати загибелі'); ok = false; }
+        else r.related_burial_date = bu.value;
+        r.related_burial_place = q('related_burial_place').trim() || null;
       }
       if (!r.relation_degree) { setRowHint(row, 'relation_degree', 'Оберіть ступінь спорідненості'); ok = false; }
       if (r.related_full_name.error) { setRowHint(row, 'related_full_name', r.related_full_name.error); ok = false; }
@@ -787,5 +802,15 @@ window.Persons = (() => {
     return { db, operator, regions, cells, programs, staff, sourceLabel, units: new Map(units.map((u) => [u.id, u.name])) };
   }
 
-  return { init, showList, buildQuery, ctx, toast };
+  // Скинути все: пошук, сегмент, фільтри, швидкий фільтр
+  function resetAll() {
+    $('search').value = '';
+    if (window.Segments) Segments.clear();
+    Filters.reset();          // викликає оновлення списку
+  }
+  function hasSelection() {
+    return !!$('search').value.trim() || Filters.activeCount() > 0;
+  }
+
+  return { init, showList, buildQuery, ctx, toast, resetAll, hasSelection };
 })();

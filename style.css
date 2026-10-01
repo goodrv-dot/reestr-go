@@ -636,3 +636,24 @@ tr.st-warn { background: var(--warn-bg); }
 .dash-bar i { display: block; height: 100%; border-radius: 3px; }
 .dash-row b { text-align: right; font-variant-numeric: tabular-nums; }
 .map-city-value { text-anchor: start; font-size: 18px; }
+
+/* Скинути все */
+.reset-all { margin: 0; align-self: center; color: var(--err); }
+
+/* Поховання */
+.dash-metric-burial[aria-pressed="true"] { background: #7a2e2e; border-color: #7a2e2e; color: #fff; }
+.dash-burials { margin: 0.5rem 0 1rem; }
+.dash-period { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
+.dash-period input { font: inherit; padding: 0.4rem 0.5rem; border: 1px solid var(--line); border-radius: var(--radius-field); background: var(--white); }
+.dash-period .btn-link { margin: 0; }
+.dash-months-card { padding: 0.75rem 1rem 0.5rem; }
+.dash-months-title { margin: 0 0 0.25rem; font-weight: 600; }
+.dash-months { width: 100%; height: auto; max-height: 220px; display: block; }
+.mbar { cursor: pointer; outline: none; }
+.mbar-hit { fill: transparent; }
+.mbar:hover .mbar-hit, .mbar:focus .mbar-hit { fill: #eef3f6; }
+.mbar-fill { fill: #b9c9d4; }
+.mbar.is-sel .mbar-fill { fill: #7a2e2e; }
+.mbar-val { font: 700 14px 'IBM Plex Sans', Arial, sans-serif; text-anchor: middle; fill: var(--ink); }
+.mbar-lbl { font: 12px 'IBM Plex Sans', Arial, sans-serif; text-anchor: middle; fill: var(--muted); }
+.dash-note { font-size: 0.88rem; max-width: 70ch; }

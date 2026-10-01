@@ -144,7 +144,8 @@ window.Importer = (() => {
       fdd: col(hdr, byName(/^дата загибелі/)), vch: col(hdr, byName(/^військова частина/)),
       brigade: col(hdr, byName(/^бригада/)), rec: col(hdr, byName(/^отримувач сповіщення/)),
       degree: col(hdr, byName(/^спорідненість/)), addr: col(hdr, byName(/^адреса отримувача/)),
-      phone: col(hdr, byName(/^контакти отримувача/)), notes: col(hdr, byName(/^примітки/))
+      phone: col(hdr, byName(/^контакти отримувача/)), notes: col(hdr, byName(/^примітки/)),
+      bdate: col(hdr, byName(/^дата поховання/)), bplace: col(hdr, byName(/^місце поховання/))
     };
     if ([c.fallen, c.rec, c.degree, c.phone].some((x) => x < 0)) throw new Error('У файлі бракує ключових колонок журналу «200».');
     const out = [];
@@ -170,6 +171,9 @@ window.Importer = (() => {
       const fbd = toDate(g('fbd')), fdd = toDate(g('fdd'));
       if (!fdd) rec.warnings.push('Не вказано дату загибелі');
       if (fbd && fdd && fdd < fbd) rec.errors.push('Дата загибелі раніше дати народження');
+      const bdate = toDate(g('bdate'));
+      if (bdate && fdd && bdate < fdd) rec.warnings.push('Дата поховання раніше дати загибелі — перевірте');
+      if (bdate && bdate > new Date().toISOString().slice(0, 10)) rec.warnings.push('Дата поховання в майбутньому — перевірте');
       const unit = matchUnit(clean(g('brigade')), ctx.units);
       if (clean(g('brigade')) && !unit.id) rec.warnings.push(`Бригаду «${clean(g('brigade'))}» не знайдено в довіднику — записано текстом`);
       rec.relations.push({
@@ -179,7 +183,9 @@ window.Importer = (() => {
         related_birth_date: fbd, related_death_date: fdd,
         related_status: 'Загиблий', related_mp: 'Так',
         related_unit_id: unit.id, related_unit_other: unit.other,
-        related_unit_code: clean(g('vch')) || null
+        related_unit_code: clean(g('vch')) || null,
+        related_burial_date: bdate,
+        related_burial_place: clean(g('bplace')) || null
       });
       rec.programs.push(ctx.programByName('Супровід родин загиблих (200)'));
       out.push(rec);
@@ -475,18 +481,35 @@ window.Importer = (() => {
   // Звірка з базою: хто вже є
   async function matchExisting(list) {
     const { db } = Persons.ctx();
+    const COLS = 'id, phone, last_name, first_name, patronymic, email, region_id, settlement, cell_id, birth_date, consent_pd_at, consent_messages, children(birth_date, full_name), military_relations(id, related_full_name, related_death_date, related_burial_date, related_burial_place, related_callsign, related_unit_code), person_programs(program_id)';
     const phones = [...new Set(list.map((r) => r.person.phone).filter(Boolean))];
     const found = new Map();
     for (let i = 0; i < phones.length; i += 150) {
-      const { data, error } = await db.from('persons')
-        .select('id, phone, last_name, first_name, email, region_id, settlement, cell_id, birth_date, consent_pd_at, consent_messages, children(birth_date, full_name), military_relations(related_full_name), person_programs(program_id)')
-        .in('phone', phones.slice(i, i + 150));
+      const { data, error } = await db.from('persons').select(COLS).in('phone', phones.slice(i, i + 150));
       if (error) throw error;
       data.forEach((p) => found.set(p.phone, p));
     }
+    // Без телефону — шукаємо за ПІБ (лише точний і єдиний збіг), щоб повторний імпорт не дублював
+    const noPhone = list.filter((r) => !r.person.phone && r.person.last_name && !r.errors.length);
+    const byName = new Map();
+    const lastNames = [...new Set(noPhone.map((r) => r.person.last_name))];
+    for (let i = 0; i < lastNames.length; i += 100) {
+      const { data, error } = await db.from('persons').select(COLS).in('last_name', lastNames.slice(i, i + 100));
+      if (error) throw error;
+      data.forEach((p) => {
+        const k = letters(p.last_name) + '|' + letters(p.first_name) + '|' + letters(p.patronymic);
+        byName.set(k, byName.has(k) ? 'many' : p);
+      });
+    }
     list.forEach((r) => {
       if (r.errors.length) { r.state = 'error'; r.include = false; return; }
-      const ex = found.get(r.person.phone);
+      let ex = found.get(r.person.phone);
+      if (!ex && !r.person.phone && r.person.last_name) {
+        const k = letters(r.person.last_name) + '|' + letters(r.person.first_name) + '|' + letters(r.person.patronymic);
+        const m = byName.get(k);
+        if (m && m !== 'many') { ex = m; r.info.push('Знайдено в реєстрі за ПІБ (телефону немає)'); }
+        else if (m === 'many') r.warnings.push('У реєстрі кілька людей з таким ПІБ — буде створено нову картку, перевірте');
+      }
       if (ex) {
         r.existing = ex;
         if (letters(ex.last_name) !== letters(r.person.last_name)) {
@@ -494,6 +517,9 @@ window.Importer = (() => {
         }
         const newKids = r.children.filter((k) => !(ex.children || []).some((x) => x.birth_date === k.birth_date));
         r.info.push(newKids.length ? `Уже є в реєстрі: буде додано дітей — ${newKids.length}` : 'Уже є в реєстрі: нових дітей немає');
+        const burialFix = r.relations.filter((rel) => rel.related_burial_date &&
+          (ex.military_relations || []).some((x) => letters(x.related_full_name) === letters(rel.related_full_name) && !x.related_burial_date)).length;
+        if (burialFix) r.info.push(`Буде доповнено дату поховання: ${burialFix}`);
       }
       r.state = r.warnings.length ? 'warn' : ex ? 'update' : 'new';
     });
@@ -684,6 +710,18 @@ window.Importer = (() => {
     }
     const kids = r.children.filter((k) => !(ex.children || []).some((x) => x.birth_date === k.birth_date));
     const rels = r.relations.filter((rel) => !(ex.military_relations || []).some((x) => letters(x.related_full_name) === letters(rel.related_full_name)));
+    // Наявні зв’язки: доповнюємо порожні поля (дата поховання, місце, дата загибелі, позивний, в/ч)
+    for (const rel of r.relations) {
+      const old = (ex.military_relations || []).find((x) => letters(x.related_full_name) === letters(rel.related_full_name));
+      if (!old) continue;
+      const fix = {};
+      ['related_burial_date', 'related_burial_place', 'related_death_date', 'related_callsign', 'related_unit_code']
+        .forEach((k) => { if (!old[k] && rel[k]) fix[k] = rel[k]; });
+      if (Object.keys(fix).length) {
+        const { error } = await db.from('military_relations').update(fix).eq('id', old.id);
+        if (error) throw error;
+      }
+    }
     const progs = r.programs.filter((pid) => pid && !(ex.person_programs || []).some((x) => x.program_id === pid));
     if (kids.length) {
       const { error } = await db.from('persons').update({ has_children: 'Так' }).eq('id', ex.id);

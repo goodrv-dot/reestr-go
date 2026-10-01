@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Unbounded:wght@600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=202610010734">
+  <link rel="stylesheet" href="style.css?v=202610010801">
 </head>
 <body>
 
@@ -80,6 +80,7 @@
           <button id="filters-toggle" class="btn-secondary" type="button" aria-expanded="false" aria-controls="filters-panel">
             Фільтри <span id="filters-count" class="badge" hidden></span>
           </button>
+          <button id="reset-all" class="btn-link reset-all" type="button" hidden>Скинути все</button>
         </div>
         <div class="segbar">
           <label for="segment-select" class="segbar-label">Сегмент:</label>
@@ -267,13 +268,29 @@
         </div>
       </div>
       <p id="dash-cond" class="muted dash-cond"></p>
-      <p class="muted dash-hint">Карта враховує пошук, фільтри й сегмент з вкладки «Особи». Клік по області відкриває список її людей.</p>
+      <p id="dash-hint" class="muted dash-hint">Карта враховує пошук, фільтри й сегмент з вкладки «Особи». Клік по області відкриває список її людей.</p>
       <div class="dash-metrics" role="group" aria-label="Що показувати">
         <button type="button" class="qchip dash-metric" data-m="persons" aria-pressed="true">Осіб</button>
         <button type="button" class="qchip dash-metric" data-m="children" aria-pressed="false">Дітей</button>
         <button type="button" class="qchip dash-metric" data-m="minors" aria-pressed="false">Неповнолітніх дітей</button>
         <button type="button" class="qchip dash-metric" data-m="critical" aria-pressed="false">Критичні картки</button>
+        <button type="button" class="qchip dash-metric dash-metric-burial" data-m="burials" aria-pressed="false">Поховання</button>
+        <button id="dash-reset" class="btn-link reset-all" type="button" hidden>Скинути фільтри</button>
       </div>
+      <section id="dash-burials" class="dash-burials" hidden aria-label="Період поховань">
+        <div class="dash-period">
+          <label for="dash-from">Період: з</label>
+          <input id="dash-from" type="month">
+          <label for="dash-to">по</label>
+          <input id="dash-to" type="month">
+          <button id="dash-all" class="btn-link" type="button">увесь час</button>
+        </div>
+        <div class="dash-card dash-months-card">
+          <p class="dash-months-title">Поховання по місяцях <span class="muted">(клік по стовпчику — обрати місяць)</span></p>
+          <svg id="dash-months" class="dash-months" role="img" aria-label="Кількість поховань по місяцях"></svg>
+        </div>
+        <p class="muted dash-note">Рахуються загиблі з датою поховання, кожен один раз (навіть якщо в реєстрі кілька його родичів). Область — за осередком ГО, який супроводжував родину; якщо осередок не вказано — за областю родини. Фільтри реєстру для цього показника не застосовуються.</p>
+      </section>
       <p id="dash-status" class="imp-status" role="status"></p>
       <div class="dash-grid">
         <div class="dash-card">
@@ -474,6 +491,8 @@
           <li>Клік по області (на карті чи в списку) відкриває «Особи» з фільтром цієї області.</li>
           <li>«Зберегти як PNG» — картинка з заголовком, умовами, датою і списком областей для звітів.</li>
           <li>«Без області» — люди, у яких область не вказана: їх варто доповнити.</li>
+          <li><b>Поховання</b>: оберіть період (місяць або кілька) чи клацніть стовпчик на графіку «по місяцях». Рахуються загиблі з датою поховання — кожен один раз, область за осередком ГО. Дати поховання беруться з журналу «200» (колонка «Дата поховання») або вносяться в картці у блоці пов’язаної особи.</li>
+          <li>Кнопка <b>«Скинути фільтри»</b> (і «Скинути все» на вкладці «Особи») прибирає пошук, сегмент і всі фільтри.</li>
         </ul>
       </section>
 
@@ -738,21 +757,21 @@
   <p id="loading" class="loading">Завантаження…</p>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="config.js?v=202610010734"></script>
+  <script src="config.js?v=202610010801"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="options.js?v=202610010734"></script>
-  <script src="ui.js?v=202610010734"></script>
-  <script src="validation.js?v=202610010734"></script>
-  <script src="filters.js?v=202610010734"></script>
-  <script src="segments.js?v=202610010734"></script>
-  <script src="persons.js?v=202610010734"></script>
-  <script src="export.js?v=202610010734"></script>
-  <script src="import.js?v=202610010734"></script>
-  <script src="mfa.js?v=202610010734"></script>
-  <script src="staff.js?v=202610010734"></script>
-  <script src="ua-map.js?v=202610010734"></script>
-  <script src="dashboard.js?v=202610010734"></script>
-  <script src="nav.js?v=202610010734"></script>
-  <script src="app.js?v=202610010734"></script>
+  <script src="options.js?v=202610010801"></script>
+  <script src="ui.js?v=202610010801"></script>
+  <script src="validation.js?v=202610010801"></script>
+  <script src="filters.js?v=202610010801"></script>
+  <script src="segments.js?v=202610010801"></script>
+  <script src="persons.js?v=202610010801"></script>
+  <script src="export.js?v=202610010801"></script>
+  <script src="import.js?v=202610010801"></script>
+  <script src="mfa.js?v=202610010801"></script>
+  <script src="staff.js?v=202610010801"></script>
+  <script src="ua-map.js?v=202610010801"></script>
+  <script src="dashboard.js?v=202610010801"></script>
+  <script src="nav.js?v=202610010801"></script>
+  <script src="app.js?v=202610010801"></script>
 </body>
 </html>

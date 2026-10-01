@@ -663,7 +663,7 @@ window.Importer = (() => {
   // Звірка з базою: хто вже є
   async function matchExisting(list) {
     const { db } = Persons.ctx();
-    const COLS = 'id, phone, extra_phones, last_name, first_name, patronymic, email, region_id, settlement, cell_id, birth_date, consent_pd_at, consent_messages, children(birth_date, full_name), military_relations(id, related_full_name, related_death_date, related_burial_date, related_burial_place, related_callsign, related_unit_code, related_person_id), person_programs(program_id)';
+    const COLS = 'id, phone, extra_phones, last_name, first_name, patronymic, email, region_id, settlement, cell_id, birth_date, consent_pd_at, consent_messages, children(birth_date, full_name), military_relations!military_relations_person_id_fkey(id, related_full_name, related_death_date, related_burial_date, related_burial_place, related_callsign, related_unit_code, related_person_id), person_programs(program_id)';
     const allPhones = (r) => [r.person.phone, ...(r.person.extra_phones || [])].filter(Boolean);
     const phones = [...new Set(list.flatMap(allPhones))];
     const found = new Map();

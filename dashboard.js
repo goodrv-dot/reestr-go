@@ -230,7 +230,7 @@ window.Dashboard = (() => {
     const all = [];
     for (let from = 0; ; from += 1000) {
       const { data, error } = await db.from('military_relations')
-        .select('related_full_name, related_death_date, related_burial_date, persons!inner(id, region_id, cell_id)')
+        .select('related_full_name, related_death_date, related_burial_date, persons!military_relations_person_id_fkey!inner(id, region_id, cell_id)')
         .eq('related_status', 'Загиблий').not('related_burial_date', 'is', null)
         .order('id').range(from, from + 999);
       if (error) { console.error(error); $('dash-status').textContent = 'Не вдалося завантажити поховання.'; burials = []; return; }

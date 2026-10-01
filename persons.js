@@ -624,7 +624,7 @@ window.Persons = (() => {
     $('children-list').innerHTML = '';
 
     if (id) {
-      const { data, error } = await db.from('persons').select('*, person_veteran_statuses(status), military_relations(*), children(*), person_programs(program_id)').eq('id', id).single();
+      const { data, error } = await db.from('persons').select('*, person_veteran_statuses(status), military_relations!military_relations_person_id_fkey(*), children(*), person_programs(program_id)').eq('id', id).single();
       if (error) { console.error(error); toast('Не вдалося відкрити картку.'); return; }
       fillForm(data);
       $('form-title').textContent = [data.last_name, data.first_name, data.patronymic].filter(Boolean).join(' ');

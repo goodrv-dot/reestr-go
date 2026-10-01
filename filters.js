@@ -166,6 +166,7 @@ window.Filters = (() => {
 
   let timer = null;
   function changed() {
+    document.dispatchEvent(new CustomEvent('filters-changed'));
     const n = activeCount();
     $('filters-count').textContent = n ? String(n) : '';
     $('filters-count').hidden = !n;
@@ -287,5 +288,31 @@ window.Filters = (() => {
     return sel ? sel.value : '';
   }
 
-  return { init, apply, activeCount, reset, describe, setQuality, getQuality };
+  // Поточний стан усіх фільтрів (для сегментів)
+  function getState() { return values(); }
+
+  // Встановити фільтри зі збереженого стану (без проміжних перезавантажень)
+  function setState(state) {
+    state = state || {};
+    defs.filter((d) => d.key).forEach((d) => {
+      const wrap = document.querySelector(`.filter[data-key="${d.key}"]`);
+      if (!wrap) return;
+      const v = state[d.key];
+      if (d.type === 'multi') {
+        const set = new Set((v || []).map(String));
+        wrap.querySelectorAll('.ms-list input').forEach((c) => { c.checked = set.has(c.value); });
+        updateSummary(wrap);
+      } else if (d.type === 'bool') {
+        wrap.querySelector('select').value = v === undefined ? '' : String(v);
+      } else if (d.type === 'select') {
+        wrap.querySelector('select').value = v || '';
+      } else if (d.type === 'range') {
+        wrap.querySelector('[data-r="from"]').value = v && v.from !== null ? v.from : '';
+        wrap.querySelector('[data-r="to"]').value = v && v.to !== null ? v.to : '';
+      }
+    });
+    changed();
+  }
+
+  return { init, apply, activeCount, reset, describe, setQuality, getQuality, getState, setState };
 })();

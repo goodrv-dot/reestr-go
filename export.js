@@ -259,7 +259,8 @@ window.Exporter = (() => {
   // Опис вибірки: пошук + фільтри
   function selection() {
     const q = $('search').value.trim();
-    const lines = [...(q ? [`Пошук: ${q}`] : []), ...Filters.describe()];
+    const seg = window.Segments && Segments.label();
+    const lines = [...(seg ? [seg] : []), ...(q ? [`Пошук: ${q}`] : []), ...Filters.describe()];
     return lines.length ? lines : ['Без фільтрів (увесь реєстр)'];
   }
 

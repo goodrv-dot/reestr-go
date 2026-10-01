@@ -589,3 +589,13 @@ tr.st-warn { background: var(--warn-bg); }
 .mfa-setting select { font: inherit; padding: 0.45rem 0.6rem; border: 1px solid var(--line); border-radius: var(--radius-field); }
 .mfa-setting .muted { margin: 0.6rem 0 0; }
 .dialog { max-height: 90vh; overflow: auto; }
+
+/* ============ Сегменти ============ */
+.segbar { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin: 0 0 0.9rem; }
+.segbar-label { font-weight: 600; color: var(--sea); }
+#segment-select { font: inherit; padding: 0.45rem 0.6rem; border: 1px solid var(--line); border-radius: var(--radius-field); background: var(--white); min-width: 16rem; max-width: 100%; }
+.segbar .btn-link { margin: 0; }
+#segment-save { margin-left: auto; }
+.seg-dirty { font-size: 0.85rem; background: var(--warn-bg); color: var(--warn-ink); padding: 0.1rem 0.5rem; border-radius: 999px; }
+.seg-conditions { margin: 0 0 1rem; padding-left: 1.2rem; font-size: 0.93rem; }
+@media (max-width: 760px) { #segment-save { margin-left: 0; } }

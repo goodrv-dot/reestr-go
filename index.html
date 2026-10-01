@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Unbounded:wght@600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=202610010645">
+  <link rel="stylesheet" href="style.css?v=202610010655">
 </head>
 <body>
 
@@ -79,6 +79,14 @@
           <button id="filters-toggle" class="btn-secondary" type="button" aria-expanded="false" aria-controls="filters-panel">
             Фільтри <span id="filters-count" class="badge" hidden></span>
           </button>
+        </div>
+        <div class="segbar">
+          <label for="segment-select" class="segbar-label">Сегмент:</label>
+          <select id="segment-select"><option value="">— не обрано —</option></select>
+          <span id="segment-dirty" class="seg-dirty" hidden>умови змінено</span>
+          <button id="segment-update" class="btn-link" type="button" hidden>Оновити сегмент</button>
+          <button id="segment-delete" class="btn-link btn-link-danger" type="button" hidden>Видалити</button>
+          <button id="segment-save" class="btn-secondary btn-small" type="button">Зберегти фільтри як сегмент</button>
         </div>
         <div id="filters-panel" class="filters" hidden></div>
         <div class="qchips" role="group" aria-label="Швидкий фільтр за станом картки">
@@ -445,6 +453,14 @@
           <li>Перед завантаженням видно, <b>скільки людей пропущено і чому</b>. Відкрийте їхні картки й доповніть дані.</li>
           <li>Вивантажувати можуть лише співробітники з відповідним правом. Кожне вивантаження записується в журнал.</li>
         </ul>
+        <h3>Сегменти</h3>
+        <ul>
+          <li>Налаштуйте фільтри (наприклад, «Родина загиблого» + «Є дитина віком 6–14» + «Telegram») → <b>«Зберегти фільтри як сегмент»</b> → дайте назву.</li>
+          <li>Наступного разу оберіть сегмент у списку «Сегмент» — усі фільтри виставляться самі.</li>
+          <li>Сегмент зберігає <b>умови</b>, тому завжди актуальний: нові люди, що підходять, потрапляють у нього автоматично.</li>
+          <li>Змінили фільтри після вибору сегмента — з’явиться «умови змінено» і кнопка «Оновити сегмент». Оновлювати й видаляти може автор сегмента або адміністратор.</li>
+          <li>У вивантаженнях Excel і CSV назва сегмента потрапляє в мітку вибірки.</li>
+        </ul>
       </section>
 
       <section id="m-phone">
@@ -648,24 +664,43 @@
     <div class="form-actions"><button id="profile-close" class="btn-secondary" type="button">Закрити</button></div>
   </dialog>
 
+
+  <!-- Новий сегмент -->
+  <dialog id="seg-dialog" class="dialog" aria-labelledby="seg-title">
+    <h2 id="seg-title">Зберегти як сегмент</h2>
+    <p class="muted">Сегмент запам’ятовує умови відбору, а не список людей: нові люди, що підходять під умови, потраплятимуть у нього самі. Сегменти бачать усі співробітники.</p>
+    <p class="sublabel">Умови:</p>
+    <ul id="seg-conditions" class="seg-conditions"></ul>
+    <form id="seg-form" novalidate>
+      <div class="field"><label for="seg-name">Назва сегмента</label>
+        <input id="seg-name" name="name" maxlength="80" placeholder="Напр., Родини загиблих — табори, Telegram"></div>
+      <p id="seg-error" class="form-error" role="alert" hidden></p>
+      <div class="form-actions">
+        <button class="btn-primary" type="submit">Зберегти</button>
+        <button id="seg-cancel" class="btn-secondary" type="button">Скасувати</button>
+      </div>
+    </form>
+  </dialog>
+
   <p id="toast" class="toast" role="status" hidden></p>
 
   <!-- Завантаження -->
   <p id="loading" class="loading">Завантаження…</p>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="config.js?v=202610010645"></script>
+  <script src="config.js?v=202610010655"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="options.js?v=202610010645"></script>
-  <script src="ui.js?v=202610010645"></script>
-  <script src="validation.js?v=202610010645"></script>
-  <script src="filters.js?v=202610010645"></script>
-  <script src="persons.js?v=202610010645"></script>
-  <script src="export.js?v=202610010645"></script>
-  <script src="import.js?v=202610010645"></script>
-  <script src="mfa.js?v=202610010645"></script>
-  <script src="staff.js?v=202610010645"></script>
-  <script src="nav.js?v=202610010645"></script>
-  <script src="app.js?v=202610010645"></script>
+  <script src="options.js?v=202610010655"></script>
+  <script src="ui.js?v=202610010655"></script>
+  <script src="validation.js?v=202610010655"></script>
+  <script src="filters.js?v=202610010655"></script>
+  <script src="segments.js?v=202610010655"></script>
+  <script src="persons.js?v=202610010655"></script>
+  <script src="export.js?v=202610010655"></script>
+  <script src="import.js?v=202610010655"></script>
+  <script src="mfa.js?v=202610010655"></script>
+  <script src="staff.js?v=202610010655"></script>
+  <script src="nav.js?v=202610010655"></script>
+  <script src="app.js?v=202610010655"></script>
 </body>
 </html>

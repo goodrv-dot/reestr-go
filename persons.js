@@ -363,6 +363,7 @@ window.Persons = (() => {
     $('mp-unit-other-wrap').hidden = f.mp_relation.value !== 'Так' || f.mp_unit.value !== 'other';
     $('death-wrap').hidden = !OPT.deceased_statuses.includes(f.military_status.value);
     $('burial-wrap').hidden = $('death-wrap').hidden;
+    $('burial-place-wrap').hidden = $('death-wrap').hidden;
   }
 
   function bind() {
@@ -808,6 +809,8 @@ window.Persons = (() => {
 
     f.death_date.value = p.death_date || '';
     f.burial_date.value = p.burial_date || '';
+    f.burial_place.value = p.burial_place || '';
+    f.callsign.value = p.callsign || '';
     f.military_unit_code.value = p.military_unit_code || '';
     f.wounded.value = p.wounded;
     f.wound_date.value = p.wound_date || '';
@@ -864,6 +867,8 @@ window.Persons = (() => {
     rec.cell_id = f.cell_id.value ? Number(f.cell_id.value) : null;
     rec.death_date = null;
     rec.burial_date = null;
+    rec.callsign = f.callsign.value.trim() || null;
+    rec.burial_place = OPT.deceased_statuses.includes(f.military_status.value) ? (f.burial_place.value.trim() || null) : null;
     rec.name_check = false;          // оператор переглянув і зберіг картку — ПІБ підтверджено
     rec.name_check_note = null;
     if (OPT.deceased_statuses.includes(rec.military_status)) {

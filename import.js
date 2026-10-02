@@ -216,6 +216,7 @@ window.Importer = (() => {
     if ([c.fallen, c.rec, c.degree, c.phone].some((x) => x < 0)) throw new Error('У файлі бракує ключових колонок журналу «200».');
     const program = ctx.programByName('Супровід родин загиблих (200)');
     const out = [];
+    const fallenByKey = new Map();   // кілька рядків про одного загиблого → одна основна картка
 
     rows.forEach((r, i) => {
       const raw = (k) => (c[k] >= 0 ? r[c[k]] : null);
@@ -281,44 +282,54 @@ window.Importer = (() => {
         notes.push(`Телефон з файлу (не розпізнано): ${clean(g('phone'))}`);
       }
 
-      const baseFill = (rec, first) => {
-        const p = rec.person;
-        if (first) Object.assign(p, parseAddress(g('addr'), ctx.regions, rec));
-        p.cell_id = matchCell(g('cell'), ctx.cells, rec);
-        p.consent_pd_at = new Date().toISOString();
-        rec.info.push(GO_CONSENT_NOTE);
-        if (first) {
-          const n = clean(g('notes'));
-          if (n) addComment(rec, n);
-          notes.forEach((t) => addComment(rec, t));
-        }
-        common.forEach((w) => rec.warnings.push(w));
-        rec.programs.push(program);
-      };
-
-      // --- Родину не встановлено → картка самого загиблого ---
-      if (!entries.length) {
-        const rec = newRecord(row);
-        const p = rec.person;
+      // --- ОСНОВНА картка — сам загиблий (один на кілька рядків журналу) ---
+      const fkey = letters(fallenName) + '|' + (fbd || '') + '|' + (fdd || '');
+      let fallenRec = fallenByKey.get(fkey);
+      if (!fallenRec) {
+        fallenRec = newRecord(row);
+        const fp = fallenRec.person;
         const fio = splitFio(fallenName);
-        if (fio.error) { rec.errors.push(`Загиблий: ${fio.error}`); out.push(rec); return; }
-        Object.assign(p, fio, {
+        if (fio.error) { fallenRec.errors.push(`Загиблий: ${fio.error}`); out.push(fallenRec); return; }
+        Object.assign(fp, fio, {
           military_status: 'Загиблий', birth_date: fbd, death_date: fdd, burial_date: bdate,
+          burial_place: clean(g('bplace')) || null, callsign: clean(g('callsign')) || null,
           mp_relation: 'Так', mp_relation_type: 'Загиблий військовослужбовець МП',
-          mp_unit_id: unit.id, mp_unit_other: unit.other, military_unit_code: clean(g('vch')) || null
+          mp_unit_id: unit.id, mp_unit_other: unit.other, military_unit_code: clean(g('vch')) || null,
+          has_children: 'Невідомо', is_extra: false
         });
-        baseFill(rec, true);
-        if (clean(g('callsign'))) addComment(rec, `Позивний: ${clean(g('callsign'))}`);
-        if (clean(g('bplace'))) addComment(rec, `Місце поховання: ${clean(g('bplace'))}`);
-        rec.warnings.push('Родину не встановлено — внесено картку самого загиблого. Коли знайдуться рідні, додайте їх.');
-        out.push(rec);
+        fp.cell_id = matchCell(g('cell'), ctx.cells, fallenRec);
+        fp.consent_pd_at = new Date().toISOString();
+        fallenRec.info.push(GO_CONSENT_NOTE);
+        common.forEach((w) => fallenRec.warnings.push(w));
+        fallenRec.programs.push(program);
+        fallenRec.isFallen = true;
+        fallenByKey.set(fkey, fallenRec);
+        out.push(fallenRec);
+      } else if (!fallenRec.rows.includes(row)) {
+        fallenRec.rows.push(row);
+        fallenRec.info.push(`Той самий загиблий у рядку ${row} — об’єднано`);
+      }
+      const fp = fallenRec.person;
+      const n = clean(g('notes'));
+      if (n) addComment(fallenRec, n);
+      notes.forEach((t) => addComment(fallenRec, t));
+      // область загиблого — за адресою родини (перший отримувач)
+      const addr = parseAddress(g('addr'), ctx.regions, { warnings: [] });
+      if (!fp.region_id && addr.region_id) fp.region_id = addr.region_id;
+      if (!fp.settlement && addr.settlement) fp.settlement = addr.settlement;
+
+      if (!entries.length) {
+        if (!fallenRec.kinCount) fallenRec.noKinWarned = true;
         return;
       }
 
-      // --- Кожна людина — окрема картка зі зв’язком із загиблим ---
+      // --- ЗВ’ЯЗАНІ картки — отримувачі й родичі (2-й рівень) ---
       entries.forEach((e, k) => {
         const rec = newRecord(row);
         const p = rec.person;
+        rec.isRelative = true;
+        rec.linkTo = fallenRec;          // після збереження загиблого — посилання на його картку
+        p.is_extra = true;
         const words = V.normalizeName(e.name, false).value?.split(' ') || [];
         const surname = fallenParts[0] ? (FEMALE.includes(e.degree) ? femSurname(fallenParts[0]) : fallenParts[0]) : null;
         if (words.length >= 2) {
@@ -339,12 +350,22 @@ window.Importer = (() => {
         else rec.warnings.push('Немає телефону: не потрапить у розсилку');
         if (!e.degree) rec.warnings.push(`Спорідненість «${e.label || clean(g('degree')) || 'не вказано'}» не впізнано — уточніть`);
         else if (e.label && e.degree === 'Інший член сім’ї / родич') addComment(rec, `Спорідненість: ${e.label}`);
-        if (entries.length > 1) rec.info.push(`Одна з ${entries.length} осіб у рядку`);
-        if (e.fromContacts) { p.is_extra = true; rec.isRelative = true; }
-        baseFill(rec, k === 0);
+        if (k === 0 && !e.fromContacts) {
+          Object.assign(p, parseAddress(g('addr'), ctx.regions, rec));
+          rec.info.push('Отримувач сповіщення');
+        }
+        p.cell_id = fp.cell_id;
+        p.consent_pd_at = new Date().toISOString();
+        rec.info.push(`Родич загиблого ${fallenName} (зв’язана картка)`);
+        rec.programs.push(program);
         rec.relations.push({ ...relTemplate, relation_degree: e.degree || 'Інший член сім’ї / родич' });
+        fallenRec.kinCount = (fallenRec.kinCount || 0) + 1;
         out.push(rec);
       });
+    });
+    // загиблий без жодного родича в журналі
+    fallenByKey.forEach((f) => {
+      if (!f.kinCount) f.warnings.push('Родину не встановлено — коли знайдуться рідні, додайте їх кнопкою «+ Додати родича».');
     });
     return out;
   }
@@ -914,7 +935,7 @@ window.Importer = (() => {
     if (rel) {
       const info = document.createElement('span');
       info.className = 'imp-chip imp-chip-info';
-      info.textContent = `Усього записів ${records.length} = ${records.length - rel} основних + ${rel} додаткових (родичі)`;
+      info.textContent = `Усього записів ${records.length} = ${records.length - rel} основних + ${rel} зв’язаних (родичі)`;
       $('imp-summary').appendChild(info);
     }
 
@@ -946,7 +967,7 @@ window.Importer = (() => {
         if (k === 1 && r.isRelative) {
           td.className = 'imp-relative';
           const tag = document.createElement('span');
-          tag.className = 'tag tag-extra'; tag.textContent = 'додаткова · родич';
+          tag.className = 'mod mlinked'; tag.textContent = 'зв’язана';
           td.prepend(tag, ' ');
         }
         tr.appendChild(td);

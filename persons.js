@@ -703,6 +703,7 @@ window.Persons = (() => {
 
     $('delete-btn').hidden = !(id && isAdmin);
     loadKin(id).catch((e) => console.error(e));
+    Merge.render(id, isAdmin).catch((e) => console.error(e));
     loadOtherKin(id).catch((e) => console.error(e));
     Ui.paint($('person-form'));
     await showQuality(id);

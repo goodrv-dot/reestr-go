@@ -742,3 +742,12 @@ html, body { overflow-x: hidden; max-width: 100%; }
 .enroll-or { font-size: 0.88rem; }
 .secret-row { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
 .secret-row .secret-code { margin: 0; font-size: 0.95rem; letter-spacing: 0.05em; }
+
+/* Можливі дублікати */
+.dup-box { background: #fff8e1; border: 1px solid #e8cf86; border-left: 4px solid #d4a531; border-radius: 8px; padding: 0.8rem 1.1rem; margin: 0 0 1.25rem; max-width: 72rem; }
+.dup-box h2 { font-size: 1.05rem; margin: 0 0 0.5rem; color: #6d500e; }
+.dup-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.dup-list li { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+.dup-list .btn-link { margin: 0; font-weight: 600; }
+.dup-meta { font-size: 0.88rem; }
+#dup-note { margin: 0.6rem 0 0; font-size: 0.88rem; }

@@ -693,3 +693,46 @@ tr.is-relative td:nth-child(3) { padding-left: 1.6rem; }
 .imp-relative .tag { margin-right: 0.3rem; }
 .tag-extra { background: #f3eadf; color: #7a5230; font-weight: 600; font-size: 0.75rem; margin-top: 0.25rem; }
 .count-split { font-size: 0.85rem; }
+
+/* ============ Сторінки списку ============ */
+.pager { display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; margin: 1rem 0 2rem; }
+.pg-btn {
+  min-width: 2.4rem; height: 2.4rem; padding: 0 0.6rem; border-radius: 6px;
+  background: var(--white); border: 1px solid var(--line); color: var(--sea); font-weight: 600;
+}
+.pg-btn:hover:not(:disabled) { border-color: var(--sea); }
+.pg-btn.is-current { background: var(--sea); border-color: var(--sea); color: #fff; }
+.pg-btn:disabled { opacity: 0.4; cursor: default; }
+.pg-gap { color: var(--muted); padding: 0 0.2rem; }
+.pg-info { color: var(--muted); margin-left: 0.5rem; font-size: 0.9rem; }
+
+/* ============ Мобільна версія: шапка без виходу за екран ============ */
+html, body { overflow-x: hidden; max-width: 100%; }
+@media (max-width: 760px) {
+  .topbar {
+    display: grid; grid-template-columns: 1fr auto; grid-template-areas: "brand user" "tabs tabs";
+    gap: 0.4rem 0.75rem; padding: 0.6rem 0.9rem 0;
+  }
+  .topbar-left { display: contents; }
+  .topbar-left .wordmark { grid-area: brand; align-self: center; }
+  .topbar-user { grid-area: user; gap: 0.4rem; flex-wrap: nowrap; }
+  .topbar-user .role { display: none; }
+  #user-name { max-width: 7rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tabs {
+    grid-area: tabs; overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none;
+    margin: 0 -0.9rem; padding: 0 0.5rem;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab { white-space: nowrap; padding: 0.55rem 0.7rem; }
+  .btn-quiet { padding: 0.3rem 0.6rem; }
+  .app-main { padding-left: 0.9rem; padding-right: 0.9rem; }
+  .list-head { align-items: flex-start; }
+  .list-head h1 { font-size: 1.5rem; }
+  .count-split { display: block; margin: 0.2rem 0 0; }
+  .head-actions, .export-box { width: 100%; }
+  #add-btn { width: 100%; }
+  .toolbar .search { flex-basis: 100%; }
+  .qchips { gap: 0.35rem; }
+  .qchip { padding: 0.3rem 0.65rem; font-size: 0.92rem; }
+  .to-top { width: 3.25rem; height: 3.25rem; }
+}

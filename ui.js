@@ -96,7 +96,7 @@ window.Ui = (() => {
     window.addEventListener('scroll', () => {
       if (ticking) return;
       ticking = true;
-      requestAnimationFrame(() => { btn.hidden = window.scrollY < 500; ticking = false; });
+      requestAnimationFrame(() => { btn.hidden = window.scrollY < 300; ticking = false; });
     }, { passive: true });
     btn.addEventListener('click', () => {
       window.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' });

@@ -10,6 +10,9 @@ window.Persons = (() => {
   let editingId = null;
   let editingConsentAt = null;
   let extraKeep = [];
+  const PAGE_SIZE = 100;
+  let page = 1;
+  let listScrollY = 0;      // де був список, коли відкрили картку
   let searchTimer = null;
   const regions = new Map();
   const cells = new Map();
@@ -64,7 +67,7 @@ window.Persons = (() => {
     const ops = await db.from('operators').select('user_id, full_name');
     if (!ops.error && Array.isArray(ops.data)) ops.data.forEach((o) => staff.set(o.user_id, o.full_name));
 
-    Filters.init({ regions, cells, programs }, loadList);
+    Filters.init({ regions, cells, programs }, () => { page = 1; loadList(); });
 
     // Підрозділи МП
     const ures = await db.from('mp_units').select('id, name').eq('active', true).order('name');
@@ -363,8 +366,18 @@ window.Persons = (() => {
 
   function bind() {
     $('add-btn').addEventListener('click', () => openForm(null));
-    $('back-btn').addEventListener('click', showList);
-    $('cancel-btn').addEventListener('click', showList);
+    $('back-btn').addEventListener('click', closeForm);
+    $('cancel-btn').addEventListener('click', closeForm);
+    $('pager').addEventListener('click', (e) => {
+      const b = e.target.closest('button[data-page]');
+      if (!b || b.disabled) return;
+      page = Number(b.dataset.page);
+      loadList().then(() => $('persons-table').scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    });
+    // Системна кнопка «Назад»: закрити картку і повернутися до списку
+    window.addEventListener('popstate', () => {
+      if (!$('form-view').hidden) showList();
+    });
     $('person-form').addEventListener('submit', save);
     $('delete-btn').addEventListener('click', removePerson);
     $('kin-add').addEventListener('click', addRelative);
@@ -389,7 +402,7 @@ window.Persons = (() => {
     $('preset-clear').addEventListener('click', () => Filters.clearPreset());
     $('search').addEventListener('input', () => {
       clearTimeout(searchTimer);
-      searchTimer = setTimeout(loadList, 300);
+      searchTimer = setTimeout(() => { page = 1; loadList(); }, 300);
     });
 
     const tbody = $('persons-table').tBodies[0];
@@ -412,9 +425,16 @@ window.Persons = (() => {
 
   // ---------- Список ----------
   function showList() {
+    const fromCard = !$('form-view').hidden;
     $('form-view').hidden = true;
     $('list-view').hidden = false;
-    loadList();
+    loadList().then(() => { if (fromCard) window.scrollTo(0, listScrollY); });
+  }
+
+  // Закрити картку: якщо її відкриття додало крок в історію — повертаємось кроком назад
+  function closeForm() {
+    if (history.state && history.state.view === 'card') history.back();
+    else showList();
   }
 
   function currentSearch() {
@@ -469,7 +489,8 @@ window.Persons = (() => {
       setListStatus('Не вдалося застосувати фільтри. Оновіть сторінку.');
       return;
     }
-    query = query.order('created_at', { ascending: false }).limit(200);
+    const from = (page - 1) * PAGE_SIZE;
+    query = query.order('created_at', { ascending: false }).order('id').range(from, from + PAGE_SIZE - 1);
     const q = currentSearch();
 
     const { data, error, count } = await query;
@@ -488,8 +509,8 @@ window.Persons = (() => {
     const filtered = q || Filters.activeCount() > 0;
     $('count').textContent = filtered ? `${count} знайдено` : `${count}`;
     countExtras(count).catch(() => {});
-    $('list-note').hidden = count <= rows.length;
-    $('list-note').textContent = `Показано перші ${rows.length} з ${count}. Уточніть пошук або фільтри.`;
+    $('list-note').hidden = true;
+    renderPager(count);
 
     if (!rows.length) {
       table.hidden = true;
@@ -506,7 +527,7 @@ window.Persons = (() => {
       tr.dataset.id = p.id;
       tr.tabIndex = 0;
 
-      addCell(tr, String(idx + 1), 'cell-num');
+      addCell(tr, String((page - 1) * PAGE_SIZE + idx + 1), 'cell-num');
       tr.appendChild(qualityCell(p.critical_count, p.warning_count));
       const nm = document.createElement('td');
       nm.className = 'cell-name';
@@ -561,6 +582,27 @@ window.Persons = (() => {
       tr.appendChild(who);
       tbody.appendChild(tr);
     });
+  }
+
+  // Сторінки списку
+  function renderPager(count) {
+    const pages = Math.max(1, Math.ceil(count / PAGE_SIZE));
+    if (page > pages) page = pages;
+    const el = $('pager');
+    el.hidden = pages <= 1;
+    if (pages <= 1) { el.innerHTML = ''; return; }
+    const from = (page - 1) * PAGE_SIZE + 1, to = Math.min(count, page * PAGE_SIZE);
+    const nums = [...new Set([1, page - 2, page - 1, page, page + 1, page + 2, pages])].filter((n) => n >= 1 && n <= pages).sort((a, b) => a - b);
+    let html = `<button type="button" class="pg-btn" data-page="${page - 1}" ${page === 1 ? 'disabled' : ''} aria-label="Попередня сторінка">‹</button>`;
+    let prev = 0;
+    nums.forEach((n) => {
+      if (n - prev > 1) html += '<span class="pg-gap">…</span>';
+      html += `<button type="button" class="pg-btn${n === page ? ' is-current' : ''}" data-page="${n}" ${n === page ? 'aria-current="page"' : ''}>${n}</button>`;
+      prev = n;
+    });
+    html += `<button type="button" class="pg-btn" data-page="${page + 1}" ${page === pages ? 'disabled' : ''} aria-label="Наступна сторінка">›</button>`;
+    html += `<span class="pg-info">${from}–${to} з ${count}</span>`;
+    el.innerHTML = html;
   }
 
   async function countExtras(total) {
@@ -665,8 +707,10 @@ window.Persons = (() => {
     Ui.paint($('person-form'));
     await showQuality(id);
     updateVisibility();
+    if ($('form-view').hidden) listScrollY = window.scrollY;
     $('list-view').hidden = true;
     $('form-view').hidden = false;
+    if (!history.state || history.state.view !== 'card') history.pushState({ view: 'card' }, '');
     window.scrollTo(0, 0);
     $('f-last_name').focus();
   }
@@ -940,7 +984,7 @@ window.Persons = (() => {
     }
 
     toast(editingId ? 'Зміни збережено' : 'Особу додано');
-    showList();
+    closeForm();
   }
 
   // ---------- Видалення (лише адміністратор) ----------
@@ -956,7 +1000,7 @@ window.Persons = (() => {
       return;
     }
     toast('Особу видалено');
-    showList();
+    closeForm();
   }
 
   // ---------- Підказки під полями ----------

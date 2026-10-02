@@ -779,3 +779,8 @@ tr.is-linked td { background: #f7faff; }
 .m300 { background: #5b3f8c; color: #fff; }
 tr[data-module="m300"] { --mod-c: #5b3f8c; }
 #form-view[data-module="m300"] { --mod-c: #5b3f8c; }
+/* Роль у модулі: контурна плашка — зв’язана */
+.mod.mod-linked { background: transparent !important; border: 1.5px solid currentColor; }
+.mod.m200.mod-linked  { color: #7a2e2e; }
+.mod.m300.mod-linked  { color: #5b3f8c; }
+.mod.mkids.mod-linked { color: #2f6b4e; }

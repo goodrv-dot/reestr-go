@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Unbounded:wght@600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=202610021635">
+  <link rel="stylesheet" href="style.css?v=202610021650">
 </head>
 <body>
 
@@ -482,8 +482,10 @@
 
       <section id="m-extra">
         <h2>Основні та зв’язані картки, кольори модулів</h2>
-        <p><b>Кольори модулів</b> (плашки біля ПІБ і смужка зліва в картці): <span class="mod m200">200</span> загиблі · <span class="mod m300">300</span> поранені · <span class="mod mkids">Діти</span> діти МП · <span class="mod mlinked">зв’язана</span> родич 2-го рівня. Одна людина може мати кілька плашок. Червоний і жовтий кружечки — це не модулі, а стан картки (критично / бажано доповнити).</p>
-        <p>Над таблицею перемикач <b>«Картки: Основні / Зв’язані / Усі»</b>. За замовчуванням показано лише основні — так кількість збігається з файлами-джерелами. Цей вибір враховують і дашборд, і вивантаження.</p>
+        <p><b>Кольори модулів</b>: <span class="mod m200">200</span> загиблі · <span class="mod m300">300</span> поранені · <span class="mod mkids">Діти</span> діти МП. <b>Залита</b> плашка — людина в цьому модулі <b>основна</b>, <b>контурна</b> (<span class="mod m200 mod-linked">200</span>) — <b>зв’язана</b> (родич). Роль у кожному модулі своя: наприклад, вдова загиблого — зв’язана в <span class="mod m200 mod-linked">200</span>, але основна в <span class="mod mkids">Діти</span>, бо представляє дитину.</p>
+        <p>Хто основний: у «200» — сам загиблий; у «300» — сам поранений; у «Діти» — законний представник. Усі інші — зв’язані. Якщо в «300» поранений помер і є в журналі «200», він основний у 200, а в 300 стає зв’язаним.</p>
+        <p>Червоний і жовтий кружечки — не модулі, а стан картки (критично / бажано доповнити).</p>
+        <p>Над таблицею перемикач <b>«Картки: Основні / Зв’язані / Усі»</b>. За замовчуванням — лише основні. Якщо у фільтрах обрано модуль (напр., «Програми ГО → 200»), перемикач рахує роль <b>саме в цьому модулі</b>: «200 + Основні» = загиблі, рівно як рядків у журналі (мінус дублі). Цей вибір враховують і дашборд, і вивантаження.</p>
         <p>Якщо людина є основною хоча б в одному джерелі (напр., родич пораненого в «300», але отримувач сповіщення в «200») — вона основна. Якщо в «300» поранений помер і він є в журналі «200», дані про загибель беруться з «200», а його рідні з «300» лишаються зв’язаними.</p>
         <p>Після імпорту в реєстрі зазвичай <b>більше карток, ніж рядків у файлі</b>. Це нормально:</p>
         <ul>
@@ -853,23 +855,23 @@
   <p id="loading" class="loading">Завантаження…</p>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="config.js?v=202610021635"></script>
+  <script src="config.js?v=202610021650"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="options.js?v=202610021635"></script>
-  <script src="ui.js?v=202610021635"></script>
-  <script src="validation.js?v=202610021635"></script>
-  <script src="filters.js?v=202610021635"></script>
-  <script src="segments.js?v=202610021635"></script>
-  <script src="picker.js?v=202610021635"></script>
-  <script src="merge.js?v=202610021635"></script>
-  <script src="persons.js?v=202610021635"></script>
-  <script src="export.js?v=202610021635"></script>
-  <script src="import.js?v=202610021635"></script>
-  <script src="mfa.js?v=202610021635"></script>
-  <script src="staff.js?v=202610021635"></script>
-  <script src="ua-map.js?v=202610021635"></script>
-  <script src="dashboard.js?v=202610021635"></script>
-  <script src="nav.js?v=202610021635"></script>
-  <script src="app.js?v=202610021635"></script>
+  <script src="options.js?v=202610021650"></script>
+  <script src="ui.js?v=202610021650"></script>
+  <script src="validation.js?v=202610021650"></script>
+  <script src="filters.js?v=202610021650"></script>
+  <script src="segments.js?v=202610021650"></script>
+  <script src="picker.js?v=202610021650"></script>
+  <script src="merge.js?v=202610021650"></script>
+  <script src="persons.js?v=202610021650"></script>
+  <script src="export.js?v=202610021650"></script>
+  <script src="import.js?v=202610021650"></script>
+  <script src="mfa.js?v=202610021650"></script>
+  <script src="staff.js?v=202610021650"></script>
+  <script src="ua-map.js?v=202610021650"></script>
+  <script src="dashboard.js?v=202610021650"></script>
+  <script src="nav.js?v=202610021650"></script>
+  <script src="app.js?v=202610021650"></script>
 </body>
 </html>

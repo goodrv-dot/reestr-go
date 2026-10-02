@@ -710,6 +710,12 @@ window.Importer = (() => {
     return { id: null, other: clean(raw) };
   }
 
+  // Роль у модулі: основна для «головного» запису рядка, зв’язана — для родичів;
+  // окремі винятки (помер у «300» і є в «200») — через roleOverride
+  function roleFor(rec, pid) {
+    return (rec.roleOverride && rec.roleOverride[pid]) || (rec.isRelative ? 'linked' : 'main');
+  }
+
   function newRecord(row) {
     return {
       rows: [row], person: {}, relations: [], children: [], programs: [],
@@ -733,7 +739,11 @@ window.Importer = (() => {
         if (!prev.relations.some((x) => letters(x.related_full_name) === letters(rel.related_full_name))) prev.relations.push(rel);
       });
       (r.vets || []).forEach((v) => { prev.vets = prev.vets || []; if (!prev.vets.includes(v)) prev.vets.push(v); });
-      r.programs.forEach((pid) => { if (!prev.programs.includes(pid)) prev.programs.push(pid); });
+      // якщо хоч одна з анкет «основна» для свого модуля — роль за модулем зберігаємо
+      r.programs.forEach((pid) => {
+        if (!prev.programs.includes(pid)) prev.programs.push(pid);
+        if (!r.isRelative) prev.roleOverride = { ...(prev.roleOverride || {}), [pid]: 'main' };
+      });
       r.warnings.forEach((w) => { if (!prev.warnings.includes(w)) prev.warnings.push(w); });
       r.info.forEach((w) => { if (!prev.info.includes(w)) prev.info.push(w); });
       prev.info.push(`Об’єднано з рядком ${r.rows[0]} (той самий телефон)`);
@@ -755,7 +765,7 @@ window.Importer = (() => {
           .select('related_full_name, related_birth_date, related_death_date, related_burial_date, related_burial_place, related_callsign, related_unit_id, related_unit_other, related_unit_code')
           .eq('related_status', 'Загиблий').ilike('related_full_name', `${p.last_name}%`).limit(20),
         db.from('persons')
-          .select('id, phone, extra_phones, name_check, is_extra, last_name, first_name, patronymic, email, region_id, settlement, cell_id, birth_date, death_date, burial_date, consent_pd_at, consent_messages, children(birth_date, full_name), military_relations!military_relations_person_id_fkey(id, related_full_name), person_programs(program_id)')
+          .select('id, phone, extra_phones, name_check, is_extra, last_name, first_name, patronymic, email, region_id, settlement, cell_id, birth_date, death_date, burial_date, consent_pd_at, consent_messages, children(birth_date, full_name), military_relations!military_relations_person_id_fkey(id, related_full_name), person_programs(program_id, role)')
           .eq('military_status', 'Загиблий').ilike('last_name', `${p.last_name.slice(0, 4)}%`).limit(20)
       ]);
       const same = (n, bd) => letters(n) === letters(fullName) && (!bd || !p.birth_date || bd === p.birth_date);
@@ -776,6 +786,8 @@ window.Importer = (() => {
       if (src.related_callsign) addComment(r, `Позивний: ${src.related_callsign}`);
       const prog200 = [...Persons.ctx().programs].find(([, n]) => n === 'Супровід родин загиблих (200)')?.[0];
       if (prog200 && !r.programs.includes(prog200)) r.programs.push(prog200);
+      const prog300 = [...Persons.ctx().programs].find(([, n]) => n === 'Супровід поранених (300)')?.[0];
+      r.roleOverride = { ...(r.roleOverride || {}), [prog200]: 'main', [prog300]: 'linked' };
       r.info.push('Знайдено в журналі «200»: статус «Загиблий», дати загибелі й поховання взято звідти (основний модуль — 200)');
       if (c200) { r.mergeTo200 = c200; r.info.push('У реєстрі вже є картка цього загиблого з «200» — дані буде об’єднано з нею'); }
       // родичі з «300» — зв’язані картки до загиблого
@@ -789,7 +801,7 @@ window.Importer = (() => {
   async function matchExisting(list) {
     const { db } = Persons.ctx();
     await crossCheck200(list, db);
-    const COLS = 'id, phone, extra_phones, name_check, is_extra, last_name, first_name, patronymic, email, region_id, settlement, cell_id, birth_date, consent_pd_at, consent_messages, children(birth_date, full_name), military_relations!military_relations_person_id_fkey(id, related_full_name, related_death_date, related_burial_date, related_burial_place, related_callsign, related_unit_code, related_person_id), person_programs(program_id)';
+    const COLS = 'id, phone, extra_phones, name_check, is_extra, last_name, first_name, patronymic, email, region_id, settlement, cell_id, birth_date, consent_pd_at, consent_messages, children(birth_date, full_name), military_relations!military_relations_person_id_fkey(id, related_full_name, related_death_date, related_burial_date, related_burial_place, related_callsign, related_unit_code, related_person_id), person_programs(program_id, role)';
     const allPhones = (r) => [r.person.phone, ...(r.person.extra_phones || [])].filter(Boolean);
     const phones = [...new Set(list.flatMap(allPhones))];
     const found = new Map();
@@ -1063,7 +1075,8 @@ window.Importer = (() => {
     const p = { ...r.person, source: 'Excel', source_ref: fileName, import_batch_id: batchId };
     const { data, error } = await db.from('persons').insert(p).select('id').single();
     if (error) throw error;
-    await insertChildren(db, data.id, r.relations, r.children, r.programs.filter(Boolean), r.vets);
+    await insertChildren(db, data.id, r.relations, r.children,
+      r.programs.filter(Boolean).map((pid) => ({ program_id: pid, role: roleFor(r, pid) })), r.vets);
     return data.id;
   }
 
@@ -1076,7 +1089,7 @@ window.Importer = (() => {
         patronymic: r.person.patronymic || null, name_check: false, name_check_note: null });
     }
     if (!ex.consent_messages && r.person.consent_messages) patch.consent_messages = true;
-    if (ex.is_extra && !r.person.is_extra) patch.is_extra = false;     // людина основна в іншому джерелі — стає основною
+    if (ex.is_extra && !r.isRelative) patch.is_extra = false;     // людина основна хоча б в одному модулі
     ['military_status', 'death_date', 'burial_date', 'mp_relation_type'].forEach((k) => {
       if (r.diedNote && r.person[k] && r.person.military_status === 'Загиблий') patch[k] = r.person[k];
     });
@@ -1106,7 +1119,23 @@ window.Importer = (() => {
         Object.assign(old, fix);
       }
     }
-    const progs = r.programs.filter((pid) => pid && !(ex.person_programs || []).some((x) => x.program_id === pid));
+    const progs = [];
+    for (const pid of r.programs.filter(Boolean)) {
+      const role = roleFor(r, pid);
+      const old = (ex.person_programs || []).find((x) => x.program_id === pid);
+      if (!old) progs.push({ program_id: pid, role });
+      else if (old.role === 'linked' && role === 'main') {
+        // у цьому модулі людина тепер основна
+        const { error } = await db.from('person_programs').update({ role: 'main' }).eq('person_id', ex.id).eq('program_id', pid);
+        if (error) throw error;
+        old.role = 'main';
+      } else if (old.role === 'main' && role === 'linked' && r.roleOverride && r.roleOverride[pid] === 'linked') {
+        // помер у «300»: у модулі 300 стає зв’язаним (основний — у 200)
+        const { error } = await db.from('person_programs').update({ role: 'linked' }).eq('person_id', ex.id).eq('program_id', pid);
+        if (error) throw error;
+        old.role = 'linked';
+      }
+    }
     if (kids.length) {
       const { error } = await db.from('persons').update({ has_children: 'Так' }).eq('id', ex.id);
       if (error) throw error;
@@ -1115,7 +1144,7 @@ window.Importer = (() => {
     // запам’ятати, що вже додано — наступний рядок файлу про цю ж людину не дублюватиме
     ex.children = [...(ex.children || []), ...kids];
     ex.military_relations = [...(ex.military_relations || []), ...rels];
-    ex.person_programs = [...(ex.person_programs || []), ...progs.map((program_id) => ({ program_id }))];
+    ex.person_programs = [...(ex.person_programs || []), ...progs];
   }
 
   async function insertChildren(db, personId, rels, kids, progs, vets) {
@@ -1135,7 +1164,7 @@ window.Importer = (() => {
     }
     if (progs.length) {
       const { error } = await db.from('person_programs')
-        .upsert(progs.map((pid) => ({ person_id: personId, program_id: pid })), { onConflict: 'person_id,program_id', ignoreDuplicates: true });
+        .upsert(progs.map((x) => ({ person_id: personId, program_id: x.program_id, role: x.role })), { onConflict: 'person_id,program_id', ignoreDuplicates: true });
       if (error) throw error;
     }
   }

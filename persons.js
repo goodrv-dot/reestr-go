@@ -10,6 +10,7 @@ window.Persons = (() => {
   let editingId = null;
   let editingConsentAt = null;
   let extraKeep = [];
+  let programRoles = new Map();   // ролі в модулях відкритої картки (зберігаємо при редагуванні)
   const PAGE_SIZE = 100;
   let level = 'main';       // main — основні картки, extra — зв’язані, all — усі
   let page = 1;
@@ -216,7 +217,7 @@ window.Persons = (() => {
     $('kin-list').innerHTML = '';
     if (!id) return;
     const { data: me } = await db.from('persons')
-      .select('id, last_name, first_name, patronymic, birth_date, military_status, mp_relation, mp_unit_id, military_unit_code, death_date, burial_date')
+      .select('id, last_name, first_name, patronymic, birth_date, military_status, mp_relation, mp_unit_id, military_unit_code, death_date, burial_date, person_programs(program_id)')
       .eq('id', id).single();
     currentCard = me;
     const fio = [me.last_name, me.first_name, me.patronymic].filter(Boolean).join(' ');
@@ -290,6 +291,7 @@ window.Persons = (() => {
     openForm(null, {
       relativeOf: {
         label: fio,
+        programs: (me.person_programs || []).map((x) => x.program_id),
         relation: {
           related_person_id: me.id,
           related_full_name: fio,
@@ -459,8 +461,15 @@ window.Persons = (() => {
       if (full) parts.push(`extra_phones.cs.{${full}}`);   // повний номер шукаємо й серед додаткових
       query = query.or(parts.join(','));
     }
-    if (level !== 'all' && !(skip || []).includes('level')) query = query.eq('is_extra', level === 'extra');
+    if (level !== 'all' && !(skip || []).includes('level')) query = applyLevel(query, level === 'main');
     return Filters.apply(query, db, skip);
+  }
+
+  // Рівень з урахуванням модуля: якщо в фільтрі обрано модуль(і) — роль саме в них
+  function applyLevel(query, main) {
+    const sel = (Filters.getState().program_ids || []).map(Number);
+    if (sel.length) return query.overlaps(main ? 'main_program_ids' : 'linked_program_ids', sel);
+    return query.eq('is_main', main);
   }
 
   // Модулі (програми ГО) → коротка плашка
@@ -469,27 +478,36 @@ window.Persons = (() => {
     'Супровід поранених (300)': { label: '300', cls: 'm300', rank: 2 },
     'Діти Морської піхоти': { label: 'Діти', cls: 'mkids', rank: 3 }
   };
-  function moduleBadges(programIds, isExtra) {
+  // Плашки: залита — основна в модулі, контурна — зв’язана в модулі
+  function moduleBadges(programIds, mainIds, isExtra) {
     const frag = document.createDocumentFragment();
-    (programIds || []).map((id) => MODULES[programs.get(id)]).filter(Boolean)
-      .sort((a, b) => a.rank - b.rank)
-      .forEach((m) => { const b = document.createElement('span'); b.className = 'mod ' + m.cls; b.textContent = m.label; frag.appendChild(b); });
-    if (isExtra) {
+    const main = new Set((mainIds || []).map(Number));
+    (programIds || []).map((id) => ({ id: Number(id), m: MODULES[programs.get(Number(id))] })).filter((x) => x.m)
+      .sort((a, b) => a.m.rank - b.m.rank)
+      .forEach(({ id, m }) => {
+        const isMain = main.has(id);
+        const b = document.createElement('span');
+        b.className = 'mod ' + m.cls + (isMain ? '' : ' mod-linked');
+        b.textContent = m.label;
+        b.title = isMain ? `Основна картка в модулі ${m.label}` : `Зв’язана картка в модулі ${m.label} (родич)`;
+        frag.appendChild(b);
+      });
+    if (!(programIds || []).length && isExtra) {
       const b = document.createElement('span'); b.className = 'mod mlinked'; b.textContent = 'зв’язана';
-      b.title = 'Зв’язана картка (2-й рівень): родич, знайдений у контактах або доданий кнопкою «Додати родича»';
       frag.appendChild(b);
     }
     return frag;
   }
-  function primaryModule(programIds) {
-    return (programIds || []).map((id) => MODULES[programs.get(id)]).filter(Boolean).sort((a, b) => a.rank - b.rank)[0]?.cls || '';
+  function primaryModule(programIds, mainIds) {
+    const pick = (ids) => (ids || []).map((id) => MODULES[programs.get(Number(id))]).filter(Boolean).sort((a, b) => a.rank - b.rank)[0]?.cls;
+    return pick(mainIds) || (pick(programIds) ? 'mlinked' : '');
   }
 
   // Рівні карток: лічильники і перемикач
   async function loadLevelCounts() {
     const cnt = async (v) => {
       const { query } = await buildQuery('id', { count: 'exact', head: true }, ['level']);
-      const { count } = await query.eq('is_extra', v);
+      const { count } = await applyLevel(query, !v);
       return count ?? 0;
     };
     const [m, e] = await Promise.all([cnt(false), cnt(true)]);
@@ -538,7 +556,7 @@ window.Persons = (() => {
     let query;
     try {
       ({ query } = await buildQuery(
-        'id, is_extra, program_ids, last_name, first_name, patronymic, phone, extra_phones, region_id, person_categories, family_categories, created_at, critical_count, warning_count, comment, touchpoint, created_by, source',
+        'id, is_extra, is_main, program_ids, main_program_ids, last_name, first_name, patronymic, phone, extra_phones, region_id, person_categories, family_categories, created_at, critical_count, warning_count, comment, touchpoint, created_by, source',
         { count: 'exact' }));
     } catch (e) {
       console.error(e);
@@ -588,13 +606,13 @@ window.Persons = (() => {
       const nm = document.createElement('td');
       nm.className = 'cell-name';
       nm.textContent = [p.last_name, p.first_name, p.patronymic].filter(Boolean).join(' ');
-      const badges = moduleBadges(p.program_ids, p.is_extra);
+      const badges = moduleBadges(p.program_ids, p.main_program_ids, p.is_extra);
       if (badges.childNodes.length) {
         const wrap = document.createElement('div'); wrap.className = 'mods'; wrap.appendChild(badges); nm.appendChild(wrap);
       }
-      const pm = primaryModule(p.program_ids);
-      if (pm) tr.dataset.module = pm;
-      if (p.is_extra) tr.classList.add('is-linked');
+      const pm = primaryModule(p.program_ids, p.main_program_ids);
+      if (pm && pm !== 'mlinked') tr.dataset.module = pm;
+      if (!p.is_main) tr.classList.add('is-linked');
       tr.appendChild(nm);
       const ph = document.createElement('td');
       ph.className = 'cell-phone';
@@ -736,18 +754,21 @@ window.Persons = (() => {
     editingConsentAt = null;
     $('consent-date').textContent = '';
     extraKeep = [];
+    programRoles = new Map();
     $('relations-list').innerHTML = '';
     $('children-list').innerHTML = '';
 
     if (id) {
-      const { data, error } = await db.from('persons').select('*, person_veteran_statuses(status), military_relations!military_relations_person_id_fkey(*), children(*), person_programs(program_id)').eq('id', id).single();
+      const { data, error } = await db.from('persons').select('*, person_veteran_statuses(status), military_relations!military_relations_person_id_fkey(*), children(*), person_programs(program_id, role)').eq('id', id).single();
       if (error) { console.error(error); toast('Не вдалося відкрити картку.'); return; }
       fillForm(data);
       $('form-title').textContent = [data.last_name, data.first_name, data.patronymic].filter(Boolean).join(' ');
       const pids = (data.person_programs || []).map((x) => x.program_id);
+      const mids = (data.person_programs || []).filter((x) => x.role === 'main').map((x) => x.program_id);
+      programRoles = new Map((data.person_programs || []).map((x) => [x.program_id, x.role]));
       $('form-badges').innerHTML = '';
-      $('form-badges').appendChild(moduleBadges(pids, data.is_extra));
-      $('form-view').dataset.module = primaryModule(pids) || (data.is_extra ? 'mlinked' : '');
+      $('form-badges').appendChild(moduleBadges(pids, mids, data.is_extra));
+      $('form-view').dataset.module = primaryModule(pids, mids) || (data.is_extra ? 'mlinked' : '');
       $('form-meta').textContent = `Додав(ла): ${staff.get(data.created_by) || 'невідомо'} · ${sourceLabel(data.source)} · ${new Date(data.created_at).toLocaleDateString('uk-UA')}`
         + (data.source_ref ? ` · файл «${data.source_ref}»` : '');
       $('form-meta').hidden = false;
@@ -758,6 +779,12 @@ window.Persons = (() => {
       $('form-meta').hidden = true;
       if (opts.relativeOf) {
         $('person-form').is_extra.checked = true;
+        // родич потрапляє в ті ж модулі, що й військовий, але як зв’язана картка
+        (opts.relativeOf.programs || []).forEach((pid) => {
+          programRoles.set(pid, 'linked');
+          const cb = $('person-form').querySelector(`input[name="program"][value="${pid}"]`);
+          if (cb) cb.checked = true;
+        });
         const row = addRelationRow(opts.relativeOf.relation);
         Ui.paint(row);
       }
@@ -1030,7 +1057,10 @@ window.Persons = (() => {
       }
       if (!error) error = (await db.from('person_programs').delete().eq('person_id', personId)).error;
       if (!error && programIds.length) {
-        error = (await db.from('person_programs').insert(programIds.map((program_id) => ({ person_id: personId, program_id })))).error;
+        error = (await db.from('person_programs').insert(programIds.map((program_id) => ({
+          person_id: personId, program_id,
+          role: programRoles.get(program_id) || (rec.is_extra ? 'linked' : 'main')
+        })))).error;
       }
       if (!error) error = (await db.from('children').delete().eq('person_id', personId)).error;
       if (!error && children.length) {

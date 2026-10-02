@@ -394,7 +394,7 @@ window.Importer = (() => {
       const died = /помер|загинув|загибел|смерт/i.test(notes);
       if (died) {
         p.military_status = 'Статус уточнюється';
-        rec.warnings.push(`У примітках: «${notes}» — перевірте статус (поставлено «Статус уточнюється»)`);
+        rec.diedNote = notes;            // звіримо з журналом «200» після розбору
       }
       if (/^(так|є|\+|убд)/i.test(clean(g('ubd')))) rec.vets = ['Учасник бойових дій'];
       p.consent_pd_at = new Date().toISOString();
@@ -722,9 +722,53 @@ window.Importer = (() => {
   }
 
   // Звірка з базою: хто вже є
+  // «300»: поранений помер → шукаємо його в даних «200» і беремо звідти дані про загибель
+  async function crossCheck200(list, db) {
+    const dead = list.filter((r) => r.diedNote && r.person.last_name);
+    if (!dead.length) return;
+    for (const r of dead) {
+      const p = r.person;
+      const fullName = [p.last_name, p.first_name, p.patronymic].filter(Boolean).join(' ');
+      const [rel, card] = await Promise.all([
+        db.from('military_relations')
+          .select('related_full_name, related_birth_date, related_death_date, related_burial_date, related_burial_place, related_callsign, related_unit_id, related_unit_other, related_unit_code')
+          .eq('related_status', 'Загиблий').ilike('related_full_name', `${p.last_name}%`).limit(20),
+        db.from('persons')
+          .select('id, phone, extra_phones, name_check, is_extra, last_name, first_name, patronymic, email, region_id, settlement, cell_id, birth_date, death_date, burial_date, consent_pd_at, consent_messages, children(birth_date, full_name), military_relations!military_relations_person_id_fkey(id, related_full_name), person_programs(program_id)')
+          .eq('military_status', 'Загиблий').ilike('last_name', `${p.last_name.slice(0, 4)}%`).limit(20)
+      ]);
+      const same = (n, bd) => letters(n) === letters(fullName) && (!bd || !p.birth_date || bd === p.birth_date);
+      const r200 = (rel.data || []).find((x) => same(x.related_full_name, x.related_birth_date));
+      const c200 = (card.data || []).find((x) => same([x.last_name, x.first_name, x.patronymic].filter(Boolean).join(' '), x.birth_date));
+      if (!r200 && !c200) {
+        r.warnings.push(`У примітках: «${r.diedNote}». У журналі «200» не знайдено — статус «Статус уточнюється», уточніть`);
+        continue;
+      }
+      const src = r200 || {};
+      p.military_status = 'Загиблий';
+      p.death_date = src.related_death_date || c200?.death_date || null;
+      p.burial_date = src.related_burial_date || c200?.burial_date || null;
+      if (src.related_unit_id) { p.mp_unit_id = src.related_unit_id; p.mp_unit_other = null; }
+      if (src.related_unit_code && !p.military_unit_code) p.military_unit_code = src.related_unit_code;
+      p.mp_relation_type = 'Загиблий військовослужбовець МП';
+      if (src.related_burial_place) addComment(r, `Місце поховання: ${src.related_burial_place}`);
+      if (src.related_callsign) addComment(r, `Позивний: ${src.related_callsign}`);
+      const prog200 = [...Persons.ctx().programs].find(([, n]) => n === 'Супровід родин загиблих (200)')?.[0];
+      if (prog200 && !r.programs.includes(prog200)) r.programs.push(prog200);
+      r.info.push('Знайдено в журналі «200»: статус «Загиблий», дати загибелі й поховання взято звідти (основний модуль — 200)');
+      if (c200) { r.mergeTo200 = c200; r.info.push('У реєстрі вже є картка цього загиблого з «200» — дані буде об’єднано з нею'); }
+      // родичі з «300» — зв’язані картки до загиблого
+      list.filter((k) => k.linkTo === r).forEach((k) => k.relations.forEach((x) => {
+        Object.assign(x, { related_status: 'Загиблий', related_death_date: p.death_date, related_burial_date: p.burial_date });
+        k.warnings = k.warnings.filter((w) => !w.startsWith('Статус пораненого уточнюється'));
+      }));
+    }
+  }
+
   async function matchExisting(list) {
     const { db } = Persons.ctx();
-    const COLS = 'id, phone, extra_phones, name_check, last_name, first_name, patronymic, email, region_id, settlement, cell_id, birth_date, consent_pd_at, consent_messages, children(birth_date, full_name), military_relations!military_relations_person_id_fkey(id, related_full_name, related_death_date, related_burial_date, related_burial_place, related_callsign, related_unit_code, related_person_id), person_programs(program_id)';
+    await crossCheck200(list, db);
+    const COLS = 'id, phone, extra_phones, name_check, is_extra, last_name, first_name, patronymic, email, region_id, settlement, cell_id, birth_date, consent_pd_at, consent_messages, children(birth_date, full_name), military_relations!military_relations_person_id_fkey(id, related_full_name, related_death_date, related_burial_date, related_burial_place, related_callsign, related_unit_code, related_person_id), person_programs(program_id)';
     const allPhones = (r) => [r.person.phone, ...(r.person.extra_phones || [])].filter(Boolean);
     const phones = [...new Set(list.flatMap(allPhones))];
     const found = new Map();
@@ -757,6 +801,7 @@ window.Importer = (() => {
     list.forEach((r) => {
       if (r.errors.length) { r.state = 'error'; r.include = false; return; }
       let ex = allPhones(r).map((ph) => found.get(ph)).find(Boolean);
+      if (!ex && r.mergeTo200) ex = r.mergeTo200;
       if (!ex && !r.person.phone && r.person.last_name) {
         const k = letters(r.person.last_name) + '|' + letters(r.person.first_name) + '|' + letters(r.person.patronymic);
         const m = byName.get(k);
@@ -1010,6 +1055,10 @@ window.Importer = (() => {
         patronymic: r.person.patronymic || null, name_check: false, name_check_note: null });
     }
     if (!ex.consent_messages && r.person.consent_messages) patch.consent_messages = true;
+    if (ex.is_extra && !r.person.is_extra) patch.is_extra = false;     // людина основна в іншому джерелі — стає основною
+    ['military_status', 'death_date', 'burial_date', 'mp_relation_type'].forEach((k) => {
+      if (r.diedNote && r.person[k] && r.person.military_status === 'Загиблий') patch[k] = r.person[k];
+    });
     const known = new Set([ex.phone, ...(ex.extra_phones || [])].filter(Boolean));
     const newPhones = [r.person.phone, ...(r.person.extra_phones || [])].filter((ph) => ph && !known.has(ph));
     if (newPhones.length) {

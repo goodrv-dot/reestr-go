@@ -261,7 +261,8 @@ window.Exporter = (() => {
   function selection() {
     const q = $('search').value.trim();
     const seg = window.Segments && Segments.label();
-    const lines = [...(seg ? [seg] : []), ...(q ? [`Пошук: ${q}`] : []), ...Filters.describe()];
+    const lv = Persons.levelLabel && Persons.levelLabel();
+    const lines = [...(seg ? [seg] : []), ...(lv ? [lv] : []), ...(q ? [`Пошук: ${q}`] : []), ...Filters.describe()];
     return lines.length ? lines : ['Без фільтрів (увесь реєстр)'];
   }
 

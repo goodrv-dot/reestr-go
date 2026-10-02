@@ -11,6 +11,7 @@ window.Persons = (() => {
   let editingConsentAt = null;
   let extraKeep = [];
   const PAGE_SIZE = 100;
+  let level = 'main';       // main — основні картки, extra — зв’язані, all — усі
   let page = 1;
   let listScrollY = 0;      // де був список, коли відкрили картку
   let searchTimer = null;
@@ -399,6 +400,9 @@ window.Persons = (() => {
       Filters.setQuality(Filters.getQuality() === b.dataset.q ? '' : b.dataset.q);
     }));
     $('reset-all').addEventListener('click', resetAll);
+    document.querySelectorAll('.lvchip').forEach((b) => b.addEventListener('click', () => {
+      level = b.dataset.level; page = 1; loadList();
+    }));
     $('preset-clear').addEventListener('click', () => Filters.clearPreset());
     $('search').addEventListener('input', () => {
       clearTimeout(searchTimer);
@@ -454,7 +458,45 @@ window.Persons = (() => {
       if (full) parts.push(`extra_phones.cs.{${full}}`);   // повний номер шукаємо й серед додаткових
       query = query.or(parts.join(','));
     }
+    if (level !== 'all' && !(skip || []).includes('level')) query = query.eq('is_extra', level === 'extra');
     return Filters.apply(query, db, skip);
+  }
+
+  // Модулі (програми ГО) → коротка плашка
+  const MODULES = {
+    'Супровід родин загиблих (200)': { label: '200', cls: 'm200', rank: 1 },
+    'Супровід поранених (300)': { label: '300', cls: 'm300', rank: 2 },
+    'Діти Морської піхоти': { label: 'Діти', cls: 'mkids', rank: 3 }
+  };
+  function moduleBadges(programIds, isExtra) {
+    const frag = document.createDocumentFragment();
+    (programIds || []).map((id) => MODULES[programs.get(id)]).filter(Boolean)
+      .sort((a, b) => a.rank - b.rank)
+      .forEach((m) => { const b = document.createElement('span'); b.className = 'mod ' + m.cls; b.textContent = m.label; frag.appendChild(b); });
+    if (isExtra) {
+      const b = document.createElement('span'); b.className = 'mod mlinked'; b.textContent = 'зв’язана';
+      b.title = 'Зв’язана картка (2-й рівень): родич, знайдений у контактах або доданий кнопкою «Додати родича»';
+      frag.appendChild(b);
+    }
+    return frag;
+  }
+  function primaryModule(programIds) {
+    return (programIds || []).map((id) => MODULES[programs.get(id)]).filter(Boolean).sort((a, b) => a.rank - b.rank)[0]?.cls || '';
+  }
+
+  // Рівні карток: лічильники і перемикач
+  async function loadLevelCounts() {
+    const cnt = async (v) => {
+      const { query } = await buildQuery('id', { count: 'exact', head: true }, ['level']);
+      const { count } = await query.eq('is_extra', v);
+      return count ?? 0;
+    };
+    const [m, e] = await Promise.all([cnt(false), cnt(true)]);
+    $('lv-main').textContent = m; $('lv-extra').textContent = e; $('lv-all').textContent = m + e;
+    document.querySelectorAll('.lvchip').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.level === level)));
+  }
+  function levelLabel() {
+    return level === 'main' ? 'Картки: лише основні' : level === 'extra' ? 'Картки: лише зв’язані' : null;
   }
 
   // Лічильники для кнопок «Критичні / Бажано доповнити / Заповнені»
@@ -483,7 +525,7 @@ window.Persons = (() => {
     show('qc-all', all);
     show('qc-crit', crit);
     show('qc-ok', ok);
-    show('qc-warn', all !== null && crit !== null && ok !== null ? all - crit - ok : null);
+    show('qc-warn', all !== null && crit !== null && ok !== null ? Math.max(0, all - crit - ok) : null);
     const cur = Filters.getQuality();
     document.querySelectorAll('.qchips .qchip').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.q === cur)));
   }
@@ -491,10 +533,11 @@ window.Persons = (() => {
   async function loadList() {
     $('reset-all').hidden = !hasSelection();
     loadQualityCounts().catch((e) => console.error(e));
+    loadLevelCounts().catch((e) => console.error(e));
     let query;
     try {
       ({ query } = await buildQuery(
-        'id, is_extra, last_name, first_name, patronymic, phone, extra_phones, region_id, person_categories, family_categories, created_at, critical_count, warning_count, comment, touchpoint, created_by, source',
+        'id, is_extra, program_ids, last_name, first_name, patronymic, phone, extra_phones, region_id, person_categories, family_categories, created_at, critical_count, warning_count, comment, touchpoint, created_by, source',
         { count: 'exact' }));
     } catch (e) {
       console.error(e);
@@ -520,7 +563,7 @@ window.Persons = (() => {
     tbody.innerHTML = '';
     const filtered = q || Filters.activeCount() > 0;
     $('count').textContent = filtered ? `${count} знайдено` : `${count}`;
-    countExtras(count).catch(() => {});
+    $('count-split').hidden = true;
     $('list-note').hidden = true;
     renderPager(count);
 
@@ -544,13 +587,13 @@ window.Persons = (() => {
       const nm = document.createElement('td');
       nm.className = 'cell-name';
       nm.textContent = [p.last_name, p.first_name, p.patronymic].filter(Boolean).join(' ');
-      if (p.is_extra) {
-        const t = document.createElement('span');
-        t.className = 'tag tag-extra';
-        t.textContent = 'додаткова · родич';
-        t.title = 'Додаткова картка родича — створена з контактів родичів або кнопкою «Додати родича», не з основного списку файлу';
-        nm.append(document.createElement('br'), t);
+      const badges = moduleBadges(p.program_ids, p.is_extra);
+      if (badges.childNodes.length) {
+        const wrap = document.createElement('div'); wrap.className = 'mods'; wrap.appendChild(badges); nm.appendChild(wrap);
       }
+      const pm = primaryModule(p.program_ids);
+      if (pm) tr.dataset.module = pm;
+      if (p.is_extra) tr.classList.add('is-linked');
       tr.appendChild(nm);
       const ph = document.createElement('td');
       ph.className = 'cell-phone';
@@ -700,11 +743,17 @@ window.Persons = (() => {
       if (error) { console.error(error); toast('Не вдалося відкрити картку.'); return; }
       fillForm(data);
       $('form-title').textContent = [data.last_name, data.first_name, data.patronymic].filter(Boolean).join(' ');
+      const pids = (data.person_programs || []).map((x) => x.program_id);
+      $('form-badges').innerHTML = '';
+      $('form-badges').appendChild(moduleBadges(pids, data.is_extra));
+      $('form-view').dataset.module = primaryModule(pids) || (data.is_extra ? 'mlinked' : '');
       $('form-meta').textContent = `Додав(ла): ${staff.get(data.created_by) || 'невідомо'} · ${sourceLabel(data.source)} · ${new Date(data.created_at).toLocaleDateString('uk-UA')}`
         + (data.source_ref ? ` · файл «${data.source_ref}»` : '');
       $('form-meta').hidden = false;
     } else {
       $('form-title').textContent = opts.relativeOf ? `Новий родич: ${opts.relativeOf.label}` : 'Нова особа';
+      $('form-badges').innerHTML = '';
+      $('form-view').dataset.module = opts.relativeOf ? 'mlinked' : '';
       $('form-meta').hidden = true;
       if (opts.relativeOf) {
         $('person-form').is_extra.checked = true;
@@ -1060,5 +1109,5 @@ window.Persons = (() => {
     return !!$('search').value.trim() || Filters.activeCount() > 0;
   }
 
-  return { init, showList, buildQuery, ctx, toast, resetAll, hasSelection, openForm };
+  return { init, showList, buildQuery, ctx, toast, resetAll, hasSelection, openForm, levelLabel };
 })();

@@ -751,3 +751,27 @@ html, body { overflow-x: hidden; max-width: 100%; }
 .dup-list .btn-link { margin: 0; font-weight: 600; }
 .dup-meta { font-size: 0.88rem; }
 #dup-note { margin: 0.6rem 0 0; font-size: 0.88rem; }
+
+/* ============ Модулі та рівні карток ============ */
+.mods { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: 0.3rem; }
+.mod { display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 0.05rem 0.45rem; border-radius: 4px; letter-spacing: 0.02em; line-height: 1.35; }
+.m200  { background: #7a2e2e; color: #fff; }
+.m300  { background: #a45a1c; color: #fff; }
+.mkids { background: #2f6b4e; color: #fff; }
+.mlinked { background: transparent; color: #1d5fa0; border: 1.5px solid #1d5fa0; }
+#persons-table tbody tr[data-module] td:first-child { box-shadow: inset 4px 0 0 var(--mod-c); }
+tr[data-module="m200"]  { --mod-c: #7a2e2e; }
+tr[data-module="m300"]  { --mod-c: #a45a1c; }
+tr[data-module="mkids"] { --mod-c: #2f6b4e; }
+tr.is-linked:not([data-module]) td:first-child { box-shadow: inset 4px 0 0 #1d5fa0; }
+tr.is-linked td { background: #f7faff; }
+.form-mods { margin: -1rem 0 1rem; }
+#form-view[data-module] { border-left: 6px solid var(--mod-c, transparent); padding-left: 1rem; margin-left: -1.4rem; }
+#form-view[data-module="m200"]  { --mod-c: #7a2e2e; }
+#form-view[data-module="m300"]  { --mod-c: #a45a1c; }
+#form-view[data-module="mkids"] { --mod-c: #2f6b4e; }
+#form-view[data-module="mlinked"] { --mod-c: #1d5fa0; }
+#form-view[data-module=""] { border-left: 0; padding-left: 0; margin-left: 0; }
+@media (max-width: 760px) { #form-view[data-module] { margin-left: -0.9rem; padding-left: 0.6rem; } }
+.lvchips { margin-bottom: 0.5rem; }
+.lvchip-linked[aria-pressed="true"] { background: #1d5fa0; border-color: #1d5fa0; }

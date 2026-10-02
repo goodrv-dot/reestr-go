@@ -9,6 +9,9 @@ window.Mfa = (() => {
   function init(client) {
     db = client;
     $('mfa-form').addEventListener('submit', submitVerify);
+    $('mfa-code').addEventListener('input', () => {
+      if ($('mfa-code').value.replace(/\D/g, '').length === 6) $('mfa-form').requestSubmit();
+    });
     $('mfa-logout').addEventListener('click', () => window.appLogout());
     $('mfa-enroll-logout').addEventListener('click', () => window.appLogout());
   }
@@ -74,14 +77,24 @@ window.Mfa = (() => {
     const qr = enr.totp.qr_code.startsWith('<svg')
       ? 'data:image/svg+xml;utf-8,' + encodeURIComponent(enr.totp.qr_code)
       : enr.totp.qr_code;
+    const onPhone = window.matchMedia('(pointer: coarse)').matches || window.innerWidth < 760;
+    const phoneBlock = `
+          <div class="enroll-phone">
+            <p><b>Налаштовуєте на цьому ж телефоні?</b> QR-код зі свого екрана не відсканувати — зробіть так:</p>
+            <a class="btn-primary enroll-open" href="#">Відкрити в додатку-автентифікаторі</a>
+            <p class="muted enroll-or">Якщо кнопка не відкрила додаток: скопіюйте ключ і в додатку оберіть «+» → «Ввести ключ налаштування» (назва: Реєстр ГО, тип: за часом).</p>
+            <div class="secret-row"><code class="secret-code"></code><button type="button" class="btn-secondary btn-small copy-secret">Скопіювати ключ</button></div>
+          </div>`;
+    const qrBlock = `
+          <div class="qr-box"><img alt="QR-код для додатку автентифікації" width="200" height="200"></div>`;
     container.innerHTML = `
       <ol class="enroll-steps">
         <li>Встановіть на телефон <b>Google Authenticator</b> або <b>Microsoft Authenticator</b> (безкоштовно).</li>
-        <li>У додатку натисніть «+» → «Сканувати QR-код» і наведіть камеру:
-          <div class="qr-box"><img alt="QR-код для додатку автентифікації" width="200" height="200"></div>
-          <details class="secret"><summary>Не сканується? Введіть ключ вручну</summary><code class="secret-code"></code></details>
+        <li>${onPhone
+          ? `Додайте обліковий запис у додаток:${phoneBlock}<details class="secret"><summary>Налаштовуєте з комп’ютера? Показати QR-код</summary>${qrBlock}</details>`
+          : `У додатку натисніть «+» → «Сканувати QR-код» і наведіть камеру телефона на екран:${qrBlock}<details class="secret"><summary>Не сканується або налаштовуєте на телефоні?</summary>${phoneBlock}</details>`}
         </li>
-        <li>Введіть 6-значний код, який показує додаток:</li>
+        <li>Поверніться сюди і введіть 6-значний код, який показує додаток (у Google Authenticator код копіюється дотиком):</li>
       </ol>
       <form class="enroll-form" novalidate>
         <label class="sr-only" for="enroll-code-${enr.id}">Код із додатку</label>
@@ -90,11 +103,19 @@ window.Mfa = (() => {
         <button type="submit" class="btn-primary">Підтвердити</button>
       </form>`;
     container.querySelector('img').src = qr;
-    container.querySelector('.secret-code').textContent = enr.totp.secret;
+    container.querySelector('.secret-code').textContent = enr.totp.secret.replace(/(.{4})/g, '$1 ').trim();
+    container.querySelector('.enroll-open').href = enr.totp.uri;
+    container.querySelector('.copy-secret').addEventListener('click', async (ev) => {
+      try { await navigator.clipboard.writeText(enr.totp.secret); ev.target.textContent = 'Скопійовано'; }
+      catch { ev.target.textContent = 'Виділіть ключ і скопіюйте'; }
+    });
     const form = container.querySelector('form');
     const input = form.querySelector('input');
     const err = form.querySelector('.form-error');
-    input.focus();
+    if (!onPhone) input.focus();
+    input.addEventListener('input', () => {
+      if (input.value.replace(/\D/g, '').length === 6) form.requestSubmit();
+    });
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const code = input.value.replace(/\D/g, '');

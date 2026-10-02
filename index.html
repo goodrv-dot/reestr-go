@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Unbounded:wght@600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=202610020430">
+  <link rel="stylesheet" href="style.css?v=202610020433">
 </head>
 <body>
 
@@ -641,6 +641,7 @@
           <li>Натисніть на своє ім’я вгорі праворуч → <b>«Мій профіль»</b> → <b>«Увімкнути 2FA»</b>.</li>
           <li>Відскануйте QR-код додатком і введіть 6 цифр, які він показує.</li>
           <li>Далі при кожному вході після пароля вводьте свіжий код із додатку (він змінюється кожні 30 секунд).</li>
+          <li><b>Усе на одному телефоні</b> (і сайт, і додаток): QR-код зі свого екрана не відсканувати, тому натисніть «Відкрити в додатку-автентифікаторі» або скопіюйте ключ і в додатку оберіть «Ввести ключ налаштування». При вході: перейдіть у додаток, торкніться коду, поверніться і вставте — після 6 цифр вхід відбудеться сам.</li>
         </ol>
         <p><b>Втратили телефон?</b> Адміністратор на вкладці «Співробітники» натисне «Скинути 2FA», і ви підключите її заново.</p>
         <p>Адміністратор може зробити 2FA <b>обов’язковою</b> (вкладка «Співробітники» → «Двофакторний вхід»). Тоді без неї доступу до даних не буде.</p>
@@ -754,7 +755,7 @@
     <section class="login-panel">
       <form id="mfa-form" class="login-form" novalidate>
         <h1>Код із додатку</h1>
-        <label for="mfa-code">Відкрийте Google Authenticator (або інший додаток) і введіть 6 цифр для «Реєстр ГО»</label>
+        <label for="mfa-code">Відкрийте Google Authenticator (або інший додаток) і введіть 6 цифр для «Реєстр ГО». На телефоні: перейдіть у додаток, торкніться коду (він скопіюється), поверніться і вставте сюди.</label>
         <input id="mfa-code" class="code-input" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000">
         <p id="mfa-error" class="form-error" role="alert" hidden></p>
         <button id="mfa-btn" type="submit" class="btn-primary pwchange-btn">Підтвердити</button>
@@ -831,22 +832,22 @@
   <p id="loading" class="loading">Завантаження…</p>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="config.js?v=202610020430"></script>
+  <script src="config.js?v=202610020433"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="options.js?v=202610020430"></script>
-  <script src="ui.js?v=202610020430"></script>
-  <script src="validation.js?v=202610020430"></script>
-  <script src="filters.js?v=202610020430"></script>
-  <script src="segments.js?v=202610020430"></script>
-  <script src="picker.js?v=202610020430"></script>
-  <script src="persons.js?v=202610020430"></script>
-  <script src="export.js?v=202610020430"></script>
-  <script src="import.js?v=202610020430"></script>
-  <script src="mfa.js?v=202610020430"></script>
-  <script src="staff.js?v=202610020430"></script>
-  <script src="ua-map.js?v=202610020430"></script>
-  <script src="dashboard.js?v=202610020430"></script>
-  <script src="nav.js?v=202610020430"></script>
-  <script src="app.js?v=202610020430"></script>
+  <script src="options.js?v=202610020433"></script>
+  <script src="ui.js?v=202610020433"></script>
+  <script src="validation.js?v=202610020433"></script>
+  <script src="filters.js?v=202610020433"></script>
+  <script src="segments.js?v=202610020433"></script>
+  <script src="picker.js?v=202610020433"></script>
+  <script src="persons.js?v=202610020433"></script>
+  <script src="export.js?v=202610020433"></script>
+  <script src="import.js?v=202610020433"></script>
+  <script src="mfa.js?v=202610020433"></script>
+  <script src="staff.js?v=202610020433"></script>
+  <script src="ua-map.js?v=202610020433"></script>
+  <script src="dashboard.js?v=202610020433"></script>
+  <script src="nav.js?v=202610020433"></script>
+  <script src="app.js?v=202610020433"></script>
 </body>
 </html>

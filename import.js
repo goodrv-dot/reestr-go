@@ -728,7 +728,9 @@ window.Importer = (() => {
     const allPhones = (r) => [r.person.phone, ...(r.person.extra_phones || [])].filter(Boolean);
     const phones = [...new Set(list.flatMap(allPhones))];
     const found = new Map();
-    const remember = (p) => [p.phone, ...(p.extra_phones || [])].filter(Boolean).forEach((ph) => { if (!found.has(ph)) found.set(ph, p); });
+    const byId = new Map();     // одна й та сама людина = один об’єкт (щоб кілька рядків файлу бачили зміни одне одного)
+    const one = (p) => { if (!byId.has(p.id)) byId.set(p.id, p); return byId.get(p.id); };
+    const remember = (p) => { p = one(p); [p.phone, ...(p.extra_phones || [])].filter(Boolean).forEach((ph) => { if (!found.has(ph)) found.set(ph, p); }); };
     for (let i = 0; i < phones.length; i += 100) {
       const chunk = phones.slice(i, i + 100);
       const [a, b] = await Promise.all([
@@ -748,7 +750,8 @@ window.Importer = (() => {
       if (error) throw error;
       data.forEach((p) => {
         const k = letters(p.last_name) + '|' + letters(p.first_name) + '|' + letters(p.patronymic);
-        byName.set(k, byName.has(k) ? 'many' : p);
+        p = one(p);
+        byName.set(k, byName.has(k) && byName.get(k) !== p ? 'many' : p);
       });
     }
     list.forEach((r) => {
@@ -952,7 +955,7 @@ window.Importer = (() => {
       } catch (e) {
         console.error(e);
         failed++;
-        r.errors.push('Не вдалося записати: ' + (e.code === '23505' ? 'такий телефон уже є' : 'помилка бази'));
+        r.errors.push('Не вдалося записати: ' + dbError(e));
         r.state = 'error';
       }
       $('imp-status').textContent = `Імпортуємо… ${done + failed} з ${todo.length}`;
@@ -965,6 +968,29 @@ window.Importer = (() => {
     updateRunButton();
     loadBatches();
     Persons.showList();
+  }
+
+  // Зрозуміле пояснення помилки бази
+  function dbError(e) {
+    const m = `${e.message || ''} ${e.details || ''}`;
+    const C = {
+      persons_phone_uniq: 'цей телефон уже належить іншій картці в реєстрі',
+      persons_birth_date_check: 'дата народження поза межами (раніше 1900 р. або в майбутньому)',
+      persons_phone_check: 'невірний формат телефону',
+      persons_email_check: 'невірний формат email',
+      persons_death_after_birth: 'дата смерті раніше дати народження',
+      persons_death_not_future: 'дата смерті в майбутньому',
+      persons_wound_not_future: 'дата поранення в майбутньому',
+      persons_extra_phones_format: 'невірний формат додаткового телефону',
+      rel_death_after_birth: 'у військового дата загибелі раніше дати народження',
+      rel_death_not_future: 'у військового дата загибелі в майбутньому',
+      children_birth_date_check: 'дата народження дитини в майбутньому',
+      military_relations_relation_degree_check: 'невідомий ступінь спорідненості'
+    };
+    const hit = Object.keys(C).find((k) => m.includes(k));
+    if (hit) return C[hit];
+    if (e.code === '23505') return 'такий запис уже є (дублікат)';
+    return 'помилка бази' + (e.message ? ` (${e.message})` : '');
   }
 
   async function createNew(db, r, batchId) {
@@ -993,6 +1019,7 @@ window.Importer = (() => {
     if (Object.keys(patch).length) {
       const { error } = await db.from('persons').update(patch).eq('id', ex.id);
       if (error) throw error;
+      Object.assign(ex, patch);
     }
     const kids = r.children.filter((k) => !(ex.children || []).some((x) => x.birth_date === k.birth_date));
     const rels = r.relations.filter((rel) => !(ex.military_relations || []).some((x) => letters(x.related_full_name) === letters(rel.related_full_name)));
@@ -1006,6 +1033,7 @@ window.Importer = (() => {
       if (Object.keys(fix).length) {
         const { error } = await db.from('military_relations').update(fix).eq('id', old.id);
         if (error) throw error;
+        Object.assign(old, fix);
       }
     }
     const progs = r.programs.filter((pid) => pid && !(ex.person_programs || []).some((x) => x.program_id === pid));
@@ -1014,6 +1042,10 @@ window.Importer = (() => {
       if (error) throw error;
     }
     await insertChildren(db, ex.id, rels, kids, progs, r.vets);
+    // запам’ятати, що вже додано — наступний рядок файлу про цю ж людину не дублюватиме
+    ex.children = [...(ex.children || []), ...kids];
+    ex.military_relations = [...(ex.military_relations || []), ...rels];
+    ex.person_programs = [...(ex.person_programs || []), ...progs.map((program_id) => ({ program_id }))];
   }
 
   async function insertChildren(db, personId, rels, kids, progs, vets) {
@@ -1023,15 +1055,17 @@ window.Importer = (() => {
       if (error) throw error;
     }
     if (rels.length) {
-      const { error } = await db.from('military_relations').insert(rels.map((x) => ({ ...x, person_id: personId })));
+      const { data, error } = await db.from('military_relations').insert(rels.map((x) => ({ ...x, person_id: personId }))).select('id');
       if (error) throw error;
+      (data || []).forEach((row, k) => { if (rels[k]) rels[k].id = row.id; });   // id потрібен для подальших доповнень
     }
     if (kids.length) {
       const { error } = await db.from('children').insert(kids.map((x) => ({ ...x, person_id: personId })));
       if (error) throw error;
     }
     if (progs.length) {
-      const { error } = await db.from('person_programs').insert(progs.map((pid) => ({ person_id: personId, program_id: pid })));
+      const { error } = await db.from('person_programs')
+        .upsert(progs.map((pid) => ({ person_id: personId, program_id: pid })), { onConflict: 'person_id,program_id', ignoreDuplicates: true });
       if (error) throw error;
     }
   }

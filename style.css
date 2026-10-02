@@ -775,3 +775,7 @@ tr.is-linked td { background: #f7faff; }
 @media (max-width: 760px) { #form-view[data-module] { margin-left: -0.9rem; padding-left: 0.6rem; } }
 .lvchips { margin-bottom: 0.5rem; }
 .lvchip-linked[aria-pressed="true"] { background: #1d5fa0; border-color: #1d5fa0; }
+/* 300 — фіолетовий (чітко відрізняється від бордового 200) */
+.m300 { background: #5b3f8c; color: #fff; }
+tr[data-module="m300"] { --mod-c: #5b3f8c; }
+#form-view[data-module="m300"] { --mod-c: #5b3f8c; }

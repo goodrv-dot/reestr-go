@@ -724,7 +724,7 @@ window.Importer = (() => {
   // Звірка з базою: хто вже є
   async function matchExisting(list) {
     const { db } = Persons.ctx();
-    const COLS = 'id, phone, extra_phones, last_name, first_name, patronymic, email, region_id, settlement, cell_id, birth_date, consent_pd_at, consent_messages, children(birth_date, full_name), military_relations!military_relations_person_id_fkey(id, related_full_name, related_death_date, related_burial_date, related_burial_place, related_callsign, related_unit_code, related_person_id), person_programs(program_id)';
+    const COLS = 'id, phone, extra_phones, name_check, last_name, first_name, patronymic, email, region_id, settlement, cell_id, birth_date, consent_pd_at, consent_messages, children(birth_date, full_name), military_relations!military_relations_person_id_fkey(id, related_full_name, related_death_date, related_burial_date, related_burial_place, related_callsign, related_unit_code, related_person_id), person_programs(program_id)';
     const allPhones = (r) => [r.person.phone, ...(r.person.extra_phones || [])].filter(Boolean);
     const phones = [...new Set(list.flatMap(allPhones))];
     const found = new Map();
@@ -762,7 +762,12 @@ window.Importer = (() => {
       }
       if (ex) {
         r.existing = ex;
-        if (letters(ex.last_name) !== letters(r.person.last_name)) {
+        const fullNew = r.person.last_name && r.person.first_name && !r.person.name_check;
+        if (ex.name_check && fullNew) {
+          // у реєстрі тимчасове ПІБ (напр. «Цибін Родич») — новий файл дає справжнє
+          r.fixName = true;
+          r.info.push(`Тимчасове ПІБ «${ex.last_name} ${ex.first_name}» буде замінено на «${[r.person.last_name, r.person.first_name, r.person.patronymic].filter(Boolean).join(' ')}»`);
+        } else if (letters(ex.last_name).slice(0, 4) !== letters(r.person.last_name).slice(0, 4)) {
           r.warnings.push(`Телефон уже є в реєстрі у «${ex.last_name} ${ex.first_name}» — перевірте, чи це та сама людина`);
         }
         const newKids = r.children.filter((k) => !(ex.children || []).some((x) => x.birth_date === k.birth_date));
@@ -974,6 +979,10 @@ window.Importer = (() => {
     const ex = r.existing;
     const patch = {};
     ['email', 'region_id', 'settlement', 'cell_id', 'birth_date', 'consent_pd_at'].forEach((k) => { if (!ex[k] && r.person[k]) patch[k] = r.person[k]; });
+    if (r.fixName) {
+      Object.assign(patch, { last_name: r.person.last_name, first_name: r.person.first_name,
+        patronymic: r.person.patronymic || null, name_check: false, name_check_note: null });
+    }
     if (!ex.consent_messages && r.person.consent_messages) patch.consent_messages = true;
     const known = new Set([ex.phone, ...(ex.extra_phones || [])].filter(Boolean));
     const newPhones = [r.person.phone, ...(r.person.extra_phones || [])].filter((ph) => ph && !known.has(ph));

@@ -151,24 +151,47 @@ window.appLogout = logout;
 $('logout-btn').addEventListener('click', () => logout());
 
 // ---------- Автовихід після бездіяльності ----------
-let idleTimer = null;
+// Час останньої дії зберігається в браузері: так автовихід спрацює, навіть якщо телефон
+// «заморозив» сторінку, екран був вимкнений або сайт закрили й відкрили пізніше.
+const IDLE_MS = IDLE_MINUTES * 60 * 1000;
+const IDLE_KEY = 'reestr_last_activity';
 const IDLE_EVENTS = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+let idleWatch = null;
+let lastWrite = 0;
 
-function resetIdle() {
-  clearTimeout(idleTimer);
-  idleTimer = setTimeout(
-    () => logout(`Сесію завершено після ${IDLE_MINUTES} хвилин бездіяльності. Увійдіть знову.`),
-    IDLE_MINUTES * 60 * 1000
-  );
+function readLast() {
+  try { return Number(localStorage.getItem(IDLE_KEY)) || 0; } catch { return 0; }
+}
+function markActivity() {
+  const now = Date.now();
+  if (now - lastWrite < 10000) return;          // записуємо не частіше разу на 10 с
+  lastWrite = now;
+  try { localStorage.setItem(IDLE_KEY, String(now)); } catch { /* приватний режим */ }
+}
+function isStale() {
+  const last = readLast();
+  return last > 0 && Date.now() - last > IDLE_MS;
+}
+function checkIdle() {
+  if ($('app-screen').hidden) return;
+  if (isStale()) logout(`Сесію завершено після ${IDLE_MINUTES} хвилин бездіяльності. Увійдіть знову.`);
 }
 function startIdleTimer() {
-  IDLE_EVENTS.forEach((ev) => window.addEventListener(ev, resetIdle, { passive: true }));
-  resetIdle();
+  lastWrite = 0;
+  markActivity();
+  IDLE_EVENTS.forEach((ev) => window.addEventListener(ev, markActivity, { passive: true }));
+  clearInterval(idleWatch);
+  idleWatch = setInterval(checkIdle, 30000);
 }
 function stopIdleTimer() {
-  clearTimeout(idleTimer);
-  IDLE_EVENTS.forEach((ev) => window.removeEventListener(ev, resetIdle));
+  clearInterval(idleWatch);
+  IDLE_EVENTS.forEach((ev) => window.removeEventListener(ev, markActivity));
+  try { localStorage.removeItem(IDLE_KEY); } catch { /* */ }
 }
+// Повернулися до вкладки / розблокували телефон — одразу перевіряємо
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkIdle(); });
+window.addEventListener('pageshow', checkIdle);
+window.addEventListener('focus', checkIdle);
 
 // ---------- Зміна тимчасового пароля при першому вході ----------
 function showPasswordChange() {
@@ -246,6 +269,13 @@ $('pf-mfa-off').addEventListener('click', async () => {
 // ---------- Старт: якщо вже є сесія — продовжуємо вхід ----------
 (async () => {
   const { data } = await db.auth.getSession();
+  if (data.session && isStale()) {
+    // сайт відкрили після довгої перерви — сесія вважається завершеною
+    await db.auth.signOut();
+    try { localStorage.removeItem(IDLE_KEY); } catch { /* */ }
+    showLogin(`Сесію завершено після ${IDLE_MINUTES} хвилин бездіяльності. Увійдіть знову.`);
+    return;
+  }
   if (data.session) await enterWithSession(data.session);
   else showLogin();
 })();

@@ -458,20 +458,32 @@ window.Persons = (() => {
   }
 
   // Лічильники для кнопок «Критичні / Бажано доповнити / Заповнені»
-  async function loadQualityCounts() {
-    const variants = {
-      crit: (q) => q.gt('critical_count', 0),
-      warn: (q) => q.eq('critical_count', 0).gt('warning_count', 0),
-      ok:   (q) => q.eq('critical_count', 0).eq('warning_count', 0)
-    };
-    const all = await Promise.all(Object.entries(variants).map(async ([k, f]) => {
+  // «Усі» — загальна кількість за поточними умовами (без фільтра стану),
+  // «Бажано» = усі − критичні − заповнені (так менше запитів і числа завжди сходяться)
+  async function countWith(f) {
+    for (let attempt = 0; attempt < 2; attempt++) {
       const { query } = await buildQuery('id', { count: 'exact', head: true }, ['quality']);
       const { count, error } = await f(query);
-      return [k, error ? null : count];
-    }));
-    const total = all.reduce((sum, [, c]) => sum + (c || 0), 0);
-    all.forEach(([k, c]) => { $('qc-' + k).textContent = c ?? '…'; });
-    $('qc-all').textContent = total;
+      if (!error && typeof count === 'number') return count;
+      console.warn('Лічильник стану картки: повтор', error);
+    }
+    return null;
+  }
+
+  let qcSeq = 0;
+  async function loadQualityCounts() {
+    const seq = ++qcSeq;
+    const [all, crit, ok] = await Promise.all([
+      countWith((q) => q),
+      countWith((q) => q.gt('critical_count', 0)),
+      countWith((q) => q.eq('critical_count', 0).eq('warning_count', 0))
+    ]);
+    if (seq !== qcSeq) return;          // уже прийшли новіші умови
+    const show = (id, v) => { $(id).textContent = v ?? '—'; };
+    show('qc-all', all);
+    show('qc-crit', crit);
+    show('qc-ok', ok);
+    show('qc-warn', all !== null && crit !== null && ok !== null ? all - crit - ok : null);
     const cur = Filters.getQuality();
     document.querySelectorAll('.qchips .qchip').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.q === cur)));
   }

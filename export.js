@@ -69,10 +69,22 @@ window.Exporter = (() => {
       ]);
       const unitName = (id, other) => (id ? units.get(id) : other) || '';
 
+      // діти кожної особи — одним рядком «Іванов Микола (11 р.); …»
+      const kidsOf = new Map();
+      children.forEach((c) => {
+        const t = `${c.full_name || 'без ПІБ'} (${years(c.birth_date)} р.)`;
+        kidsOf.set(c.person_id, [...(kidsOf.get(c.person_id) || []), t]);
+      });
+
+      // Порядок: ПІБ → телефон → дод. телефон → пошта → область → населений пункт → діти → решта
       const sheetPersons = persons.map((p) => ({
-        'Прізвище': p.last_name, 'Ім’я': p.first_name, 'По батькові': p.patronymic || '',
+        'ПІБ': fio(p),
+        'Телефон': p.phone || '', 'Додатковий телефон': (p.extra_phones || []).join(', '), 'Email': p.email || '',
+        'Область': regions.get(p.region_id) || '', 'Населений пункт': p.settlement || '',
+        'Діти': (kidsOf.get(p.id) || []).join('; '),
+        'Кількість дітей': (kidsOf.get(p.id) || []).length || p.children_count || '',
         'Дата народження': d(p.birth_date), 'Вік': p.age ?? '', 'Стать': p.sex,
-        'Телефон': p.phone || '', 'Додаткові телефони': (p.extra_phones || []).join(', '), 'Email': p.email || '', 'Месенджер': p.preferred_messenger,
+        'Месенджер': p.preferred_messenger,
         'Згода на обробку ПД': d(p.consent_pd_at), 'Згода на повідомлення': yn(p.consent_messages), 'Відписався': yn(p.unsubscribed),
         'Військовий статус': p.military_status, 'Позивний': p.callsign || '', 'Дата смерті': d(p.death_date),
         'Дата поховання': d(p.burial_date), 'Місце поховання': p.burial_place || '',
@@ -81,8 +93,7 @@ window.Exporter = (() => {
         'Інвалідність': p.has_disability, 'Група': p.disability_group, 'Через війну': p.disability_war_related,
         'Відношення до МП': p.mp_relation, 'Характер відношення до МП': p.mp_relation_type,
         'Підрозділ МП': unitName(p.mp_unit_id, p.mp_unit_other),
-        'Область': regions.get(p.region_id) || '', 'Населений пункт': p.settlement || '', 'ВПО': p.is_idp,
-        'Є діти': p.has_children, 'Кількість дітей': p.children_count ?? '', 'Вік дітей': (p.children_ages || []).join(', '),
+        'ВПО': p.is_idp, 'Є діти': p.has_children,
         'Осередок ГО': cells.get(p.cell_id) || '', 'Програми ГО': (p.program_ids || []).map((x) => programs.get(x)).join('; '),
         'Член ВКМПУ': yn(p.vkmpu_member),
         'Категорії особи': (p.person_categories || []).join('; '), 'Категорії родини': (p.family_categories || []).join('; '),
@@ -97,11 +108,13 @@ window.Exporter = (() => {
         .sort((a, b) => fio(byId.get(a.person_id)).localeCompare(fio(byId.get(b.person_id)), 'uk'))
         .map((c) => {
           const p = byId.get(c.person_id);
+          // Порядок: представник → телефон → дод. телефон → пошта → область → населений пункт → дитина
           return {
-            'Батько / мати / представник': fio(p), 'Телефон': p.phone || '',
+            'ПІБ представника': fio(p),
+            'Телефон': p.phone || '', 'Додатковий телефон': (p.extra_phones || []).join(', '), 'Email': p.email || '',
+            'Область': regions.get(p.region_id) || '', 'Населений пункт': p.settlement || '',
             'ПІБ дитини': c.full_name || '', 'Дата народження': d(c.birth_date), 'Вік': years(c.birth_date),
-            'Стать': c.sex, 'Інтереси': (c.interests || []).join('; '), 'Особливі потреби': c.special_needs || '',
-            'Область': regions.get(p.region_id) || ''
+            'Стать': c.sex, 'Інтереси': (c.interests || []).join('; '), 'Особливі потреби': c.special_needs || ''
           };
         });
 

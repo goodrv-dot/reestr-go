@@ -82,6 +82,20 @@ window.Importer = (() => {
     }
     ,
     {
+      id: 'fallen_200_v2',
+      label: 'Загиблі (200) — новий шаблон журналу',
+      program: 'Супровід родин загиблих (200)',
+      detect: (hdr) => hdr.some((h) => /^загиблий — прізвище/i.test(clean(h))),
+      parse: (rows, hdr, ctx) => { const a = adapt200(rows, hdr); return parse200(a.rows, a.hdr, ctx); }
+    },
+    {
+      id: 'wounded_300_v2',
+      label: 'Поранені (300) — новий шаблон журналу',
+      program: 'Супровід поранених (300)',
+      detect: (hdr) => hdr.some((h) => /^поранений — прізвище/i.test(clean(h))),
+      parse: (rows, hdr, ctx) => { const a = adapt300(rows, hdr); return parse300(a.rows, a.hdr, ctx); }
+    },
+    {
       id: 'fallen_200',
       label: 'Загиблі (200) — сповіщення родин',
       program: 'Супровід родин загиблих (200)',
@@ -96,6 +110,54 @@ window.Importer = (() => {
       parse: parse300
     }
   ];
+
+  // ---------- Нові шаблони журналів (з блоками колонок) → старий формат ----------
+  // Перетворюємо рядок нового шаблону на «старий» рядок і далі використовуємо вже відкалібрований розбір.
+  const H = (hdr) => { const m = new Map(); hdr.forEach((h, i) => m.set(norm(h), i)); return m; };
+  const pick = (map, r, name) => { const i = map.get(norm(name)); return i === undefined ? null : r[i]; };
+  const joinText = (...xs) => xs.map((x) => (x instanceof Date ? x : clean(x))).filter(Boolean).join(' ');
+  const kinLine = (deg, name, phone) => { const t = joinText(deg, name, phone); return t || null; };
+
+  function adapt200(rows, hdr) {
+    const m = H(hdr);
+    // рядок-приклад із шаблону не імпортуємо
+    rows = rows.map((r) => (r.some((v) => /Рядок-приклад/i.test(String(v ?? ''))) ? r.map(() => null) : r));
+    const oldHdr = ['Регіон', "Прізвище, ім'я, по-батькові", 'Позивний', 'Дата народження', 'Дата загибелі', 'Військова частина', 'Бригада',
+      'Отримувач сповіщення', 'Спорідненість', 'Адреса отримувача', 'Контакти отримувача', 'Примітки', 'Дата поховання', 'Місце поховання'];
+    const out = rows.map((r) => {
+      const g = (n) => pick(m, r, n);
+      const contacts = [
+        [g('Отримувач — Телефон'), g('Отримувач — Дод. телефон')].map(clean).filter(Boolean).join(' '),
+        kinLine(g('Родич 2 — Ступінь'), g('Родич 2 — ПІБ'), g('Родич 2 — Телефон')),
+        kinLine(g('Родич 3 — Ступінь'), g('Родич 3 — ПІБ'), g('Родич 3 — Телефон'))
+      ].filter(Boolean).join('\n');
+      const notes = [g('Примітки'), clean(g('Статус')) === 'Родину не встановлено' ? 'Родину не встановлено' : null].map(clean).filter(Boolean).join('. ');
+      return [g('Осередок ГО'), joinText(g('Загиблий — Прізвище'), g('Загиблий — Ім’я'), g('Загиблий — По батькові')),
+        g('Позивний'), g('Дата народження'), g('Дата загибелі'), g('Військова частина'), g('Бригада'),
+        joinText(g('Отримувач — Прізвище'), g('Отримувач — Ім’я'), g('Отримувач — По батькові')),
+        g('Отримувач — Ступінь'),
+        [g('Отримувач — Область'), g('Отримувач — Населений пункт') ? 'м. ' + clean(g('Отримувач — Населений пункт')) : null, g('Отримувач — Адреса')].map(clean).filter(Boolean).join(', '),
+        contacts, notes, g('Дата поховання'), g('Місце поховання')];
+    });
+    return { rows: out, hdr: oldHdr };
+  }
+
+  function adapt300(rows, hdr) {
+    const m = H(hdr);
+    // рядок-приклад із шаблону не імпортуємо
+    rows = rows.map((r) => (r.some((v) => /Рядок-приклад/i.test(String(v ?? ''))) ? r.map(() => null) : r));
+    const oldHdr = ['ПІБ', 'Дата народження', 'Номер телефону', 'В/ч, бригада', 'Дата поранення', 'УБД', 'Контакти родичів', 'Примітки', 'Осередок ГО'];
+    const out = rows.map((r) => {
+      const g = (n) => pick(m, r, n);
+      const kin = [1, 2, 3].map((k) => kinLine(g(`Родич ${k} — Ступінь`), g(`Родич ${k} — ПІБ`), g(`Родич ${k} — Телефон`))).filter(Boolean).join('\n');
+      const died = clean(g('Стан')) === 'Помер' ? `Помер${g('Дата смерті') ? ' ' + (toDate(g('Дата смерті')) || '') : ''}` : null;
+      const notes = [died, g('Проблематика') ? 'Проблематика: ' + clean(g('Проблематика')) : null, g('Примітки')].map(clean).filter(Boolean).join('. ');
+      return [joinText(g('Поранений — Прізвище'), g('Поранений — Ім’я'), g('Поранений — По батькові')),
+        g('Дата народження'), [g('Телефон'), g('Дод. телефон')].map(clean).filter(Boolean).join(' '),
+        clean(g('Бригада')) || g('В/ч'), g('Дата поранення'), g('УБД'), kin, notes, g('Осередок ГО')];
+    });
+    return { rows: out, hdr: oldHdr };
+  }
 
   // Колонка за назвою (без урахування регістру, апострофів і пробілів)
   const norm = (h) => clean(h).toLowerCase().replace(/[’'ʼ`]/g, '').replace(/\s+/g, ' ');
@@ -383,7 +445,8 @@ window.Importer = (() => {
       fio: col(hdr, byName(/^піб$/)), bd: col(hdr, byName(/^дата народження/)),
       phone: col(hdr, byName(/^номер телефону/)), vch: col(hdr, byName(/^в\/ч/)),
       wd: col(hdr, byName(/^дата поранення/)), ubd: col(hdr, byName(/^убд$/)),
-      kin: col(hdr, byName(/^контакти родичів/)), notes: col(hdr, byName(/^примітки/))
+      kin: col(hdr, byName(/^контакти родичів/)), notes: col(hdr, byName(/^примітки/)),
+      cell: col(hdr, byName(/^осередок/))
     };
     if ([c.fio, c.kin].some((x) => x < 0)) throw new Error('У файлі бракує ключових колонок журналу «300».');
     const out = [];
@@ -404,6 +467,7 @@ window.Importer = (() => {
         const unit = matchUnit(vch, ctx.units);
         if (unit.id) p.mp_unit_id = unit.id; else p.military_unit_code = vch;
       }
+      if (c.cell >= 0) p.cell_id = matchCell(g('cell'), ctx.cells, rec);
       p.wounded = 'Так';
       p.wound_date = toDate(g('wd'));
       if (!p.wound_date) rec.warnings.push('Не вказано дату поранення');
@@ -896,8 +960,10 @@ window.Importer = (() => {
     $('imp-result').hidden = true;
     try {
       const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const all = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: null });
+      // аркуш із даними: перший, чий заголовок підходить під якийсь шаблон (у шаблонах першим іде «Як заповнювати»)
+      const sheetRows = (n) => XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: true, defval: null });
+      const dataSheet = wb.SheetNames.find((n) => { const h = sheetRows(n)[0] || []; return TEMPLATES.some((t) => t.detect(h)); }) || wb.SheetNames[0];
+      const all = sheetRows(dataSheet);
       header = all[0] || [];
       rawRows = all.slice(1);
       let autoNote = '';

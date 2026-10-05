@@ -556,7 +556,7 @@ window.Persons = (() => {
     let query;
     try {
       ({ query } = await buildQuery(
-        'id, is_extra, is_main, program_ids, main_program_ids, last_name, first_name, patronymic, phone, extra_phones, region_id, person_categories, family_categories, created_at, critical_count, warning_count, comment, touchpoint, created_by, source',
+        'id, is_extra, is_main, cell_id, program_ids, main_program_ids, last_name, first_name, patronymic, phone, extra_phones, region_id, person_categories, family_categories, created_at, critical_count, warning_count, comment, touchpoint, created_by, source',
         { count: 'exact' }));
     } catch (e) {
       console.error(e);
@@ -627,6 +627,7 @@ window.Persons = (() => {
       }
       tr.appendChild(ph);
       addCell(tr, regions.get(p.region_id) || '—');
+      addCell(tr, cells.get(p.cell_id) || '—');
 
       const cats = [...new Set([...(p.person_categories || []), ...(p.family_categories || [])])];
       const td = document.createElement('td');

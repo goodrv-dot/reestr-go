@@ -787,6 +787,30 @@ window.Importer = (() => {
     };
   }
 
+  // Колонки журналу, яких немає в реєстрі (звання, посада, етапи супроводу…) — зберігаємо як є,
+  // щоб «Журнал 200 / 300» міг перенести їх назад один до одного
+  const JOURNAL_SKIP = /(^id$|прізвище|імя|ім’я|по батькові|^піб|телефон|контакти отримувача|контакти родичів|отримувач|родич \d|спорідненість|адреса|дата народження|дата загибелі|дата поховання|місце поховання|позивний|^бригада|військова частина|^в\/ч|^регіон|осередок|^примітки|^убд$|дата поранення)/i;
+  function captureJournal(list, template) {
+    const key = /\(200\)/.test(template.program) ? '200' : /\(300\)/.test(template.program) ? '300' : null;
+    if (!key) return;
+    list.forEach((rec) => {
+      if (rec.isRelative) return;
+      const data = {};
+      rec.rows.forEach((rowNo) => {
+        const r = rawRows[rowNo - 2] || [];
+        header.forEach((h, i) => {
+          const name = clean(h);
+          if (!name || JOURNAL_SKIP.test(name.replace(/[’']/g, ''))) return;
+          const v = r[i];
+          if (v === null || v === undefined || clean(v) === '' || data[name] !== undefined) return;
+          const isDate = /дата|дзвінок/i.test(name);
+          data[name] = isDate ? (toDate(v) || clean(v)) : (typeof v === 'number' ? v : clean(v));
+        });
+      });
+      if (Object.keys(data).length) rec.person.journal = { [key]: data };
+    });
+  }
+
   // Кілька анкет з одним телефоном → одна особа
   function mergeByPhone(list) {
     const map = new Map(), out = [];
@@ -865,7 +889,7 @@ window.Importer = (() => {
   async function matchExisting(list) {
     const { db } = Persons.ctx();
     await crossCheck200(list, db);
-    const COLS = 'id, phone, extra_phones, name_check, is_extra, last_name, first_name, patronymic, email, region_id, settlement, cell_id, birth_date, consent_pd_at, consent_messages, children(birth_date, full_name), military_relations!military_relations_person_id_fkey(id, related_full_name, related_death_date, related_burial_date, related_burial_place, related_callsign, related_unit_code, related_person_id), person_programs(program_id, role)';
+    const COLS = 'id, journal, phone, extra_phones, name_check, is_extra, last_name, first_name, patronymic, email, region_id, settlement, cell_id, birth_date, consent_pd_at, consent_messages, children(birth_date, full_name), military_relations!military_relations_person_id_fkey(id, related_full_name, related_death_date, related_burial_date, related_burial_place, related_callsign, related_unit_code, related_person_id), person_programs(program_id, role)';
     const allPhones = (r) => [r.person.phone, ...(r.person.extra_phones || [])].filter(Boolean);
     const phones = [...new Set(list.flatMap(allPhones))];
     const found = new Map();
@@ -962,7 +986,15 @@ window.Importer = (() => {
       const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
       // аркуш із даними: перший, чий заголовок підходить під якийсь шаблон (у шаблонах першим іде «Як заповнювати»)
       const sheetRows = (n) => XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: true, defval: null });
-      const dataSheet = wb.SheetNames.find((n) => { const h = sheetRows(n)[0] || []; return TEMPLATES.some((t) => t.detect(h)); }) || wb.SheetNames[0];
+      // для пошуку читаємо лише перший рядок кожного аркуша (інші аркуші бувають дуже «широкими» й повільними)
+      const firstRow = (n) => {
+        const ws = wb.Sheets[n];
+        if (!ws || !ws['!ref']) return [];
+        const rg = XLSX.utils.decode_range(ws['!ref']);
+        rg.e.r = rg.s.r; rg.e.c = Math.min(rg.e.c, rg.s.c + 200);
+        return XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: null, range: rg })[0] || [];
+      };
+      const dataSheet = wb.SheetNames.find((n) => TEMPLATES.some((t) => t.detect(firstRow(n)))) || wb.SheetNames[0];
       const all = sheetRows(dataSheet);
       header = all[0] || [];
       rawRows = all.slice(1);
@@ -980,6 +1012,7 @@ window.Importer = (() => {
       const ctx = Persons.ctx();
       const progId = (name) => [...ctx.programs].find(([, n]) => n === name)?.[0];
       let list = template.parse(rawRows, header, { ...ctx, programByName: progId });
+      captureJournal(list, template);
       list = mergeByPhone(list);
       $('imp-status').textContent = 'Звіряємо з реєстром…';
       await matchExisting(list);
@@ -1155,7 +1188,12 @@ window.Importer = (() => {
         patronymic: r.person.patronymic || null, name_check: false, name_check_note: null });
     }
     if (!ex.consent_messages && r.person.consent_messages) patch.consent_messages = true;
-    if (ex.is_extra && !r.isRelative) patch.is_extra = false;     // людина основна хоча б в одному модулі
+    if (ex.is_extra && !r.isRelative) patch.is_extra = false;
+    if (r.person.journal) {
+      const j = { ...(ex.journal || {}) };
+      Object.entries(r.person.journal).forEach(([k, v]) => { j[k] = { ...(j[k] || {}), ...v }; });
+      patch.journal = j;
+    }     // людина основна хоча б в одному модулі
     ['military_status', 'death_date', 'burial_date', 'mp_relation_type'].forEach((k) => {
       if (r.diedNote && r.person[k] && r.person.military_status === 'Загиблий') patch[k] = r.person[k];
     });

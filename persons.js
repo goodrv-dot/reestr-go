@@ -686,6 +686,27 @@ window.Persons = (() => {
     $('count-split').hidden = !count;
   }
 
+  // «Дані з журналу» (лише перегляд)
+  function renderJournal(j) {
+    const box = $('journal-box');
+    box.innerHTML = '';
+    const mods = Object.entries(j || {}).filter(([, v]) => v && Object.keys(v).length);
+    $('journal-fs').hidden = !mods.length;
+    mods.forEach(([mod, data]) => {
+      const h = document.createElement('p');
+      h.className = 'sublabel'; h.textContent = `Журнал ${mod}`;
+      const dl = document.createElement('dl');
+      dl.className = 'journal-list';
+      Object.entries(data).forEach(([k, v]) => {
+        const dt = document.createElement('dt'); dt.textContent = k;
+        const dd = document.createElement('dd');
+        dd.textContent = /^\d{4}-\d{2}-\d{2}$/.test(String(v)) ? String(v).split('-').reverse().join('.') : String(v);
+        dl.append(dt, dd);
+      });
+      box.append(h, dl);
+    });
+  }
+
   function longCell(text) {
     const td = document.createElement('td');
     td.className = 'cell-comment';
@@ -755,6 +776,7 @@ window.Persons = (() => {
     $('consent-date').textContent = '';
     extraKeep = [];
     programRoles = new Map();
+    renderJournal(null);
     $('relations-list').innerHTML = '';
     $('children-list').innerHTML = '';
 
@@ -845,6 +867,7 @@ window.Persons = (() => {
     const pids = new Set((p.person_programs || []).map((x) => String(x.program_id)));
     f.querySelectorAll('input[name="program"]').forEach((cb) => { cb.checked = pids.has(cb.value); });
 
+    renderJournal(p.journal);
     f.has_children.value = p.has_children;
     f.children_count.value = p.children_count ?? '';
     (p.military_relations || [])

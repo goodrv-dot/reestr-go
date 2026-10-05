@@ -19,6 +19,15 @@ window.Journal = (() => {
     return loading;
   }
 
+  const normH = (h) => String(h || '').toLowerCase().replace(/[’'ʼ`«»"]/g, '').replace(/[—–-]/g, ' ').replace(/\s+/g, ' ').trim();
+  // назви колонок у старих журналах, що відрізняються від шаблону
+  const ALIASES = {
+    'Обставини смерті/загибелі': 'Обставини смерті/загибелі',
+    'Відповідальний (по осередкам)': 'Відповідальний (по осередкам)',
+    'Відповідальний': 'Відповідальний',
+    'Місце перебування зараз': 'Місце перебування',
+    'Форма 001/о': 'Форма 001/о'
+  };
   const phone = (p) => (p && p.startsWith('+380') ? '0' + p.slice(4) : p || '');
   const dt = (iso) => (iso ? new Date(iso + 'T00:00:00') : null);
 
@@ -37,9 +46,12 @@ window.Journal = (() => {
       const persons = [];
       for (let from = 0; ; from += 1000) {
         const { query } = await Persons.buildQuery('*', undefined, ['level']);
-        const { data, error } = await query.overlaps('main_program_ids', [pid]).order('last_name').order('first_name').range(from, from + 999);
+        const q2 = kind === '200' ? query.overlaps('main_program_ids', [pid]) : query.overlaps('program_ids', [pid]);
+        const { data, error } = await q2.order('last_name').order('first_name').range(from, from + 999);
         if (error) throw error;
-        persons.push(...data);
+        // «300»: усі поранені рядка журналу, у т.ч. ті, хто помер (у 300 вони стали зв’язаними, основні — у 200)
+        persons.push(...(kind === '200' ? data : data.filter((p) =>
+          (p.main_program_ids || []).includes(pid) || ['Загиблий', 'Померлий ветеран'].includes(p.military_status))));
         if (data.length < 1000) break;
       }
       if (!persons.length) { Persons.toast(`Немає основних карток модуля ${kind} за цими умовами.`); return; }
@@ -67,6 +79,14 @@ window.Journal = (() => {
       const wb = new ExcelJS.Workbook();
       await wb.xlsx.load(buf);
       const ws = wb.getWorksheet(`Журнал ${kind}`);
+      // ExcelJS розбиває перевірки на окремі клітинки й дублює діапазони — збираємо назад по колонках
+      const byCol = {};
+      Object.entries(ws.dataValidations.model).forEach(([addr, rule]) => {
+        const col = addr.replace(/[0-9$]/g, '');
+        if (!byCol[col]) byCol[col] = rule;
+      });
+      ws.dataValidations.model = {};
+      Object.entries(byCol).forEach(([col, rule]) => ws.dataValidations.add(`${col}2:${col}1000`, rule));
       const hdr = ws.getRow(1).values;                       // [ , 'ID', 'Статус', …]
       const colOf = (name) => hdr.findIndex((h) => String(h || '').trim() === name);
       // прибираємо рядок-приклад (значення й жовте оформлення)
@@ -79,6 +99,16 @@ window.Journal = (() => {
         const set = (name, v) => { const c = colOf(name); if (c > 0 && v !== null && v !== undefined && v !== '') ws.getCell(r, c).value = v; };
         const rel = kin.get(p.id) || [];
         set('ID', `${kind}-${String(idx + 1).padStart(4, '0')}`);
+        // колонки з журналу-джерела (звання, посада, етапи супроводу…) — один до одного за назвою
+        const jd = (p.journal && p.journal[kind]) || {};
+        const jn = new Map(Object.entries(jd).map(([k, v]) => [normH(k), v]));
+        hdr.forEach((h, c) => {
+          if (!h || c === 0) return;
+          const v = jn.get(normH(h)) ?? jn.get(normH(ALIASES[String(h).trim()] || ''));
+          if (v === undefined || v === null || v === '') return;
+          const isDate = /^\d{4}-\d{2}-\d{2}$/.test(String(v));
+          ws.getCell(r, c).value = isDate ? dt(v) : v;
+        });
         set('Осередок ГО', cells.get(p.cell_id));
         set('Примітки', p.comment);
         if (kind === '200') {

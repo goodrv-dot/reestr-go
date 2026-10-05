@@ -39,6 +39,7 @@ function showApp(operator, userId) {
       Importer.init();
       if (operator.role === 'admin') Staff.init(db, userId);
       Segments.init(db, userId, operator.role === 'admin');
+      Cabinet.init(db, userId, operator.role === 'admin');
       window.__exp = true;
     }
   }).catch((e) => {

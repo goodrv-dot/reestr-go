@@ -1,5 +1,5 @@
 // Перемикання вкладок + системна кнопка «Назад» (історія браузера)
-const VIEWS = { registry: 'registry-view', dashboard: 'dashboard-view', import: 'import-view', staff: 'staff-view', manual: 'manual-view' };
+const VIEWS = { registry: 'registry-view', cabinet: 'cabinet-view', dashboard: 'dashboard-view', import: 'import-view', staff: 'staff-view', manual: 'manual-view' };
 
 function showTab(tab) {
   document.querySelectorAll('.tab').forEach((b) => {
@@ -10,6 +10,7 @@ function showTab(tab) {
   });
   Object.entries(VIEWS).forEach(([k, id]) => { document.getElementById(id).hidden = k !== tab; });
   if (tab === 'dashboard') Dashboard.refresh();
+  if (tab === 'cabinet') Cabinet.load();
 }
 
 document.querySelectorAll('.tab').forEach((btn) => {

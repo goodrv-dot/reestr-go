@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Unbounded:wght@600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=202610051141">
+  <link rel="stylesheet" href="style.css?v=202610051323">
 </head>
 <body>
 
@@ -53,6 +53,7 @@
         <span class="wordmark wordmark-small">Реєстр</span>
         <nav class="tabs" aria-label="Розділи">
           <button type="button" class="tab is-active" data-tab="registry" aria-current="page">Особи</button>
+          <button type="button" class="tab" data-tab="cabinet">Кабінет</button>
           <button type="button" class="tab" data-tab="dashboard">Дашборд</button>
           <button type="button" class="tab" data-tab="import">Імпорт</button>
           <button type="button" class="tab" data-tab="staff" id="staff-tab" hidden>Співробітники</button>
@@ -315,6 +316,74 @@
         </form>
       </section>
     </main>
+    <main id="cabinet-view" class="app-main cab" hidden>
+      <section id="cab-list">
+        <div class="list-head">
+          <h1 id="cab-title">Кабінет</h1>
+          <div class="head-actions">
+            <div class="cab-mods" role="group" aria-label="Модуль">
+              <button type="button" class="qchip cab-mod cab-mod-200" data-m="200" aria-pressed="true">200</button>
+              <button type="button" class="qchip cab-mod cab-mod-300" data-m="300" aria-pressed="false">300</button>
+            </div>
+            <button id="cab-settings-btn" class="btn-secondary btn-small" type="button" hidden>Налаштування етапів</button>
+          </div>
+        </div>
+        <div class="cab-filters">
+          <input id="cab-search" type="search" placeholder="Пошук: ПІБ, ID, родич, телефон" aria-label="Пошук справ">
+          <select id="cab-status" aria-label="Статус"></select>
+          <select id="cab-exec" aria-label="Виконавець"></select>
+          <select id="cab-cell" aria-label="Осередок"></select>
+        </div>
+        <div class="qchips" role="group" aria-label="Швидкі фільтри">
+          <button type="button" class="qchip cab-quick" data-q="mine" aria-pressed="false">Мої <b id="cq-mine">0</b></button>
+          <button type="button" class="qchip cab-quick qchip-crit" data-q="overdue" aria-pressed="false">Прострочені <b id="cq-overdue">0</b></button>
+          <button type="button" class="qchip cab-quick qchip-warn" data-q="problem" aria-pressed="false">Проблема <b id="cq-problem">0</b></button>
+          <span class="muted" id="cab-count"></span>
+        </div>
+        <p id="cab-status-line" class="muted" role="status"></p>
+        <div class="table-wrap">
+          <table id="cab-table" class="cab-table">
+            <thead><tr><th>ID</th><th>Загиблий / поранений</th><th>Родина</th><th>Осередок</th><th>Статус</th><th>Виконавець</th><th>Наступна дія</th><th>Етапи</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <p id="cab-empty" class="muted" hidden>Немає справ за цими умовами.</p>
+        <p id="cab-more" class="muted" hidden>Показано перші 500 — уточніть пошук чи фільтри.</p>
+      </section>
+
+      <section id="cab-case" hidden>
+        <button id="cab-back" type="button" class="btn-link back">Назад до справ</button>
+        <h1 id="case-title"></h1>
+        <p id="case-sub" class="muted"></p>
+        <div class="case-head">
+          <div class="field"><label for="case-status">Статус</label><select id="case-status"></select></div>
+          <div class="field"><label for="case-exec">Виконавець</label><select id="case-exec"></select></div>
+          <div class="field"><label for="case-cell">Осередок</label><select id="case-cell"></select></div>
+          <div class="case-head-btns">
+            <button id="case-take" type="button" class="btn-secondary btn-small">Взяти собі</button>
+            <button id="case-open-person" type="button" class="btn-secondary btn-small">Картка в реєстрі</button>
+          </div>
+        </div>
+        <div class="case-grid">
+          <section class="case-card">
+            <h2>Етапи супроводу</h2>
+            <p class="muted case-note">Зміни зберігаються одразу. Зелене — виконано, жовте — наближається термін, червоне — прострочено.</p>
+            <div id="case-stages" class="case-stages"></div>
+          </section>
+          <aside>
+            <section class="case-card">
+              <h2>Родина</h2>
+              <ul id="case-family" class="case-family"></ul>
+            </section>
+            <section class="case-card">
+              <h2>Історія змін</h2>
+              <ul id="case-history" class="case-history"></ul>
+            </section>
+          </aside>
+        </div>
+      </section>
+    </main>
+
     <main id="dashboard-view" class="app-main dash" hidden>
       <div class="list-head">
         <h1 id="dash-title">Осіб по областях</h1>
@@ -441,6 +510,7 @@
         <a href="#m-auto">Автоматичні категорії</a>
         <a href="#m-quality">Підсвітка: що доповнити</a>
         <a href="#m-filters">Фільтри</a>
+        <a href="#m-cab">Кабінет</a>
         <a href="#m-dash">Дашборд</a>
         <a href="#m-import">Імпорт</a>
         <a href="#m-export">Вивантаження</a>
@@ -568,6 +638,18 @@
           <li>Між різними фільтрами — <b>«І»</b>: УБД <i>і</i> Родина МП <i>і</i> Полтавська область.</li>
           <li>Список оновлюється сам. Кнопка «Скинути всі фільтри» повертає повний список.</li>
           <li>«Є дитина віком 11–14» — знайде людей, у яких хоча б одна дитина цього віку.</li>
+        </ul>
+      </section>
+
+      <section id="m-cab">
+        <h2>Кабінет 200 / 300</h2>
+        <ul>
+          <li><b>Кабінет</b> — робота зі справами: одна справа = один загиблий (200) або поранений (300) разом із родиною. Перемикач <b>200 | 300</b> угорі.</li>
+          <li>У списку: ID справи (той самий, що в журналі), родина й телефон, осередок, статус, виконавець, <b>наступна дія</b> (напр. «Другий дзвінок — до 12.10»; червоним — прострочено) і прогрес етапів.</li>
+          <li>Швидкі фільтри: <b>Мої</b> (де я виконавець), <b>Прострочені</b>, <b>Проблема</b>; а також пошук, статус, виконавець, осередок.</li>
+          <li>У справі: статус, виконавець (кнопка «Взяти собі»), етапи супроводу — зміни зберігаються одразу; зелене — виконано, жовте — наближається термін, червоне — прострочено. Праворуч — родина з телефонами (натисніть номер, щоб подзвонити з телефона) та <b>історія змін</b>.</li>
+          <li>Адміністратор у «Налаштування етапів» змінює назви й порядок етапів, варіанти списків і правила нагадувань (напр. «Другий дзвінок» = «Перший дзвінок» + 7 днів), додає нові етапи.</li>
+          <li>Після імпорту журналів «200» / «300» нові справи з’являються в кабінеті автоматично. «Журнал 200 / 300» вивантажує вже дані кабінету.</li>
         </ul>
       </section>
 
@@ -858,30 +940,45 @@
     <div class="form-actions"><button id="pick-close" class="btn-secondary" type="button">Закрити</button></div>
   </dialog>
 
+
+  <!-- Налаштування етапів -->
+  <dialog id="cab-settings" class="dialog dialog-wide" aria-labelledby="cab-set-title">
+    <h2 id="cab-set-title">Етапи</h2>
+    <p class="muted">Змінюйте назви, тип, варіанти списку й правила нагадувань. Новий етап — в останньому рядку. Вимкнений етап зникає з кабінету, але його дані зберігаються.</p>
+    <div class="table-wrap">
+      <table id="cab-set-table" class="imp-table">
+        <thead><tr><th>Назва</th><th>Тип</th><th>Варіанти</th><th>Нагадати після</th><th>Днів</th><th>Порядок</th><th>Активний</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="form-actions"><button id="cab-set-close" class="btn-primary" type="button">Готово</button></div>
+  </dialog>
+
   <p id="toast" class="toast" role="status" hidden></p>
 
   <!-- Завантаження -->
   <p id="loading" class="loading">Завантаження…</p>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="config.js?v=202610051141"></script>
+  <script src="config.js?v=202610051323"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="options.js?v=202610051141"></script>
-  <script src="ui.js?v=202610051141"></script>
-  <script src="validation.js?v=202610051141"></script>
-  <script src="filters.js?v=202610051141"></script>
-  <script src="segments.js?v=202610051141"></script>
-  <script src="picker.js?v=202610051141"></script>
-  <script src="merge.js?v=202610051141"></script>
-  <script src="persons.js?v=202610051141"></script>
-  <script src="export.js?v=202610051141"></script>
-  <script src="import.js?v=202610051141"></script>
-  <script src="mfa.js?v=202610051141"></script>
-  <script src="staff.js?v=202610051141"></script>
-  <script src="ua-map.js?v=202610051141"></script>
-  <script src="dashboard.js?v=202610051141"></script>
-  <script src="journal.js?v=202610051141"></script>
-  <script src="nav.js?v=202610051141"></script>
-  <script src="app.js?v=202610051141"></script>
+  <script src="options.js?v=202610051323"></script>
+  <script src="ui.js?v=202610051323"></script>
+  <script src="validation.js?v=202610051323"></script>
+  <script src="filters.js?v=202610051323"></script>
+  <script src="segments.js?v=202610051323"></script>
+  <script src="picker.js?v=202610051323"></script>
+  <script src="merge.js?v=202610051323"></script>
+  <script src="persons.js?v=202610051323"></script>
+  <script src="export.js?v=202610051323"></script>
+  <script src="import.js?v=202610051323"></script>
+  <script src="mfa.js?v=202610051323"></script>
+  <script src="staff.js?v=202610051323"></script>
+  <script src="ua-map.js?v=202610051323"></script>
+  <script src="dashboard.js?v=202610051323"></script>
+  <script src="journal.js?v=202610051323"></script>
+  <script src="cabinet.js?v=202610051323"></script>
+  <script src="nav.js?v=202610051323"></script>
+  <script src="app.js?v=202610051323"></script>
 </body>
 </html>

@@ -1138,6 +1138,11 @@ window.Importer = (() => {
       $('imp-status').textContent = `Імпортуємо… ${done + failed} з ${todo.length}`;
     }
     await db.from('import_batches').update({ rows_imported: done, rows_skipped: records.length - done }).eq('id', batch.id);
+    // кабінет 200 / 300: нові справи й етапи з журналу
+    if (/\((200|300)\)/.test(template.program)) {
+      const { data: sc, error: se } = await db.rpc('sync_cases_from_registry');
+      if (se) console.error(se); else if (sc && (sc.new200 || sc.new300)) Persons.toast(`Кабінет: нових справ ${sc.new200 + sc.new300}`);
+    }
 
     $('imp-status').textContent = `Готово: імпортовано ${done}` + (failed ? `, не вдалося ${failed} (див. позначки нижче)` : '') + '.';
     renderPreview();

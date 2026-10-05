@@ -66,6 +66,19 @@ window.Journal = (() => {
         if (error) throw error;
         data.forEach((r) => { if (r.person) kin.set(r.related_person_id, [...(kin.get(r.related_person_id) || []), r]); });
       }
+      // справи кабінету: стабільний ID, статус, виконавець, етапи (мають пріоритет над «Даними з журналу»)
+      const caseOf = new Map();
+      const [defsRes, opsRes] = await Promise.all([
+        db.from('case_stage_defs').select('key, sheet_column, label').eq('module', kind),
+        db.from('operators').select('user_id, full_name')
+      ]);
+      const colOfKey = new Map((defsRes.data || []).map((d) => [d.key, d.sheet_column || d.label]));
+      const opName = new Map((opsRes.data || []).map((o) => [o.user_id, o.full_name]));
+      for (let i = 0; i < ids.length; i += 150) {
+        const { data } = await db.from('cases').select('person_id, journal_id, status, executor_id, case_values(stage_key, value)')
+          .eq('module', kind).in('person_id', ids.slice(i, i + 150));
+        (data || []).forEach((c) => caseOf.set(c.person_id, c));
+      }
       const vets = new Map();
       if (kind === '300') {
         for (let i = 0; i < ids.length; i += 150) {
@@ -98,7 +111,8 @@ window.Journal = (() => {
         const r = idx + 2;
         const set = (name, v) => { const c = colOf(name); if (c > 0 && v !== null && v !== undefined && v !== '') ws.getCell(r, c).value = v; };
         const rel = kin.get(p.id) || [];
-        set('ID', `${kind}-${String(idx + 1).padStart(4, '0')}`);
+        const cs = caseOf.get(p.id);
+        set('ID', cs ? cs.journal_id : `${kind}-${String(idx + 1).padStart(4, '0')}`);
         // колонки з журналу-джерела (звання, посада, етапи супроводу…) — один до одного за назвою
         const jd = (p.journal && p.journal[kind]) || {};
         const jn = new Map(Object.entries(jd).map(([k, v]) => [normH(k), v]));
@@ -109,6 +123,16 @@ window.Journal = (() => {
           const isDate = /^\d{4}-\d{2}-\d{2}$/.test(String(v));
           ws.getCell(r, c).value = isDate ? dt(v) : v;
         });
+        // дані кабінету
+        if (cs) {
+          set(kind === '200' ? 'Статус' : 'Стан', cs.status);
+          if (cs.executor_id) set(kind === '200' ? 'Виконавець' : 'Відповідальний', opName.get(cs.executor_id));
+          (cs.case_values || []).forEach((v) => {
+            const col = colOfKey.get(v.stage_key);
+            if (!col || !v.value || v.stage_key === 'executor_legacy') return;
+            set(col, /^\d{4}-\d{2}-\d{2}$/.test(v.value) ? dt(v.value) : v.value);
+          });
+        }
         set('Осередок ГО', cells.get(p.cell_id));
         set('Примітки', p.comment);
         if (kind === '200') {

@@ -556,7 +556,7 @@ window.Persons = (() => {
     let query;
     try {
       ({ query } = await buildQuery(
-        'id, is_extra, is_main, cell_id, program_ids, main_program_ids, last_name, first_name, patronymic, phone, extra_phones, region_id, person_categories, family_categories, created_at, critical_count, warning_count, comment, touchpoint, created_by, source',
+        'id, is_extra, is_main, cell_id, program_ids, main_program_ids, last_name, first_name, patronymic, phone, extra_phones, region_id, person_categories, family_categories, created_at, critical_count, warning_count, comment, created_by, source',
         { count: 'exact' }));
     } catch (e) {
       console.error(e);
@@ -646,7 +646,6 @@ window.Persons = (() => {
       if (!cats.length) td.textContent = '—';
       tr.appendChild(td);
 
-      tr.appendChild(longCell(p.touchpoint));
       tr.appendChild(longCell(p.comment));
 
       const who = document.createElement('td');

@@ -222,7 +222,7 @@ window.Cabinet = (() => {
     const box = $('case-stages'); box.innerHTML = '';
     defs.forEach((d) => {
       const wrap = document.createElement('div');
-      wrap.className = 'stage';
+      wrap.className = 'stage stage-' + d.key;
       const id = 'st-' + d.key;
       const v = c.vals[d.key] ?? '';
       let control;

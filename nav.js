@@ -25,6 +25,18 @@ document.querySelectorAll('.tab').forEach((btn) => {
 
 history.replaceState({ view: 'tab', tab: 'registry' }, '');
 window.addEventListener('popstate', (e) => {
-  const st = e.state || { view: 'tab', tab: 'registry' };
-  if (st.view === 'tab') showTab(st.tab || 'registry');
+  if (!e.state) return;                       // перехід за якорем (#…) — вкладку не міняємо
+  if (e.state.view === 'tab') showTab(e.state.tab || 'registry');
+});
+
+// Зміст «Мануалу»: прокрутка до розділу без зміни адреси й історії
+document.addEventListener('click', (e) => {
+  const a = e.target.closest('#manual-view a[href^="#"]');
+  if (!a) return;
+  const target = document.getElementById(a.getAttribute('href').slice(1));
+  if (!target) return;
+  e.preventDefault();
+  target.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+  const h = target.querySelector('h2') || target;
+  h.setAttribute('tabindex', '-1'); h.focus({ preventScroll: true });
 });

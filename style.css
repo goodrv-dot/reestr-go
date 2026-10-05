@@ -824,3 +824,4 @@ tr[data-module="m300"] { --mod-c: #5b3f8c; }
 .case-history li { border-bottom: 1px solid #eef1f3; padding-bottom: 0.35rem; }
 .dialog-wide { width: min(70rem, 95vw); }
 #cab-set-table input:not([type="checkbox"]), #cab-set-table select { font: inherit; padding: 0.3rem 0.4rem; border: 1px solid var(--line); border-radius: 4px; width: 100%; min-width: 6rem; }
+.manual { padding-bottom: 40vh; }  /* щоб і останні розділи прокручувались до верху */

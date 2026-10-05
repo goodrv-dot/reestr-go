@@ -69,6 +69,28 @@ window.Exporter = (() => {
       ]);
       const unitName = (id, other) => (id ? units.get(id) : other) || '';
 
+      // Рідні вибраних військових (зв’язані картки, що посилаються на них) — для розсилок родинам 200 / 300
+      const kinRels = [];
+      for (let i = 0; i < ids.length; i += 150) {
+        const { data, error } = await Persons.ctx().db.from('military_relations')
+          .select('related_person_id, relation_degree, person:persons!military_relations_person_id_fkey(last_name, first_name, patronymic, phone, extra_phones, email, region_id, settlement, preferred_messenger)')
+          .in('related_person_id', ids.slice(i, i + 150));
+        if (error) throw error;
+        kinRels.push(...data);
+      }
+      const sheetKin = kinRels
+        .filter((r) => r.person)
+        .sort((a, b) => fio(byId.get(a.related_person_id)).localeCompare(fio(byId.get(b.related_person_id)), 'uk'))
+        .map((r) => {
+          const m = byId.get(r.related_person_id), k = r.person;
+          return {
+            'Військовий': fio(m), 'Статус військового': m.military_status, 'Ступінь спорідненості': r.relation_degree,
+            'ПІБ родича': fio(k), 'Телефон': k.phone || '', 'Додатковий телефон': (k.extra_phones || []).join(', '),
+            'Email': k.email || '', 'Область': regions.get(k.region_id) || '', 'Населений пункт': k.settlement || '',
+            'Месенджер': k.preferred_messenger || ''
+          };
+        });
+
       // діти кожної особи — одним рядком «Іванов Микола (11 р.); …»
       const kidsOf = new Map();
       children.forEach((c) => {
@@ -153,6 +175,7 @@ window.Exporter = (() => {
       addSheet(wb, 'Особи', sheetPersons);
       addSheet(wb, 'Діти', sheetChildren);
       addSheet(wb, 'Зв’язки', sheetRelations);
+      if (sheetKin.length) addSheet(wb, 'Рідні військових', sheetKin);
       XLSX.writeFile(wb, `reiestr_${stamp()}.xlsx`);
       await log('Excel', null, persons.length);
       Persons.toast(`Вивантажено: ${persons.length} осіб, ${children.length} дітей, ${relations.length} зв’язків`);
@@ -184,7 +207,7 @@ window.Exporter = (() => {
     $('csv-download').disabled = true;
     dlg.showModal();
     try {
-      prepared = await fetchAll('id, last_name, first_name, patronymic, phone, preferred_messenger, consent_pd_at, consent_messages, unsubscribed, region_id, cell_id, family_categories, person_categories');
+      prepared = await fetchAll('id, last_name, first_name, patronymic, phone, military_status, preferred_messenger, consent_pd_at, consent_messages, unsubscribed, region_id, cell_id, family_categories, person_categories');
       prepareCsv();
     } catch (e) {
       console.error(e);
@@ -193,6 +216,7 @@ window.Exporter = (() => {
   }
 
   function skipReason(p, channel, includeUnknown) {
+    if (['Загиблий', 'Померлий ветеран'].includes(p.military_status)) return 'картка загиблого (розсилка — рідним)';
     if (!p.phone) return 'немає телефону';
     if (p.phone.startsWith('+380') && !MOBILE.includes(p.phone.slice(4, 6))) return 'стаціонарний номер';
     if (!p.consent_pd_at) return 'немає згоди на обробку ПД';
@@ -219,7 +243,10 @@ window.Exporter = (() => {
     const parts = Object.entries(reasons).map(([k, v]) => `${v} — ${k}`);
     $('csv-summary').textContent =
       `Відібрано ${prepared.length}. До вивантаження в ${channel}: ${ok.length}.` +
-      (skipped.length ? ` Пропущено ${skipped.length}: ${parts.join('; ')}.` : '');
+      (skipped.length ? ` Пропущено ${skipped.length}: ${parts.join('; ')}.` : '') +
+      (reasons['картка загиблого (розсилка — рідним)']
+        ? ' Підказка: щоб надіслати розсилку родинам загиблих, над таблицею оберіть «Картки: Зв’язані» (або «Усі») і відкрийте це вікно знову.'
+        : '');
 
     const ul = $('csv-skipped');
     ul.innerHTML = '';

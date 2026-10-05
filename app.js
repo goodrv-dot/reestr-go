@@ -35,6 +35,7 @@ function showApp(operator, userId) {
   Persons.init(db, operator).then(() => {
     if (!window.__exp) {
       Exporter.init();
+      Journal.init();
       Importer.init();
       if (operator.role === 'admin') Staff.init(db, userId);
       Segments.init(db, userId, operator.role === 'admin');

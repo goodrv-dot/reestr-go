@@ -370,6 +370,7 @@ window.Persons = (() => {
 
   function bind() {
     $('add-btn').addEventListener('click', () => openForm(null));
+    $('add-btn').hidden = !window.APP_CONFIG.ADD_PERSON;   // заморожено, див. config.js
     $('back-btn').addEventListener('click', closeForm);
     $('cancel-btn').addEventListener('click', closeForm);
     $('pager').addEventListener('click', (e) => {
@@ -596,7 +597,7 @@ window.Persons = (() => {
       table.hidden = true;
       setListStatus(filtered
         ? 'За цими умовами нікого не знайдено. Змініть пошук або скиньте фільтри.'
-        : 'Реєстр порожній. Натисніть «Додати особу», щоб внести першу.');
+        : (window.APP_CONFIG.ADD_PERSON ? 'Реєстр порожній. Натисніть «Додати особу», щоб внести першу.' : 'Реєстр порожній. Дані з’являться після імпорту або зі справ Кабінету.'));
       return;
     }
     setListStatus('');

@@ -469,6 +469,8 @@ window.Cabinet = (() => {
     if (['last_name', 'first_name', 'patronymic'].includes(key) && v && badName(v)) { el.value = p[key] || ''; return; }
     if ((key === 'last_name' || key === 'first_name')) { if (!v) { Persons.toast('Прізвище та ім’я обов’язкові'); el.value = p[key] || ''; return; } v = nm(v); }
     if (key === 'patronymic' && v) v = nm(v);
+    const dd = key === 'death_date' ? v : p.death_date, bd = key === 'burial_date' ? v : p.burial_date;
+    if ((key === 'burial_date' || key === 'death_date') && dd && bd && bd < dd) { Persons.toast('Дата поховання раніше дати загибелі — перевірте'); el.value = p[key] || ''; return; }
     if (!(await updPerson(p.id, { [key]: v }))) { renderStages(); return; }
     p[key] = v;
     renderHead(); if (key !== 'comment') renderStages(); loadHistory();

@@ -933,7 +933,7 @@ window.Persons = (() => {
       if (dd.error) { setHint('death_date', dd.error); ok = false; }
       else if (dd.value && rec.birth_date && dd.value < rec.birth_date) { setHint('death_date', 'Дата смерті раніше дати народження'); ok = false; }
       else rec.death_date = dd.value;
-      const bu = V.checkBirthDate(f.burial_date.value);
+      const bu = burialDate(f.burial_date.value);
       if (bu.error) { setHint('burial_date', bu.error); ok = false; }
       else if (bu.value && rec.death_date && bu.value < rec.death_date) { setHint('burial_date', 'Раніше дати смерті'); ok = false; }
       else rec.burial_date = bu.value;
@@ -983,7 +983,7 @@ window.Persons = (() => {
         const dd = V.checkBirthDate(q('related_death_date'));
         if (dd.error) { setRowHint(row, 'related_death_date', dd.error); ok = false; }
         else r.related_death_date = dd.value;
-        const bu = V.checkBirthDate(q('related_burial_date'));
+        const bu = burialDate(q('related_burial_date'));
         if (bu.error) { setRowHint(row, 'related_burial_date', bu.error); ok = false; }
         else if (bu.value && r.related_death_date && bu.value < r.related_death_date) { setRowHint(row, 'related_burial_date', 'Раніше дати загибелі'); ok = false; }
         else r.related_burial_date = bu.value;
@@ -1158,6 +1158,13 @@ window.Persons = (() => {
     t.hidden = false;
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => { t.hidden = true; }, 3000);
+  }
+
+  // Дата поховання може бути в майбутньому (поховання ще заплановане)
+  function burialDate(raw) {
+    const v = String(raw ?? '').trim();
+    if (!v) return { value: null };
+    return /^\d{4}-\d{2}-\d{2}$/.test(v) && !isNaN(new Date(v)) ? { value: v } : { error: 'Невірна дата' };
   }
 
   function ctx() {

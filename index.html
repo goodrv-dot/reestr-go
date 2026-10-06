@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Unbounded:wght@600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=202610061405">
+  <link rel="stylesheet" href="style.css?v=202610061740">
 </head>
 <body>
 
@@ -368,6 +368,7 @@
         <h1 id="case-title"></h1>
         <p id="case-sub" class="muted"></p>
         <p id="case-contact" class="case-contact"></p>
+        <div id="case-missing" class="case-missing" aria-label="Що не заповнено"></div>
         <div class="case-head">
           <div class="field"><label for="case-status">Статус</label><select id="case-status"></select></div>
           <div class="field"><label for="case-exec">Виконавець (веде справу)</label><select id="case-exec"></select></div>
@@ -392,10 +393,10 @@
               <h2>Примітки</h2>
               <div id="case-notes"></div>
             </section>
-            <section class="case-card">
-              <h2>Історія змін</h2>
+            <details id="case-history-box" class="case-card case-hist">
+              <summary><h2>Історія змін</h2></summary>
               <ul id="case-history" class="case-history"></ul>
-            </section>
+            </details>
           </aside>
         </div>
         <section class="case-card case-sum">
@@ -673,6 +674,7 @@
           <li>Поля зібрані в <b>розділи</b> (Особа, Сповіщення, Родина, Поховання, Супровід…). «Усі розділи» показує все підряд, кнопка розділу — лише його. <b>Примітки</b> завжди праворуч угорі. На кнопці розділу видно, скільки заповнено («4/7»); червона кнопка — у розділі є прострочене. Порожні поля згорнуті під «Незаповнені поля».</li>
           <li><b>Родина:</b> рідні рядками — спорідненість, телефон, адреса правляться на місці; «+ Додати родича» створює його картку в реєстрі. Позначка «контактна особа» визначає, кого показувати вгорі справи.</li>
           <li><b>Виконавець</b> — хто веде й заповнює справу (кнопка «Взяти собі»). <b>Допомагають</b> — співробітники, які залучені, але не ведуть. <b>Відповідальний (по осередку)</b> — людина від осередку.</li>
+          <li><b>Підказки вгорі справи</b> показують, що не заповнено: червоним — «Потрібно заповнити» (важливе й прострочене), жовтим — «Бажано заповнити». Натисніть на назву — програма перейде до цього поля. <b>Дата смерті</b> скрізь виділена червоним. «Історію змін» на телефоні згорнуто — розгортається натисканням.</li>
           <li><b>Зведення справи — компактний варіант</b> внизу — те саме, що у справі вгорі, але дрібно й на одному екрані, як рядок журналу: шапка, усі розділи, родина й примітки. Жовте — незаповнене, червоне — незаповнене важливе чи прострочене. Натисніть на будь-яке поле — і правте просто там. Обидва подання працюють з одними даними: змінили в одному — оновилось в іншому.</li>
           <li><b>+ Нова справа</b> — завести загиблого чи пораненого прямо в кабінеті, без таблиці: досить прізвища та імені.</li>
           <li>Адміністратор у «Налаштування полів» змінює назви, розділ і порядок полів, варіанти списків і правила нагадувань (напр. «Другий дзвінок» = «Перший дзвінок» + 7 днів), додає нові поля.</li>
@@ -1032,25 +1034,25 @@
   <p id="loading" class="loading">Завантаження…</p>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="config.js?v=202610061405"></script>
+  <script src="config.js?v=202610061740"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="options.js?v=202610061405"></script>
-  <script src="ui.js?v=202610061405"></script>
-  <script src="validation.js?v=202610061405"></script>
-  <script src="filters.js?v=202610061405"></script>
-  <script src="segments.js?v=202610061405"></script>
-  <script src="picker.js?v=202610061405"></script>
-  <script src="merge.js?v=202610061405"></script>
-  <script src="persons.js?v=202610061405"></script>
-  <script src="export.js?v=202610061405"></script>
-  <script src="import.js?v=202610061405"></script>
-  <script src="mfa.js?v=202610061405"></script>
-  <script src="staff.js?v=202610061405"></script>
-  <script src="ua-map.js?v=202610061405"></script>
-  <script src="dashboard.js?v=202610061405"></script>
-  <script src="journal.js?v=202610061405"></script>
-  <script src="cabinet.js?v=202610061405"></script>
-  <script src="nav.js?v=202610061405"></script>
-  <script src="app.js?v=202610061405"></script>
+  <script src="options.js?v=202610061740"></script>
+  <script src="ui.js?v=202610061740"></script>
+  <script src="validation.js?v=202610061740"></script>
+  <script src="filters.js?v=202610061740"></script>
+  <script src="segments.js?v=202610061740"></script>
+  <script src="picker.js?v=202610061740"></script>
+  <script src="merge.js?v=202610061740"></script>
+  <script src="persons.js?v=202610061740"></script>
+  <script src="export.js?v=202610061740"></script>
+  <script src="import.js?v=202610061740"></script>
+  <script src="mfa.js?v=202610061740"></script>
+  <script src="staff.js?v=202610061740"></script>
+  <script src="ua-map.js?v=202610061740"></script>
+  <script src="dashboard.js?v=202610061740"></script>
+  <script src="journal.js?v=202610061740"></script>
+  <script src="cabinet.js?v=202610061740"></script>
+  <script src="nav.js?v=202610061740"></script>
+  <script src="app.js?v=202610061740"></script>
 </body>
 </html>

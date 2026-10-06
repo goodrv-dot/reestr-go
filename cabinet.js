@@ -285,6 +285,7 @@ window.Cabinet = (() => {
     cSel.onchange = () => saveCase({ cell_id: cSel.value ? Number(cSel.value) : null });
     $('case-take').onclick = () => { eSel.value = me; saveCase({ executor_id: me }); };
     renderHelpers();
+    $('case-history-box').open = window.matchMedia('(min-width: 961px)').matches;   // на телефоні історію згорнуто
     const legacy = [c.vals.executor_legacy && `${module === '300' ? 'відповідальний' : 'виконавець'} — ${c.vals.executor_legacy}`, c.vals.responsible && `відповідальний — ${c.vals.responsible}`].filter(Boolean);
     $('case-legacy').textContent = legacy.length ? `Як було в журналі: ${legacy.join('; ')}` : '';
     renderHead();
@@ -295,9 +296,11 @@ window.Cabinet = (() => {
   function renderHead() {
     const c = current, p = c.person;
     $('case-title').textContent = fio(p) + (p.callsign ? ` «${p.callsign}»` : '');
-    $('case-sub').textContent = `${c.journal_id} · ${module === '200' ? 'загиблий' : 'поранений'}` +
-      (p.death_date ? ` · дата смерті ${fmt(p.death_date)}` : '') + (p.burial_date ? ` · поховання ${fmt(p.burial_date)}` : '') +
-      (p.wound_date ? ` · поранення ${fmt(p.wound_date)}` : '') + (c.next ? ` · далі: ${c.next.label} до ${fmt(c.next.due)}` : '');
+    const sub = $('case-sub');
+    sub.textContent = `${c.journal_id} · ${module === '200' ? 'загиблий' : 'поранений'}`;
+    if (p.death_date) { const d = document.createElement('b'); d.className = 'death-date'; d.textContent = `дата смерті ${fmt(p.death_date)}`; sub.append(' · ', d); }
+    sub.append((p.burial_date ? ` · поховання ${fmt(p.burial_date)}` : '') +
+      (p.wound_date ? ` · поранення ${fmt(p.wound_date)}` : '') + (c.next ? ` · далі: ${c.next.label} до ${fmt(c.next.due)}` : ''));
     $('case-take').hidden = c.executor_id === me;
     const box = $('case-contact'); const k = contactOf(c);
     if (!k) { box.innerHTML = '<span class="muted">Контактну особу не вказано — додайте рідних у розділі «Родина».</span>'; return; }
@@ -338,7 +341,7 @@ window.Cabinet = (() => {
   // Одне поле: {id,label,kind,options,value,hint,state,onSave}
   function fieldEl(f) {
     const wrap = document.createElement('div');
-    wrap.className = 'stage' + (f.cls ? ' ' + f.cls : '');
+    wrap.className = 'stage' + (f.cls ? ' ' + f.cls : '') + (f.id.endsWith('p-death_date') ? ' is-death' : '');
     const id = 'cf-' + f.id; const v = f.value ?? '';
     let control;
     if (f.kind === 'date') control = `<input id="${id}" type="date" value="${/^\d{4}-\d{2}-\d{2}/.test(v) ? String(v).slice(0, 10) : ''}">`;
@@ -419,6 +422,7 @@ window.Cabinet = (() => {
         box.appendChild(det);
       }
     });
+    renderMissing(secs);
     renderSummary(secs);
     // Примітки — завжди на видноті
     const nb = $('case-notes'); nb.innerHTML = '';
@@ -435,6 +439,44 @@ window.Cabinet = (() => {
     if (f.kind === 'phone') return V.formatPhone(f.value) || String(f.value);
     return String(f.value);
   }
+  // Підказки вгорі справи: що не заповнено (як «Стан картки» в реєстрі)
+  function renderMissing(secs) {
+    const c = current; const box = $('case-missing'); box.innerHTML = '';
+    const k = contactOf(c); const crit = [], soft = [];
+    const top = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+    const goField = (key, f) => () => {
+      tab = 'all'; emptyOpen.add(key); renderStages();
+      const el = document.getElementById('cf-' + f.id); if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.focus({ preventScroll: true }); }
+    };
+    const goFamily = () => { tab = 'family'; renderStages(); $('case-tabs').scrollIntoView({ behavior: 'smooth', block: 'start' }); const d = document.querySelector('.fam-add'); if (d && !c.kin.length) d.open = true; };
+    if (!c.status) crit.push(['Статус', top]);
+    if (!c.executor_id) crit.push(['Виконавець', top]);
+    if (!c.cell_id) crit.push(['Осередок', top]);
+    if (!k) crit.push(['Контактна особа (рідних не додано)', goFamily]);
+    else if (!k.person.phone) crit.push(['Телефон контактної особи', goFamily]);
+    secs.filter(([key]) => key !== 'family').forEach(([key]) => sectionFields(key).forEach((f) => {
+      if (f.state === 'is-overdue') crit.push([`${f.label} — прострочено`, goField(key, f)]);
+      else if (!isFilled(f)) (CRIT.has(f.id) ? crit : soft).push([f.label, goField(key, f)]);
+    }));
+    const line = (cls, title, items) => {
+      if (!items.length) return;
+      const p = document.createElement('p'); p.className = 'miss ' + cls;
+      const b = document.createElement('b'); b.textContent = title; p.appendChild(b);
+      items.forEach(([label, go]) => { const x = document.createElement('button'); x.type = 'button'; x.className = 'miss-chip'; x.textContent = label; x.onclick = go; p.append(' ', x); });
+      box.appendChild(p);
+    };
+    line('miss-crit', `Потрібно заповнити (${crit.length}):`, crit);
+    if (soft.length) {
+      const det = document.createElement('details'); det.className = 'miss miss-soft';
+      det.innerHTML = '<summary></summary>'; det.firstChild.textContent = `Бажано заповнити (${soft.length})`;
+      soft.forEach(([label, go]) => { const x = document.createElement('button'); x.type = 'button'; x.className = 'miss-chip'; x.textContent = label; x.onclick = go; det.append(' ', x); });
+      det.open = missOpen; det.addEventListener('toggle', () => { missOpen = det.open; });
+      box.appendChild(det);
+    }
+    if (!crit.length && !soft.length) { const p = document.createElement('p'); p.className = 'miss miss-ok'; p.textContent = 'Усе заповнено.'; box.appendChild(p); }
+  }
+  let missOpen = false;
+
   // Після зміни з «Зведення» — оновити шапку, списки вгорі й обидва подання
   function syncAll() {
     const c = current;
@@ -451,7 +493,7 @@ window.Cabinet = (() => {
       const filled = f.text !== undefined ? !!f.text : isFilled(f);
       const state = filled ? '' : level === 'crit' ? 'is-crit' : 'is-empty';
       if (!filled) { empty++; if (level === 'crit') crit++; }
-      const d = document.createElement('div'); d.className = 'sum-cell' + (state ? ' ' + state : '') + (f.wide ? ' sum-wide' : '');
+      const d = document.createElement('div'); d.className = 'sum-cell' + (state ? ' ' + state : '') + (f.wide ? ' sum-wide' : '') + (f.id === 'p-death_date' ? ' is-death' : '');
       d.innerHTML = '<span class="sum-l"></span><span class="sum-v"></span>';
       d.firstChild.textContent = f.label; d.lastChild.textContent = f.text !== undefined ? (f.text || '—') : showVal(f);
       if (f.readonly) { d.classList.add('is-ro'); grid.appendChild(d); return d; }

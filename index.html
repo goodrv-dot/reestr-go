@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Unbounded:wght@600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=202610060900">
+  <link rel="stylesheet" href="style.css?v=202610061009">
 </head>
 <body>
 
@@ -328,7 +328,8 @@
               <button type="button" class="qchip cab-mod cab-mod-200" data-m="200" aria-pressed="true">200</button>
               <button type="button" class="qchip cab-mod cab-mod-300" data-m="300" aria-pressed="false">300</button>
             </div>
-            <button id="cab-settings-btn" class="btn-secondary btn-small" type="button" hidden>Налаштування етапів</button>
+            <button id="cab-new-btn" class="btn-primary btn-small" type="button">+ Нова справа</button>
+            <button id="cab-settings-btn" class="btn-secondary btn-small" type="button" hidden>Налаштування полів</button>
           </div>
         </div>
         <div class="cab-filters">
@@ -346,7 +347,7 @@
         <p id="cab-status-line" class="muted" role="status"></p>
         <div class="table-wrap">
           <table id="cab-table" class="cab-table">
-            <thead><tr><th>ID</th><th>Загиблий / поранений</th><th>Родина</th><th>Осередок</th><th>Статус</th><th>Виконавець</th><th>Наступна дія</th><th>Етапи</th></tr></thead>
+            <thead><tr><th>ID</th><th>Загиблий / поранений</th><th>Контактна особа</th><th>Осередок</th><th>Статус</th><th>Виконавець</th><th>Наступна дія</th><th>Заповнено</th></tr></thead>
             <tbody></tbody>
           </table>
         </div>
@@ -358,9 +359,12 @@
         <button id="cab-back" type="button" class="btn-link back">Назад до справ</button>
         <h1 id="case-title"></h1>
         <p id="case-sub" class="muted"></p>
+        <p id="case-contact" class="case-contact"></p>
         <div class="case-head">
           <div class="field"><label for="case-status">Статус</label><select id="case-status"></select></div>
-          <div class="field"><label for="case-exec">Виконавець</label><select id="case-exec"></select></div>
+          <div class="field"><label for="case-exec">Виконавець (веде справу)</label><select id="case-exec"></select></div>
+          <div class="field"><span class="field-label">Допомагають</span><details id="case-helpers" class="case-helpers"></details></div>
+          <div class="field"><label for="case-resp">Відповідальний (по осередку)</label><select id="case-resp"></select></div>
           <div class="field"><label for="case-cell">Осередок</label><select id="case-cell"></select></div>
           <div class="case-head-btns">
             <button id="case-take" type="button" class="btn-secondary btn-small">Взяти собі</button>
@@ -368,24 +372,14 @@
             <button id="case-open-person" type="button" class="btn-secondary btn-small">Картка в реєстрі</button>
           </div>
         </div>
+        <p id="case-legacy" class="muted case-note"></p>
         <div class="case-grid">
-          <div>
-          <section id="case-info-card" class="case-card">
-            <h2>Дані з журналу</h2>
-            <p class="muted case-note">Лише перегляд. Змінити можна в картці реєстру (кнопка «Картка в реєстрі»).</p>
-            <dl id="case-info" class="case-info"></dl>
-          </section>
           <section class="case-card">
-            <h2>Етапи супроводу</h2>
-            <p class="muted case-note">Зміни зберігаються одразу. Зелене — виконано, жовте — наближається термін, червоне — прострочено.</p>
-            <div id="case-stages" class="case-stages"></div>
+            <div id="case-tabs" class="qchips case-tabs" role="group" aria-label="Розділи справи"></div>
+            <p class="muted case-note">Зміни зберігаються одразу й потрапляють у картку реєстру. Зелене — заповнено, жовте — наближається термін, червоне — прострочено.</p>
+            <div id="case-stages"></div>
           </section>
-          </div>
           <aside>
-            <section class="case-card">
-              <h2>Родина</h2>
-              <ul id="case-family" class="case-family"></ul>
-            </section>
             <section class="case-card">
               <h2>Історія змін</h2>
               <ul id="case-history" class="case-history"></ul>
@@ -658,8 +652,12 @@
           <li><b>Кабінет</b> — робота зі справами: одна справа = один загиблий (200) або поранений (300) разом із родиною. Перемикач <b>200 | 300</b> угорі.</li>
           <li>У списку: ID справи (той самий, що в журналі), родина й телефон, осередок, статус, виконавець, <b>наступна дія</b> (напр. «Другий дзвінок — до 12.10»; червоним — прострочено) і прогрес етапів.</li>
           <li>Швидкі фільтри: <b>Мої</b> (де я виконавець), <b>Прострочені</b>, <b>Проблема</b>; а також пошук, статус, виконавець, осередок.</li>
-          <li>У справі: статус, виконавець (кнопка «Взяти собі»), етапи супроводу — зміни зберігаються одразу; зелене — виконано, жовте — наближається термін, червоне — прострочено. Праворуч — родина з телефонами (натисніть номер, щоб подзвонити з телефона) та <b>історія змін</b>.</li>
-          <li>Адміністратор у «Налаштування етапів» змінює назви й порядок етапів, варіанти списків і правила нагадувань (напр. «Другий дзвінок» = «Перший дзвінок» + 7 днів), додає нові етапи.</li>
+          <li><b>Справа — основне робоче місце.</b> Усі поля можна заповнювати й виправляти прямо тут; зміни зберігаються одразу й самі потрапляють у картку реєстру. Угорі — <b>контактна особа</b> з телефоном (з ким тримати зв’язок).</li>
+          <li>Поля зібрані в <b>розділи</b> (Особа, Сповіщення, Родина, Поховання, Супровід…). На кнопці розділу видно, скільки заповнено («4/7»); червона кнопка — у розділі є прострочене. Порожні поля згорнуті під «Незаповнені поля».</li>
+          <li><b>Родина:</b> рідні рядками — спорідненість, телефон, адреса правляться на місці; «+ Додати родича» створює його картку в реєстрі. Позначка «контактна особа» визначає, кого показувати вгорі справи.</li>
+          <li><b>Виконавець</b> — хто веде й заповнює справу (кнопка «Взяти собі»). <b>Допомагають</b> — співробітники, які залучені, але не ведуть. <b>Відповідальний (по осередку)</b> — людина від осередку.</li>
+          <li><b>+ Нова справа</b> — завести загиблого чи пораненого прямо в кабінеті, без таблиці: досить прізвища та імені.</li>
+          <li>Адміністратор у «Налаштування полів» змінює назви, розділ і порядок полів, варіанти списків і правила нагадувань (напр. «Другий дзвінок» = «Перший дзвінок» + 7 днів), додає нові поля.</li>
           <li>Після імпорту журналів «200» / «300» нові справи з’являються в кабінеті автоматично. «Журнал 200 / 300» вивантажує вже дані кабінету.</li>
           <li><b>🔗 Посилання</b> у справі та в картці особи копіює пряме посилання. Його можна надіслати колезі або вставити в задачу (ERP, месенджер): після входу відкриється саме ця справа чи картка. Права доступу зберігаються — без доступу справа не відкриється. Щоб передати справу в роботу, призначте виконавця: вона з’явиться в нього у «Мої».</li>
         </ul>
@@ -954,12 +952,27 @@
 
 
   <!-- Налаштування етапів -->
+  <dialog id="cab-new" class="dialog" aria-labelledby="cab-new-title">
+    <h2 id="cab-new-title">Нова справа</h2>
+    <p class="muted">Достатньо прізвища та імені — решту заповните у справі. Картка в реєстрі створиться автоматично.</p>
+    <form id="cab-new-form" novalidate>
+      <div class="field"><label for="cab-new-ln">Прізвище</label><input id="cab-new-ln" name="ln" maxlength="80"></div>
+      <div class="field"><label for="cab-new-fn">Ім’я</label><input id="cab-new-fn" name="fn" maxlength="80"></div>
+      <div class="field"><label for="cab-new-pn">По батькові</label><input id="cab-new-pn" name="pn" maxlength="80"></div>
+      <div class="field"><label for="cab-new-cell">Осередок</label><select id="cab-new-cell" name="cell"></select></div>
+      <div class="form-actions">
+        <button class="btn-primary" type="submit">Створити справу</button>
+        <button id="cab-new-cancel" class="btn-secondary" type="button">Скасувати</button>
+      </div>
+    </form>
+  </dialog>
+
   <dialog id="cab-settings" class="dialog dialog-wide" aria-labelledby="cab-set-title">
-    <h2 id="cab-set-title">Етапи</h2>
+    <h2 id="cab-set-title">Поля справи</h2>
     <p class="muted">Змінюйте назви, тип, варіанти списку й правила нагадувань. Новий етап — в останньому рядку. Вимкнений етап зникає з кабінету, але його дані зберігаються.</p>
     <div class="table-wrap">
       <table id="cab-set-table" class="imp-table">
-        <thead><tr><th>Назва</th><th>Тип</th><th>Варіанти</th><th>Нагадати після</th><th>Днів</th><th>Порядок</th><th>Активний</th><th></th></tr></thead>
+        <thead><tr><th>Назва</th><th>Розділ</th><th>Тип</th><th>Варіанти</th><th>Нагадати після</th><th>Днів</th><th>Порядок</th><th>Активний</th><th></th></tr></thead>
         <tbody></tbody>
       </table>
     </div>
@@ -972,25 +985,25 @@
   <p id="loading" class="loading">Завантаження…</p>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="config.js?v=202610060900"></script>
+  <script src="config.js?v=202610061009"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="options.js?v=202610060900"></script>
-  <script src="ui.js?v=202610060900"></script>
-  <script src="validation.js?v=202610060900"></script>
-  <script src="filters.js?v=202610060900"></script>
-  <script src="segments.js?v=202610060900"></script>
-  <script src="picker.js?v=202610060900"></script>
-  <script src="merge.js?v=202610060900"></script>
-  <script src="persons.js?v=202610060900"></script>
-  <script src="export.js?v=202610060900"></script>
-  <script src="import.js?v=202610060900"></script>
-  <script src="mfa.js?v=202610060900"></script>
-  <script src="staff.js?v=202610060900"></script>
-  <script src="ua-map.js?v=202610060900"></script>
-  <script src="dashboard.js?v=202610060900"></script>
-  <script src="journal.js?v=202610060900"></script>
-  <script src="cabinet.js?v=202610060900"></script>
-  <script src="nav.js?v=202610060900"></script>
-  <script src="app.js?v=202610060900"></script>
+  <script src="options.js?v=202610061009"></script>
+  <script src="ui.js?v=202610061009"></script>
+  <script src="validation.js?v=202610061009"></script>
+  <script src="filters.js?v=202610061009"></script>
+  <script src="segments.js?v=202610061009"></script>
+  <script src="picker.js?v=202610061009"></script>
+  <script src="merge.js?v=202610061009"></script>
+  <script src="persons.js?v=202610061009"></script>
+  <script src="export.js?v=202610061009"></script>
+  <script src="import.js?v=202610061009"></script>
+  <script src="mfa.js?v=202610061009"></script>
+  <script src="staff.js?v=202610061009"></script>
+  <script src="ua-map.js?v=202610061009"></script>
+  <script src="dashboard.js?v=202610061009"></script>
+  <script src="journal.js?v=202610061009"></script>
+  <script src="cabinet.js?v=202610061009"></script>
+  <script src="nav.js?v=202610061009"></script>
+  <script src="app.js?v=202610061009"></script>
 </body>
 </html>

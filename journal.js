@@ -29,7 +29,8 @@ window.Journal = (() => {
     'Форма 001/о': 'Форма 001/о'
   };
   const phone = (p) => (p && p.startsWith('+380') ? '0' + p.slice(4) : p || '');
-  const dt = (iso) => (iso ? new Date(iso + 'T00:00:00') : null);
+  // Excel зберігає дати в UTC: беремо північ UTC, інакше дата зсувається на день назад
+  const dt = (iso) => (iso ? new Date(String(iso).slice(0, 10) + 'T00:00:00Z') : null);
 
   async function exportJournal(kind) {
     const btn = $(`journal-${kind}`);
@@ -61,7 +62,7 @@ window.Journal = (() => {
       const kin = new Map();
       for (let i = 0; i < ids.length; i += 150) {
         const { data, error } = await db.from('military_relations')
-          .select('related_person_id, relation_degree, created_at, person:persons!military_relations_person_id_fkey(last_name, first_name, patronymic, phone, extra_phones, region_id, settlement)')
+          .select('related_person_id, relation_degree, created_at, person:persons!military_relations_person_id_fkey(id, last_name, first_name, patronymic, phone, extra_phones, region_id, settlement)')
           .in('related_person_id', ids.slice(i, i + 150)).order('created_at');
         if (error) throw error;
         data.forEach((r) => { if (r.person) kin.set(r.related_person_id, [...(kin.get(r.related_person_id) || []), r]); });
@@ -75,7 +76,7 @@ window.Journal = (() => {
       const colOfKey = new Map((defsRes.data || []).map((d) => [d.key, d.sheet_column || d.label]));
       const opName = new Map((opsRes.data || []).map((o) => [o.user_id, o.full_name]));
       for (let i = 0; i < ids.length; i += 150) {
-        const { data } = await db.from('cases').select('person_id, journal_id, status, executor_id, case_values(stage_key, value)')
+        const { data } = await db.from('cases').select('person_id, journal_id, status, executor_id, helper_ids, responsible_id, contact_person_id, cell_id, case_values(stage_key, value)')
           .eq('module', kind).in('person_id', ids.slice(i, i + 150));
         (data || []).forEach((c) => caseOf.set(c.person_id, c));
       }
@@ -101,6 +102,13 @@ window.Journal = (() => {
       ws.dataValidations.model = {};
       Object.entries(byCol).forEach(([col, rule]) => ws.dataValidations.add(`${col}2:${col}1000`, rule));
       const hdr = ws.getRow(1).values;                       // [ , 'ID', 'Статус', …]
+      // нові поля кабінету, яких немає в шаблоні, — додаємо колонками в кінці
+      ['Допомагають', 'Контактна особа'].forEach((name) => {
+        if (hdr.some((h) => String(h || '').trim() === name)) return;
+        const c = hdr.length; const src = ws.getCell(1, c - 1); const cell = ws.getCell(1, c);
+        cell.value = name; cell.style = { ...src.style }; ws.getColumn(c).width = 26; hdr[c] = name;
+      });
+      const rowsOut = [];                                    // [{cell, vals: Map(col → value)}] — для вкладок по осередках
       const colOf = (name) => hdr.findIndex((h) => String(h || '').trim() === name);
       // прибираємо рядок-приклад (значення й жовте оформлення)
       ws.getRow(2).eachCell({ includeEmpty: true }, (c) => { c.value = null; c.fill = { type: 'pattern', pattern: 'none' }; c.font = { name: 'Arial' }; });
@@ -109,9 +117,15 @@ window.Journal = (() => {
 
       persons.forEach((p, idx) => {
         const r = idx + 2;
-        const set = (name, v) => { const c = colOf(name); if (c > 0 && v !== null && v !== undefined && v !== '') ws.getCell(r, c).value = v; };
-        const rel = kin.get(p.id) || [];
+        const vals = new Map();
+        const put = (c, v) => { ws.getCell(r, c).value = v; vals.set(c, v); };
+        const set = (name, v) => { const c = colOf(name); if (c > 0 && v !== null && v !== undefined && v !== '') put(c, v); };
         const cs = caseOf.get(p.id);
+        let rel = kin.get(p.id) || [];
+        // контактна особа — першою (у журналі це «Отримувач» / «Родич 1»)
+        const contact = cs && cs.contact_person_id ? rel.find((x) => x.person.id === cs.contact_person_id) : null;
+        if (contact) rel = [contact, ...rel.filter((x) => x !== contact)];
+        rowsOut.push({ cell: cells.get((cs && cs.cell_id) || p.cell_id) || 'Без осередку', vals });
         set('ID', cs ? cs.journal_id : `${kind}-${String(idx + 1).padStart(4, '0')}`);
         // колонки з журналу-джерела (звання, посада, етапи супроводу…) — один до одного за назвою
         const jd = (p.journal && p.journal[kind]) || {};
@@ -121,26 +135,30 @@ window.Journal = (() => {
           const v = jn.get(normH(h)) ?? jn.get(normH(ALIASES[String(h).trim()] || ''));
           if (v === undefined || v === null || v === '') return;
           const isDate = /^\d{4}-\d{2}-\d{2}$/.test(String(v));
-          ws.getCell(r, c).value = isDate ? dt(v) : v;
+          put(c, isDate ? dt(v) : v);
         });
         // дані кабінету
         if (cs) {
           set(kind === '200' ? 'Статус' : 'Стан', cs.status);
           if (cs.executor_id) set(kind === '200' ? 'Виконавець' : 'Відповідальний', opName.get(cs.executor_id));
+          if (cs.responsible_id) set('Відповідальний (по осередкам)', opName.get(cs.responsible_id));
+          set('Допомагають', (cs.helper_ids || []).map((u) => opName.get(u)).filter(Boolean).join(', '));
+          const k0 = rel[0];
+          if (k0) set('Контактна особа', `${fio(k0.person)} (${k0.relation_degree})` + (k0.person.phone ? ', ' + phone(k0.person.phone) : ''));
           (cs.case_values || []).forEach((v) => {
             const col = colOfKey.get(v.stage_key);
             if (!col || !v.value || v.stage_key === 'executor_legacy') return;
             set(col, /^\d{4}-\d{2}-\d{2}$/.test(v.value) ? dt(v.value) : v.value);
           });
         }
-        set('Осередок ГО', cells.get(p.cell_id));
+        set('Осередок ГО', cells.get((cs && cs.cell_id) || p.cell_id));
         set('Примітки', p.comment);
         if (kind === '200') {
           set('Загиблий — Прізвище', p.last_name); set('Загиблий — Ім’я', p.first_name); set('Загиблий — По батькові', p.patronymic);
           set('Позивний', p.callsign); set('Дата народження', dt(p.birth_date)); set('Дата загибелі', dt(p.death_date));
           set('Військова частина', p.military_unit_code); set('Бригада', p.mp_unit_id ? units.get(p.mp_unit_id) : p.mp_unit_other);
           set('Дата поховання', dt(p.burial_date)); set('Місце поховання', p.burial_place);
-          if (!rel.length) set('Статус', 'Родину не встановлено');
+          if (!rel.length && !cs) set('Статус', 'Родину не встановлено');   // статус справи з кабінету не перезаписуємо
           const [rec, k2, k3] = rel;
           if (rec) {
             const k = rec.person;
@@ -158,13 +176,36 @@ window.Journal = (() => {
           set('Дата народження', dt(p.birth_date)); set('Телефон', phone(p.phone)); set('Дод. телефон', phone((p.extra_phones || [])[0]));
           set('Бригада', p.mp_unit_id ? units.get(p.mp_unit_id) : p.mp_unit_other); set('В/ч', p.military_unit_code);
           set('Дата поранення', dt(p.wound_date));
-          set('УБД', (vets.get(p.id) || []).includes('Учасник бойових дій') ? 'Так' : '');
+          if (!vals.has(colOf('УБД'))) set('УБД', (vets.get(p.id) || []).includes('Учасник бойових дій') ? 'Так' : '');
           if (['Загиблий', 'Померлий ветеран'].includes(p.military_status)) { set('Стан', 'Помер'); set('Дата смерті', dt(p.death_date)); }
           rel.slice(0, 3).forEach((x, i) => {
             set(`Родич ${i + 1} — Ступінь`, x.relation_degree); set(`Родич ${i + 1} — ПІБ`, fio(x.person)); set(`Родич ${i + 1} — Телефон`, phone(x.person.phone));
           });
           if (rel.length > 3) set('Проблематика', `Ще родичів у реєстрі: ${rel.length - 3}`);
         }
+      });
+
+      // вкладки по осередках: ті самі рядки, шапка й ширина колонок як у журналі (списки — лише на головній вкладці)
+      const lastCol = hdr.length - 1;
+      const groups = new Map();
+      rowsOut.forEach((ro) => groups.set(ro.cell, [...(groups.get(ro.cell) || []), ro]));
+      const used = new Set(wb.worksheets.map((w) => w.name.toLowerCase()));
+      [...groups].sort((a, b) => (a[0] === 'Без осередку') - (b[0] === 'Без осередку') || a[0].localeCompare(b[0], 'uk')).forEach(([name, list]) => {
+        let title = name.replace(/[\\/?*\[\]:]/g, ' ').slice(0, 28) || 'Осередок';
+        for (let i = 2; used.has(title.toLowerCase()); i++) title = `${title.slice(0, 26)} ${i}`;
+        used.add(title.toLowerCase());
+        const sh = wb.addWorksheet(title, { views: [{ state: 'frozen', xSplit: 0, ySplit: 1 }] });
+        for (let c = 1; c <= lastCol; c++) {
+          const src = ws.getCell(1, c), dst = sh.getCell(1, c);
+          dst.value = src.value; dst.style = { ...src.style }; sh.getColumn(c).width = ws.getColumn(c).width || 16;
+        }
+        sh.getRow(1).height = ws.getRow(1).height;
+        list.forEach((ro, i) => ro.vals.forEach((v, c) => {
+          const cell = sh.getCell(i + 2, c); cell.value = v; cell.font = { name: 'Arial', size: 10 };
+          if (v instanceof Date) cell.numFmt = 'dd.mm.yyyy';
+          cell.alignment = { vertical: 'top', wrapText: true };
+        }));
+        sh.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: lastCol } };
       });
 
       const out = await wb.xlsx.writeBuffer();
@@ -174,7 +215,7 @@ window.Journal = (() => {
       a.download = `Zhurnal_${kind}_${new Date().toISOString().slice(0, 10)}.xlsx`;
       a.click();
       URL.revokeObjectURL(a.href);
-      Persons.toast(`Журнал ${kind}: ${persons.length} рядків`);
+      Persons.toast(`Журнал ${kind}: ${persons.length} рядків, вкладок по осередках: ${groups.size}`);
     } catch (e) {
       console.error(e);
       Persons.toast('Не вдалося сформувати журнал: ' + (e.message || 'помилка'));

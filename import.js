@@ -470,7 +470,14 @@ window.Importer = (() => {
       if (c.cell >= 0) p.cell_id = matchCell(g('cell'), ctx.cells, rec);
       p.wounded = 'Так';
       p.wound_date = toDate(g('wd'));
-      if (!p.wound_date) rec.warnings.push('Не вказано дату поранення');
+      const wdRaw = clean(g('wd'));
+      if (!p.wound_date && wdRaw) { addComment(rec, `Дата поранення (з журналу): ${wdRaw}`); rec.warnings.push(`Дату поранення «${wdRaw}» не розпізнано — записано в примітки`); }
+      else if (!p.wound_date) rec.warnings.push('Не вказано дату поранення');
+      const ubdRaw = clean(g('ubd'));
+      if (ubdRaw) {
+        const ubd = /^(так|є|\+|убд)/i.test(ubdRaw) ? 'Так' : /^(ні|немає|нема|-)/i.test(ubdRaw) ? 'Ні' : /оформ|збира|подан|процес/i.test(ubdRaw) ? 'Оформлюється' : ubdRaw;
+        p.journal = { ...(p.journal || {}), '300': { ...((p.journal || {})['300'] || {}), 'УБД': ubd } };
+      }
       p.mp_relation = 'Так';
       p.mp_relation_type = 'Діючий військовослужбовець МП';
       p.military_status = 'Діючий військовослужбовець';
@@ -807,7 +814,8 @@ window.Importer = (() => {
           data[name] = isDate ? (toDate(v) || clean(v)) : (typeof v === 'number' ? v : clean(v));
         });
       });
-      if (Object.keys(data).length) rec.person.journal = { [key]: data };
+      const prev = (rec.person.journal || {})[key] || {};   // значення, які вже поклав розбір (напр. УБД)
+      if (Object.keys(data).length || Object.keys(prev).length) rec.person.journal = { ...(rec.person.journal || {}), [key]: { ...data, ...prev } };
     });
   }
 
@@ -853,7 +861,7 @@ window.Importer = (() => {
           .select('related_full_name, related_birth_date, related_death_date, related_burial_date, related_burial_place, related_callsign, related_unit_id, related_unit_other, related_unit_code')
           .eq('related_status', 'Загиблий').ilike('related_full_name', `${p.last_name}%`).limit(20),
         db.from('persons')
-          .select('id, phone, extra_phones, name_check, is_extra, last_name, first_name, patronymic, email, region_id, settlement, cell_id, birth_date, death_date, burial_date, consent_pd_at, consent_messages, children(birth_date, full_name), military_relations!military_relations_person_id_fkey(id, related_full_name), person_programs(program_id, role)')
+          .select('id, phone, extra_phones, name_check, is_extra, last_name, first_name, patronymic, email, region_id, settlement, cell_id, birth_date, wound_date, death_date, burial_date, consent_pd_at, consent_messages, children(birth_date, full_name), military_relations!military_relations_person_id_fkey(id, related_full_name), person_programs(program_id, role)')
           .eq('military_status', 'Загиблий').ilike('last_name', `${p.last_name.slice(0, 4)}%`).limit(20)
       ]);
       const same = (n, bd) => letters(n) === letters(fullName) && (!bd || !p.birth_date || bd === p.birth_date);
@@ -1187,7 +1195,7 @@ window.Importer = (() => {
   async function addToExisting(db, r) {
     const ex = r.existing;
     const patch = {};
-    ['email', 'region_id', 'settlement', 'cell_id', 'birth_date', 'consent_pd_at'].forEach((k) => { if (!ex[k] && r.person[k]) patch[k] = r.person[k]; });
+    ['email', 'region_id', 'settlement', 'cell_id', 'birth_date', 'consent_pd_at', 'wound_date'].forEach((k) => { if (!ex[k] && r.person[k]) patch[k] = r.person[k]; });
     if (r.fixName) {
       Object.assign(patch, { last_name: r.person.last_name, first_name: r.person.first_name,
         patronymic: r.person.patronymic || null, name_check: false, name_check_note: null });

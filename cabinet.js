@@ -257,7 +257,7 @@ window.Cabinet = (() => {
     cSel.onchange = () => saveCase({ cell_id: cSel.value ? Number(cSel.value) : null });
     $('case-take').onclick = () => { eSel.value = me; saveCase({ executor_id: me }); };
     renderHelpers();
-    const legacy = [c.vals.executor_legacy && `виконавець — ${c.vals.executor_legacy}`, c.vals.responsible && `відповідальний — ${c.vals.responsible}`].filter(Boolean);
+    const legacy = [c.vals.executor_legacy && `${module === '300' ? 'відповідальний' : 'виконавець'} — ${c.vals.executor_legacy}`, c.vals.responsible && `відповідальний — ${c.vals.responsible}`].filter(Boolean);
     $('case-legacy').textContent = legacy.length ? `Як було в журналі: ${legacy.join('; ')}` : '';
     renderHead();
     renderStages();

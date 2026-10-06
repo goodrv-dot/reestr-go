@@ -383,7 +383,7 @@ window.Cabinet = (() => {
     const tabs = $('case-tabs'); tabs.innerHTML = '';
     const chip = (k, label, count, crit) => {
       const b = document.createElement('button');
-      b.type = 'button'; b.className = 'qchip case-tab' + (crit ? ' qchip-crit' : ''); b.setAttribute('aria-pressed', String(k === tab));
+      b.type = 'button'; b.className = 'qchip case-tab sec-' + k + (crit ? ' qchip-crit' : ''); b.setAttribute('aria-pressed', String(k === tab));
       b.innerHTML = '<span></span> <b></b>'; b.firstChild.textContent = label; b.lastChild.textContent = count;
       b.onclick = () => { tab = k; renderStages(); };
       tabs.appendChild(b);
@@ -396,7 +396,7 @@ window.Cabinet = (() => {
     });
     const box = $('case-stages'); box.innerHTML = '';
     secs.filter(([k]) => tab === 'all' || k === tab).forEach(([k, label]) => {
-      if (tab === 'all') { const h = document.createElement('h3'); h.className = 'case-sec-title'; h.textContent = label; box.appendChild(h); }
+      if (tab === 'all') { const h = document.createElement('h3'); h.className = 'case-sec-title sec-' + k; h.textContent = label; box.appendChild(h); }
       if (k === 'family') box.appendChild(familyEl());
       const fs = sectionFields(k);
       const shown = fs.filter((f) => isFilled(f) || f.hint), hidden = fs.filter((f) => !isFilled(f) && !f.hint);
@@ -426,44 +426,89 @@ window.Cabinet = (() => {
     if (f.kind === 'phone') return V.formatPhone(f.value) || String(f.value);
     return String(f.value);
   }
+  // Після зміни з «Зведення» — оновити шапку, списки вгорі й обидва подання
+  function syncAll() {
+    const c = current;
+    $('case-status').value = c.status || ''; $('case-exec').value = c.executor_id || '';
+    $('case-resp').value = c.responsible_id || ''; $('case-cell').value = c.cell_id || '';
+    renderHelpers(); renderHead(); renderStages();
+  }
   function renderSummary(secs) {
     const c = current; const box = $('case-summary'); box.innerHTML = '';
     let empty = 0, crit = 0;
-    const cell = (label, text, state, onClick) => {
-      const d = document.createElement('div'); d.className = 'sum-cell' + (state ? ' ' + state : '');
+    const group = (title, key) => { const g = document.createElement('div'); g.className = 'sum-group sec-' + key; g.innerHTML = '<h3></h3><div class="sum-grid"></div>'; g.firstChild.textContent = title; box.appendChild(g); return g.lastChild; };
+    // Клітинка: f = {id,label,kind,options,value,onSave}; state: '' | soft | crit (коли порожня); custom — власний редактор
+    const add = (grid, f, level, custom) => {
+      const filled = f.text !== undefined ? !!f.text : isFilled(f);
+      const state = filled ? '' : level === 'crit' ? 'is-crit' : 'is-empty';
+      if (!filled) { empty++; if (level === 'crit') crit++; }
+      const d = document.createElement('div'); d.className = 'sum-cell' + (state ? ' ' + state : '') + (f.wide ? ' sum-wide' : '');
       d.innerHTML = '<span class="sum-l"></span><span class="sum-v"></span>';
-      d.firstChild.textContent = label; d.lastChild.textContent = text;
-      if (onClick) { d.tabIndex = 0; d.title = 'Натисніть, щоб змінити'; d.onclick = () => onClick(d); d.onkeydown = (e) => { if (e.key === 'Enter' && e.target === d) onClick(d); }; }
-      return d;
+      d.firstChild.textContent = f.label; d.lastChild.textContent = f.text !== undefined ? (f.text || '—') : showVal(f);
+      if (f.readonly) { d.classList.add('is-ro'); grid.appendChild(d); return d; }
+      const open = () => {
+        if (d.classList.contains('is-edit')) return;
+        if (custom) { custom(d); return; }
+        d.classList.add('is-edit'); d.lastChild.remove();
+        const ed = fieldEl({ ...f, id: 'sum-' + f.id, hint: null }); ed.className = 'sum-edit';
+        d.appendChild(ed);
+        const inp = ed.querySelector('input, select, textarea'); inp.focus();
+        inp.addEventListener('blur', () => setTimeout(() => { if (current === c && !inp.classList.contains('is-bad') && document.activeElement !== inp) renderSummary(secs); }, 250));
+      };
+      d.tabIndex = 0; d.title = 'Натисніть, щоб змінити'; d.onclick = open;
+      d.onkeydown = (e) => { if (e.key === 'Enter' && e.target === d) open(); };
+      grid.appendChild(d); return d;
     };
-    const group = (title) => { const g = document.createElement('div'); g.className = 'sum-group'; g.innerHTML = '<h3></h3><div class="sum-grid"></div>'; g.firstChild.textContent = title; box.appendChild(g); return g.lastChild; };
-    const toTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
-    // шапка
     const k = contactOf(c); const cells = Persons.ctx().cells;
-    const head = group('Справа');
-    [['Статус', c.status], ['Виконавець', staff.get(c.executor_id)], ['Допомагають', (c.helper_ids || []).map((u) => staff.get(u)).filter(Boolean).join(', '), true],
-      ['Відповідальний (по осередку)', staff.get(c.responsible_id), true], ['Осередок', cells.get(c.cell_id)],
-      ['Контактна особа', k ? `${fio(k.person)} (${k.relation_degree})` : ''], ['Телефон контактної особи', k && k.person.phone ? V.formatPhone(k.person.phone) : '']
-    ].forEach(([l, v, soft]) => { const st = v ? '' : soft ? 'is-empty' : 'is-crit'; if (!v) { empty++; if (!soft) crit++; } head.appendChild(cell(l, v || '—', st, toTop)); });
-    // розділи
-    secs.filter(([key]) => key !== 'family').forEach(([key, label]) => {
-      const grid = group(label);
-      sectionFields(key).forEach((f) => {
-        const filled = isFilled(f); const isCrit = !filled && (CRIT.has(f.id) || f.state === 'is-overdue');
-        if (!filled) { empty++; if (isCrit) crit++; }
-        grid.appendChild(cell(f.label, showVal(f), filled ? '' : isCrit ? 'is-crit' : 'is-empty', (d) => {
-          if (d.classList.contains('is-edit')) return;
-          d.classList.add('is-edit'); d.lastChild.remove();
-          const ed = fieldEl({ ...f, id: 'sum-' + f.id, hint: null }); ed.className = 'sum-edit';
-          d.appendChild(ed);
-          const inp = ed.querySelector('input, select, textarea'); inp.focus();
-          inp.addEventListener('blur', () => setTimeout(() => { if (current === c && !inp.classList.contains('is-bad') && document.activeElement !== inp) renderSummary(secs); }, 250));
-        }));
+    const save = (patch) => async () => { await saveCase(patch()); syncAll(); };
+    // ---- Справа
+    const head = group('Справа', 'head');
+    add(head, { id: 'h-status', label: 'Статус', kind: 'list', options: statuses.map((x) => x.name), value: c.status, onSave: (v) => { if (v) saveCase({ status: v }).then(syncAll); } }, 'crit');
+    add(head, { id: 'h-exec', label: 'Виконавець', kind: 'map', options: staff, value: c.executor_id, onSave: (v) => saveCase({ executor_id: v || null }).then(syncAll) }, 'crit');
+    add(head, { id: 'h-help', label: 'Допомагають', text: (c.helper_ids || []).map((u) => staff.get(u)).filter(Boolean).join(', ') }, 'soft', (d) => {
+      d.classList.add('is-edit'); d.lastChild.remove();
+      const w = document.createElement('div'); w.className = 'sum-checks';
+      [...staff].filter(([uid]) => uid !== c.executor_id).forEach(([uid, n]) => {
+        const l = document.createElement('label'); l.innerHTML = '<input type="checkbox"> <span></span>'; l.lastChild.textContent = n;
+        l.firstChild.checked = (c.helper_ids || []).includes(uid);
+        l.firstChild.onchange = () => { const set = new Set(c.helper_ids || []); l.firstChild.checked ? set.add(uid) : set.delete(uid); saveCase({ helper_ids: [...set] }).then(() => { renderHelpers(); }); };
+        w.appendChild(l);
       });
+      const ok = document.createElement('button'); ok.type = 'button'; ok.className = 'btn-link'; ok.textContent = 'Готово'; ok.onclick = (e) => { e.stopPropagation(); renderSummary(secs); };
+      w.appendChild(ok); d.appendChild(w);
     });
-    $('case-summary-note').textContent = empty
-      ? `Незаповнено: ${empty}` + (crit ? `, з них важливих: ${crit} (червоні)` : '') + '. Натисніть на поле, щоб заповнити чи виправити.'
-      : 'Усе заповнено. Натисніть на поле, щоб виправити.';
+    add(head, { id: 'h-resp', label: 'Відповідальний (по осередку)', kind: 'map', options: staff, value: c.responsible_id, onSave: (v) => saveCase({ responsible_id: v || null }).then(syncAll) }, 'soft');
+    add(head, { id: 'h-cell', label: 'Осередок', kind: 'map', options: cells, value: c.cell_id, readonly: !isAdmin, onSave: (v) => saveCase({ cell_id: v ? Number(v) : null }).then(syncAll) }, 'crit');
+    add(head, { id: 'h-contact', label: 'Контактна особа', kind: 'map', options: new Map(c.kin.map((x) => [x.person.id, `${fio(x.person)} (${x.relation_degree})`])), value: k ? k.person.id : '',
+      readonly: !c.kin.length, onSave: (v) => { if (v) saveCase({ contact_person_id: v }).then(syncAll); } }, 'crit');
+    // ---- розділи
+    secs.forEach(([key, label]) => {
+      const grid = group(label, key);
+      if (key === 'family') {
+        c.kin.forEach((x, i) => {
+          const n = c.kin.length > 1 ? ` ${i + 1}` : '';
+          add(grid, { id: 'k-n' + i, label: 'Родич' + n, text: fio(x.person) }, 'soft', () => openPerson(x.person.id));
+          add(grid, { id: 'k-d' + i, label: 'Спорідненість' + n, kind: 'list', options: OPT.relation_degree, value: x.relation_degree, onSave: async (v) => {
+            if (!v) return; const { error } = await db.from('military_relations').update({ relation_degree: v }).eq('id', x.id);
+            if (error) { console.error(error); Persons.toast('Не вдалося зберегти'); return; } x.relation_degree = v; Persons.toast('Збережено'); syncAll(); } }, 'soft');
+          add(grid, { id: 'k-p' + i, label: 'Телефон' + n, kind: 'phone', value: x.person.phone, onSave: async (v, el) => {
+            const ph = phoneOf(el); if (ph === undefined) return; if (await updPerson(x.person.id, { phone: ph })) { x.person.phone = ph; syncAll(); } } }, x === k ? 'crit' : 'soft');
+          add(grid, { id: 'k-s' + i, label: 'Населений пункт, адреса' + n, kind: 'line', value: x.person.settlement, onSave: async (v) => {
+            if (await updPerson(x.person.id, { settlement: v || null })) { x.person.settlement = v || null; syncAll(); } } }, 'soft');
+        });
+        add(grid, { id: 'k-add', label: 'Рідні', text: c.kin.length ? '+ додати ще родича' : '' }, c.kin.length ? 'soft' : 'crit', () => {
+          tab = 'family'; renderStages(); $('case-tabs').scrollIntoView({ behavior: 'smooth', block: 'start' });
+          const det = document.querySelector('.fam-add'); if (det) { det.open = true; const i = det.querySelector('input'); if (i) i.focus({ preventScroll: true }); }
+        });
+        if (!c.kin.length) grid.lastChild.querySelector('.sum-v').textContent = 'не додано — натисніть, щоб додати';
+      }
+      sectionFields(key).forEach((f) => add(grid, f, CRIT.has(f.id) || f.state === 'is-overdue' ? 'crit' : 'soft'));
+    });
+    // ---- Примітки
+    add(group('Примітки', 'notes'), { id: 'p-comment', label: 'Примітки (з журналу й картки)', kind: 'text', value: c.person.comment, wide: true, onSave: (val, el) => savePerson('comment', val, null, el).then(() => renderStages()) }, 'soft');
+    $('case-summary-note').textContent = (empty
+      ? `Незаповнено: ${empty}` + (crit ? `, з них важливих: ${crit} (червоні)` : '') + '.'
+      : 'Усе заповнено.') + ' Натисніть на будь-яке поле, щоб заповнити чи виправити — зберігається одразу.';
   }
 
   // ---------- Родина у справі ----------

@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Unbounded:wght@600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=202610051358">
+  <link rel="stylesheet" href="style.css?v=202610060745">
 </head>
 <body>
 
@@ -135,7 +135,10 @@
       <!-- КАРТКА ОСОБИ -->
       <section id="form-view" hidden>
         <button id="back-btn" class="btn-link" type="button">Назад до списку</button>
-        <h1 id="form-title">Нова особа</h1>
+        <div class="form-title-row">
+          <h1 id="form-title">Нова особа</h1>
+          <button id="person-link" type="button" class="btn-secondary btn-small" hidden title="Скопіювати посилання на цю картку">🔗 Посилання</button>
+        </div>
         <div id="form-badges" class="mods form-mods"></div>
         <p id="form-meta" class="form-meta muted" hidden></p>
         <section id="quality-box" class="quality" hidden aria-labelledby="quality-title">
@@ -361,6 +364,7 @@
           <div class="field"><label for="case-cell">Осередок</label><select id="case-cell"></select></div>
           <div class="case-head-btns">
             <button id="case-take" type="button" class="btn-secondary btn-small">Взяти собі</button>
+            <button id="case-link" type="button" class="btn-secondary btn-small" title="Скопіювати посилання на цю справу (напр., для задачі оператору)">🔗 Посилання</button>
             <button id="case-open-person" type="button" class="btn-secondary btn-small">Картка в реєстрі</button>
           </div>
         </div>
@@ -650,6 +654,7 @@
           <li>У справі: статус, виконавець (кнопка «Взяти собі»), етапи супроводу — зміни зберігаються одразу; зелене — виконано, жовте — наближається термін, червоне — прострочено. Праворуч — родина з телефонами (натисніть номер, щоб подзвонити з телефона) та <b>історія змін</b>.</li>
           <li>Адміністратор у «Налаштування етапів» змінює назви й порядок етапів, варіанти списків і правила нагадувань (напр. «Другий дзвінок» = «Перший дзвінок» + 7 днів), додає нові етапи.</li>
           <li>Після імпорту журналів «200» / «300» нові справи з’являються в кабінеті автоматично. «Журнал 200 / 300» вивантажує вже дані кабінету.</li>
+          <li><b>🔗 Посилання</b> у справі та в картці особи копіює пряме посилання. Його можна надіслати колезі або вставити в задачу (ERP, месенджер): після входу відкриється саме ця справа чи картка. Права доступу зберігаються — без доступу справа не відкриється. Щоб передати справу в роботу, призначте виконавця: вона з’явиться в нього у «Мої».</li>
         </ul>
       </section>
 
@@ -960,25 +965,25 @@
   <p id="loading" class="loading">Завантаження…</p>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="config.js?v=202610051358"></script>
+  <script src="config.js?v=202610060745"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="options.js?v=202610051358"></script>
-  <script src="ui.js?v=202610051358"></script>
-  <script src="validation.js?v=202610051358"></script>
-  <script src="filters.js?v=202610051358"></script>
-  <script src="segments.js?v=202610051358"></script>
-  <script src="picker.js?v=202610051358"></script>
-  <script src="merge.js?v=202610051358"></script>
-  <script src="persons.js?v=202610051358"></script>
-  <script src="export.js?v=202610051358"></script>
-  <script src="import.js?v=202610051358"></script>
-  <script src="mfa.js?v=202610051358"></script>
-  <script src="staff.js?v=202610051358"></script>
-  <script src="ua-map.js?v=202610051358"></script>
-  <script src="dashboard.js?v=202610051358"></script>
-  <script src="journal.js?v=202610051358"></script>
-  <script src="cabinet.js?v=202610051358"></script>
-  <script src="nav.js?v=202610051358"></script>
-  <script src="app.js?v=202610051358"></script>
+  <script src="options.js?v=202610060745"></script>
+  <script src="ui.js?v=202610060745"></script>
+  <script src="validation.js?v=202610060745"></script>
+  <script src="filters.js?v=202610060745"></script>
+  <script src="segments.js?v=202610060745"></script>
+  <script src="picker.js?v=202610060745"></script>
+  <script src="merge.js?v=202610060745"></script>
+  <script src="persons.js?v=202610060745"></script>
+  <script src="export.js?v=202610060745"></script>
+  <script src="import.js?v=202610060745"></script>
+  <script src="mfa.js?v=202610060745"></script>
+  <script src="staff.js?v=202610060745"></script>
+  <script src="ua-map.js?v=202610060745"></script>
+  <script src="dashboard.js?v=202610060745"></script>
+  <script src="journal.js?v=202610060745"></script>
+  <script src="cabinet.js?v=202610060745"></script>
+  <script src="nav.js?v=202610060745"></script>
+  <script src="app.js?v=202610060745"></script>
 </body>
 </html>

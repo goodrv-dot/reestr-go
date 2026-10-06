@@ -385,6 +385,12 @@ window.Persons = (() => {
     $('person-form').addEventListener('submit', save);
     $('delete-btn').addEventListener('click', removePerson);
     $('kin-add').addEventListener('click', addRelative);
+    $('person-link').addEventListener('click', async () => {
+      if (!editingId) return;
+      const url = `${location.origin}${location.pathname}?person=${editingId}`;
+      try { await navigator.clipboard.writeText(url); toast('Посилання на картку скопійовано'); }
+      catch { prompt('Скопіюйте посилання:', url); }
+    });
     $('add-relation-btn').addEventListener('click', () => {
       const row = addRelationRow();
       Ui.paint(row);
@@ -813,6 +819,7 @@ window.Persons = (() => {
     }
 
     $('delete-btn').hidden = !(id && isAdmin);
+    $('person-link').hidden = !id;
     loadKin(id).catch((e) => console.error(e));
     Merge.render(id, isAdmin).catch((e) => console.error(e));
     loadOtherKin(id).catch((e) => console.error(e));

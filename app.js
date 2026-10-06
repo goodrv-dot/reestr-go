@@ -42,6 +42,7 @@ function showApp(operator, userId) {
       Cabinet.init(db, userId, operator.role === 'admin');
       window.__exp = true;
     }
+    openDeepLink();
   }).catch((e) => {
     console.error(e);
     alert('Не вдалося завантажити довідники. Оновіть сторінку.');
@@ -281,3 +282,17 @@ $('pf-mfa-off').addEventListener('click', async () => {
   if (data.session) await enterWithSession(data.session);
   else showLogin();
 })();
+
+// ---------- Посилання на картку / справу: ?person=<id> або ?case=200-0123 ----------
+function openDeepLink() {
+  const prm = new URLSearchParams(location.search);
+  const person = prm.get('person'), caseId = prm.get('case');
+  if (!person && !caseId) return;
+  history.replaceState(history.state, '', location.pathname);   // прибираємо параметр з адреси
+  if (caseId) {
+    document.querySelector('.tab[data-tab="cabinet"]').click();
+    Cabinet.openByJournal(caseId);
+  } else {
+    Persons.openForm(person);
+  }
+}

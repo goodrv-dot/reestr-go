@@ -172,6 +172,7 @@ window.Cabinet = (() => {
     $('case-sub').textContent = `${c.journal_id} · ${module === '200' ? 'загиблий' : 'поранений'}` +
       (p.death_date ? ` · дата смерті ${fmt(p.death_date)}` : '') + (p.burial_date ? ` · поховання ${fmt(p.burial_date)}` : '') +
       (p.wound_date ? ` · поранення ${fmt(p.wound_date)}` : '');
+    $('case-link').onclick = () => copyLink(`?case=${encodeURIComponent(c.journal_id)}`, `Посилання на справу ${c.journal_id} скопійовано`);
     $('case-open-person').onclick = () => { document.querySelector('.tab[data-tab="registry"]').click(); Persons.openForm(p.id); };
 
     // статус / виконавець / осередок
@@ -297,6 +298,12 @@ window.Cabinet = (() => {
     if (!ul.children.length) ul.innerHTML = '<li class="muted">Змін ще не було.</li>';
   }
 
+  async function copyLink(query, okText) {
+    const url = `${location.origin}${location.pathname}${query}`;
+    try { await navigator.clipboard.writeText(url); Persons.toast(okText); }
+    catch { prompt('Скопіюйте посилання:', url); }
+  }
+
   // ---------- Налаштування етапів (адміністратор) ----------
   async function openSettings() {
     const { data } = await db.from('case_stage_defs').select('*').eq('module', module).order('sort');
@@ -342,5 +349,14 @@ window.Cabinet = (() => {
     if (!$('cab-settings').open) $('cab-settings').showModal();
   }
 
-  return { init, load };
+  // Відкрити справу за посиланням ?case=200-0123
+  async function openByJournal(jid) {
+    module = jid.startsWith('300') ? '300' : '200';
+    await load();
+    const c = cases.find((x) => x.journal_id === jid);
+    if (c) openCase(c.id);
+    else Persons.toast(`Справу ${jid} не знайдено або немає доступу`);
+  }
+
+  return { init, load, openByJournal };
 })();

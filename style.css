@@ -828,3 +828,5 @@ tr[data-module="m300"] { --mod-c: #5b3f8c; }
 /* «Виконавець (з журналу)» — помітно, першим у справі */
 .stage.stage-executor_legacy { border-left-color: var(--brass); background: #fbf6ea; }
 .stage.stage-executor_legacy label { font-weight: 700; color: #6d500e; }
+.form-title-row { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.form-title-row h1 { margin-right: auto; }

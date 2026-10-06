@@ -830,3 +830,8 @@ tr[data-module="m300"] { --mod-c: #5b3f8c; }
 .stage.stage-executor_legacy label { font-weight: 700; color: #6d500e; }
 .form-title-row { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
 .form-title-row h1 { margin-right: auto; }
+
+.case-info { display: grid; grid-template-columns: minmax(9rem, max-content) minmax(0, 1fr); gap: 0.3rem 1rem; margin: 0; font-size: 0.93rem; }
+.case-info dt { color: var(--muted); }
+.case-info dd { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+@media (max-width: 560px) { .case-info { grid-template-columns: 1fr; gap: 0; } .case-info dd { margin-bottom: 0.45rem; } }

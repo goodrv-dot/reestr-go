@@ -50,7 +50,7 @@ window.Cabinet = (() => {
     cases = [];
     for (let from = 0; ; from += 1000) {
       const { data, error } = await db.from('cases')
-        .select('*, person:persons(id, last_name, first_name, patronymic, military_status, death_date, burial_date, wounded, wound_date), case_values(stage_key, value)')
+        .select('*, person:persons(id, last_name, first_name, patronymic, military_status, death_date, burial_date, wounded, wound_date, birth_date, callsign, burial_place, military_unit_code, settlement, journal), case_values(stage_key, value)')
         .eq('module', module).order('journal_id').range(from, from + 999);
       if (error) { console.error(error); $('cab-status-line').textContent = 'Не вдалося завантажити справи.'; return; }
       cases.push(...data);
@@ -202,6 +202,27 @@ window.Cabinet = (() => {
     cSel.onchange = () => saveCase({ cell_id: cSel.value ? Number(cSel.value) : null });
     $('case-take').hidden = c.executor_id === me;
     $('case-take').onclick = () => { eSel.value = me; saveCase({ executor_id: me }); };
+
+    // дані з журналу (лише перегляд; змінюються в картці реєстру)
+    const info = $('case-info'); info.innerHTML = '';
+    const addInfo = (k, v) => {
+      if (v === null || v === undefined || String(v).trim() === '') return;
+      const dt = document.createElement('dt'), dd = document.createElement('dd');
+      dt.textContent = k; dd.textContent = /^\d{4}-\d{2}-\d{2}/.test(String(v)) ? fmt(String(v)) : String(v);
+      info.append(dt, dd);
+    };
+    addInfo('Позивний', p.callsign);
+    addInfo('Дата народження', p.birth_date);
+    addInfo('Дата смерті', p.death_date);
+    addInfo('Дата поховання', p.burial_date);
+    addInfo('Місце поховання', p.burial_place);
+    addInfo('Дата поранення', p.wound_date);
+    addInfo('Військова частина', p.military_unit_code);
+    addInfo('Населений пункт', p.settlement);
+    const jd = (p.journal && p.journal[module]) || {};
+    const shown = new Set(['позивний']);
+    Object.keys(jd).forEach((k) => { const n = k.trim().toLowerCase(); if (!shown.has(n)) { shown.add(n); addInfo(k, jd[k]); } });
+    $('case-info-card').hidden = !info.children.length;
 
     // родина
     const fam = $('case-family'); fam.innerHTML = '';

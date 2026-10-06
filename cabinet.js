@@ -13,7 +13,7 @@ window.Cabinet = (() => {
   const fmt = (iso) => (iso ? iso.slice(0, 10).split('-').reverse().join('.') : '');
   const fio = (p) => [p.last_name, p.first_name, p.patronymic].filter(Boolean).join(' ');
   // Кольори статусів: з бази, з уточненнями; текст темний на світлому тлі
-  const STATUS_OVERRIDE = { 'В роботі': '#f2b705' };
+  const STATUS_OVERRIDE = {};   // кольори беруться з налаштувань статусів у базі
   const statusColor = (name, fromDb) => STATUS_OVERRIDE[name] || fromDb || '#8a96a1';
   const inkFor = (hex) => {
     const h = hex.replace('#', ''); const n = parseInt(h.length === 3 ? h.split('').map((x) => x + x).join('') : h, 16);

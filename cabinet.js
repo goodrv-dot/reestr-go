@@ -391,11 +391,61 @@ window.Cabinet = (() => {
         box.appendChild(det);
       }
     });
+    renderSummary(secs);
     // Примітки — завжди на видноті
     const nb = $('case-notes'); nb.innerHTML = '';
     nb.appendChild(fieldEl({ id: 'p-comment', label: 'Примітки (з журналу й картки)', kind: 'text', value: c.person.comment, onSave: (val, el) => savePerson('comment', val, null, el) }));
   }
   const emptyOpen = new Set();
+
+  // ---------- Зведення справи: усі поля дрібно, порожні підсвічені, правка на місці ----------
+  const CRIT = new Set(['p-last_name', 'p-first_name', 'p-birth_date', 'p-death_date', 'p-wound_date', 'p-military_unit_code', 'p-mp_unit_id', 's-notice_date', 's-rank', 's-appeal_date']);
+  function showVal(f) {
+    if (!isFilled(f)) return '—';
+    if (f.kind === 'date') return fmt(String(f.value));
+    if (f.kind === 'map') return f.options.get(Number(f.value)) || f.options.get(f.value) || String(f.value);
+    if (f.kind === 'phone') return V.formatPhone(f.value) || String(f.value);
+    return String(f.value);
+  }
+  function renderSummary(secs) {
+    const c = current; const box = $('case-summary'); box.innerHTML = '';
+    let empty = 0, crit = 0;
+    const cell = (label, text, state, onClick) => {
+      const d = document.createElement('div'); d.className = 'sum-cell' + (state ? ' ' + state : '');
+      d.innerHTML = '<span class="sum-l"></span><span class="sum-v"></span>';
+      d.firstChild.textContent = label; d.lastChild.textContent = text;
+      if (onClick) { d.tabIndex = 0; d.title = 'Натисніть, щоб змінити'; d.onclick = () => onClick(d); d.onkeydown = (e) => { if (e.key === 'Enter' && e.target === d) onClick(d); }; }
+      return d;
+    };
+    const group = (title) => { const g = document.createElement('div'); g.className = 'sum-group'; g.innerHTML = '<h3></h3><div class="sum-grid"></div>'; g.firstChild.textContent = title; box.appendChild(g); return g.lastChild; };
+    const toTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+    // шапка
+    const k = contactOf(c); const cells = Persons.ctx().cells;
+    const head = group('Справа');
+    [['Статус', c.status], ['Виконавець', staff.get(c.executor_id)], ['Допомагають', (c.helper_ids || []).map((u) => staff.get(u)).filter(Boolean).join(', '), true],
+      ['Відповідальний (по осередку)', staff.get(c.responsible_id), true], ['Осередок', cells.get(c.cell_id)],
+      ['Контактна особа', k ? `${fio(k.person)} (${k.relation_degree})` : ''], ['Телефон контактної особи', k && k.person.phone ? V.formatPhone(k.person.phone) : '']
+    ].forEach(([l, v, soft]) => { const st = v ? '' : soft ? 'is-empty' : 'is-crit'; if (!v) { empty++; if (!soft) crit++; } head.appendChild(cell(l, v || '—', st, toTop)); });
+    // розділи
+    secs.filter(([key]) => key !== 'family').forEach(([key, label]) => {
+      const grid = group(label);
+      sectionFields(key).forEach((f) => {
+        const filled = isFilled(f); const isCrit = !filled && (CRIT.has(f.id) || f.state === 'is-overdue');
+        if (!filled) { empty++; if (isCrit) crit++; }
+        grid.appendChild(cell(f.label, showVal(f), filled ? '' : isCrit ? 'is-crit' : 'is-empty', (d) => {
+          if (d.classList.contains('is-edit')) return;
+          d.classList.add('is-edit'); d.lastChild.remove();
+          const ed = fieldEl({ ...f, id: 'sum-' + f.id, hint: null }); ed.className = 'sum-edit';
+          d.appendChild(ed);
+          const inp = ed.querySelector('input, select, textarea'); inp.focus();
+          inp.addEventListener('blur', () => setTimeout(() => { if (current === c && !inp.classList.contains('is-bad') && document.activeElement !== inp) renderSummary(secs); }, 250));
+        }));
+      });
+    });
+    $('case-summary-note').textContent = empty
+      ? `Незаповнено: ${empty}` + (crit ? `, з них важливих: ${crit} (червоні)` : '') + '. Натисніть на поле, щоб заповнити чи виправити.'
+      : 'Усе заповнено. Натисніть на поле, щоб виправити.';
+  }
 
   // ---------- Родина у справі ----------
   function familyEl() {

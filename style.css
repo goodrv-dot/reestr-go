@@ -861,3 +861,18 @@ tr[data-module="m300"] { --mod-c: #5b3f8c; }
 input.is-bad, textarea.is-bad { border-color: var(--err) !important; background: #fdf1ef !important; }
 .case-phone { white-space: nowrap; }
 .case-contact-name { margin: 0; font-weight: 700; font-size: 1rem; }
+.case-sum { margin-top: 0.2rem; }
+.sum-group h3 { margin: 0.7rem 0 0.3rem; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+.sum-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr)); gap: 3px; }
+.sum-cell { display: flex; flex-direction: column; gap: 1px; padding: 0.25rem 0.45rem; font-size: 0.78rem; line-height: 1.3; background: #f6f8f9; border: 1px solid #e6ebee; border-radius: 4px; cursor: pointer; min-width: 0; }
+.sum-cell:hover, .sum-cell:focus-visible { border-color: var(--focus); }
+.sum-l { color: var(--muted); font-size: 0.7rem; }
+.sum-v { overflow-wrap: anywhere; white-space: pre-wrap; max-height: 4.2em; overflow: hidden; }
+.sum-cell.is-empty { background: var(--warn-bg, #fff6d6); border-color: #ecd98a; }
+.sum-cell.is-crit { background: var(--crit-bg, #fbe6e3); border-color: #e2a59c; }
+.sum-cell.is-empty .sum-v, .sum-cell.is-crit .sum-v { color: var(--muted); }
+.sum-cell.is-edit { grid-column: span 2; background: var(--white); border-color: var(--focus); cursor: default; }
+.sum-edit label { display: none; }
+.sum-edit input, .sum-edit select, .sum-edit textarea { width: 100%; font: inherit; font-size: 0.85rem; padding: 0.25rem 0.35rem; border: 1px solid var(--line); border-radius: 4px; background: var(--white); }
+.sum-edit .stage-hint { display: none; }
+@media (max-width: 560px) { .sum-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

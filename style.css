@@ -876,3 +876,9 @@ input.is-bad, textarea.is-bad { border-color: var(--err) !important; background:
 .sum-edit input, .sum-edit select, .sum-edit textarea { width: 100%; font: inherit; font-size: 0.85rem; padding: 0.25rem 0.35rem; border: 1px solid var(--line); border-radius: 4px; background: var(--white); }
 .sum-edit .stage-hint { display: none; }
 @media (max-width: 560px) { .sum-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.acc-set { border: 1px solid var(--line); border-radius: 8px; padding: 0.6rem 0.9rem 0.8rem; margin: 0 0 0.9rem; display: flex; flex-direction: column; gap: 0.35rem; }
+.acc-set legend { font-weight: 600; padding: 0 0.3rem; }
+.acc-cells { display: grid; grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); gap: 0.25rem 0.8rem; }
+.acc-sum { font-size: 0.9rem; margin-bottom: 0.2rem; }
+.tab-badge, .cab-new-mark { display: inline-block; background: #c2410c; color: #fff; border-radius: 999px; font-size: 0.72rem; font-weight: 700; padding: 0.05rem 0.45rem; vertical-align: middle; }
+.qchip-new[aria-pressed="false"] { border-color: #c2410c; color: #9a3412; }

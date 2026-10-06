@@ -68,7 +68,7 @@ window.Staff = (() => {
 
   async function load() {
     const { data, error } = await db.from('operators')
-      .select('user_id, full_name, email, role, can_export, active, must_change_password, created_at')
+      .select('user_id, full_name, email, role, can_export, can_registry, can_import, can_cab200, can_cab300, cell_ids, active, must_change_password, created_at')
       .order('active', { ascending: false }).order('full_name');
     const tbody = $('staff-table').tBodies[0];
     tbody.innerHTML = '';
@@ -101,13 +101,18 @@ window.Staff = (() => {
 
     // Експорт
     const tdExp = document.createElement('td');
-    const lbl = document.createElement('label');
-    lbl.className = 'check';
-    const cb = document.createElement('input');
-    cb.type = 'checkbox'; cb.checked = o.can_export; cb.disabled = !o.active;
-    cb.addEventListener('change', () => act({ action: 'update', user_id: o.user_id, can_export: cb.checked }, 'Збережено'));
-    lbl.append(cb, ' може вивантажувати');
-    tdExp.appendChild(lbl);
+    if (o.role === 'admin') tdExp.innerHTML = '<span class="muted">усе (адміністратор)</span>';
+    else {
+      const cells = Persons.ctx().cells;
+      const parts = [o.can_registry && 'Реєстр', o.can_registry && o.can_export && 'Експорт', o.can_registry && o.can_import && 'Імпорт', o.can_cab200 && 'Кабінет 200', o.can_cab300 && 'Кабінет 300'].filter(Boolean);
+      const cn = (o.cell_ids || []).map((id) => cells.get(id)).filter(Boolean);
+      const sum = document.createElement('div'); sum.className = 'acc-sum';
+      sum.innerHTML = '<span></span><br><span class="muted"></span>';
+      sum.firstChild.textContent = parts.length ? parts.join(' · ') : 'немає доступів';
+      sum.lastChild.textContent = (o.can_cab200 || o.can_cab300) ? (cn.length ? (cn.length === cells.size ? 'усі осередки' : 'осередки: ' + cn.join(', ')) : 'осередки не вибрано — справ не бачить') : '';
+      tdExp.appendChild(sum);
+      if (o.active) tdExp.appendChild(btn('Змінити доступи', () => openAccess(o)));
+    }
     tr.appendChild(tdExp);
 
     // 2FA
@@ -147,6 +152,39 @@ window.Staff = (() => {
     }
     tr.appendChild(tdAct);
     return tr;
+  }
+
+  // ---------- Доступи співробітника ----------
+  function openAccess(o) {
+    const d = $('acc-dialog'); const f = $('acc-form');
+    $('acc-who').textContent = o.full_name;
+    f.registry.checked = o.can_registry; f.export.checked = o.can_export; f.import.checked = o.can_import;
+    f.cab200.checked = o.can_cab200; f.cab300.checked = o.can_cab300;
+    const box = $('acc-cells'); box.innerHTML = '';
+    [...Persons.ctx().cells].forEach(([id, n]) => {
+      const l = document.createElement('label'); l.className = 'check';
+      l.innerHTML = '<input type="checkbox" name="cell"> <span></span>';
+      l.firstChild.value = id; l.firstChild.checked = (o.cell_ids || []).includes(id); l.lastChild.textContent = n;
+      box.appendChild(l);
+    });
+    const sync = () => {
+      f.export.disabled = f.import.disabled = !f.registry.checked;
+      $('acc-cells-wrap').hidden = !(f.cab200.checked || f.cab300.checked);
+    };
+    f.oninput = sync; sync();
+    $('acc-all').onclick = () => { const all = [...box.querySelectorAll('input')]; const on = all.some((i) => !i.checked); all.forEach((i) => { i.checked = on; }); };
+    $('acc-cancel').onclick = () => d.close();
+    f.onsubmit = async (e) => {
+      e.preventDefault();
+      const cab = f.cab200.checked || f.cab300.checked;
+      const cells = cab ? [...box.querySelectorAll('input:checked')].map((i) => Number(i.value)) : [];
+      if (cab && !cells.length && !confirm('Осередки не вибрано: співробітник не побачить жодної справи. Зберегти так?')) return;
+      const { error } = await db.rpc('set_operator_access', { p_user: o.user_id, p_registry: f.registry.checked, p_export: f.registry.checked && f.export.checked,
+        p_import: f.registry.checked && f.import.checked, p_cab200: f.cab200.checked, p_cab300: f.cab300.checked, p_cells: cells });
+      if (error) { console.error(error); Persons.toast('Не вдалося зберегти доступи'); return; }
+      d.close(); Persons.toast('Доступи збережено. Співробітник побачить зміни після наступного входу.'); load();
+    };
+    d.showModal();
   }
 
   function btn(text, onClick, extra) {

@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Unbounded:wght@600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=202610061212">
+  <link rel="stylesheet" href="style.css?v=202610061309">
 </head>
 <body>
 
@@ -342,6 +342,8 @@
           <button type="button" class="qchip cab-quick" data-q="mine" aria-pressed="false">Мої <b id="cq-mine">0</b></button>
           <button type="button" class="qchip cab-quick qchip-crit" data-q="overdue" aria-pressed="false">Прострочені <b id="cq-overdue">0</b></button>
           <button type="button" class="qchip cab-quick qchip-warn" data-q="problem" aria-pressed="false">Проблема <b id="cq-problem">0</b></button>
+          <button type="button" id="cq-fresh-btn" class="qchip cab-quick qchip-new" data-q="fresh" aria-pressed="false" hidden>Нові <b id="cq-fresh">0</b></button>
+          <button type="button" id="cq-nocell-btn" class="qchip cab-quick" data-q="nocell" aria-pressed="false" hidden>Нерозподілені <b id="cq-nocell">0</b></button>
           <span class="muted" id="cab-count"></span>
         </div>
         <p id="cab-status-line" class="muted" role="status"></p>
@@ -506,7 +508,7 @@
       <p class="muted imp-lead">Новий співробітник отримує тимчасовий пароль і змінює його при першому вході. Деактивований співробітник одразу втрачає доступ, але його дії залишаються в журналах.</p>
       <div class="table-wrap">
         <table id="staff-table" class="imp-table">
-          <thead><tr><th>Співробітник</th><th>Роль</th><th>Вивантаження</th><th>2FA</th><th>Стан</th><th>Дії</th></tr></thead>
+          <thead><tr><th>Співробітник</th><th>Роль</th><th>Доступи</th><th>2FA</th><th>Стан</th><th>Дії</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
@@ -784,6 +786,10 @@
       <section id="m-staff">
         <h2>Співробітники (для адміністратора)</h2>
         <ul>
+          <li><b>Доступи</b> задаються кожному співробітнику окремо (кнопка «Змінити доступи»): <b>Реєстр</b> (Особи, Дашборд, фільтри), <b>Експорт</b>, <b>Імпорт</b>, <b>Кабінет 200</b>, <b>Кабінет 300</b> та перелік <b>осередків</b>. Адміністратор бачить усе.</li>
+          <li>Оператор осередку без «Реєстру» бачить лише справи своїх осередків і картки людей із цих справ (загиблий/поранений та рідні). Чужих справ і решти реєстру для нього не існує — це обмеження на рівні бази, а не лише схованих вкладок.</li>
+          <li>Новий співробітник створюється <b>без доступів</b> — одразу задайте їх. Зміни діють після наступного входу співробітника.</li>
+          <li><b>Передача справи:</b> осередок у справі змінює лише адміністратор. Оператори нового осередку бачать позначку «нова» у списку, фільтр «Нові» та лічильник на вкладці «Кабінет», доки не відкриють справу. Справи без осередку — фільтр «Нерозподілені» (тільки адміністратор).</li>
           <li>«Співробітники» → «Додати співробітника»: пошта, ПІБ, роль, право на вивантаження. Система покаже <b>тимчасовий пароль один раз</b> — передайте його особисто.</li>
           <li>При першому вході співробітник <b>обов’язково змінює пароль</b> на власний (щонайменше 10 символів).</li>
           <li>Забув пароль — «Скинути пароль»: новий тимчасовий пароль, старий перестає діяти.</li>
@@ -825,6 +831,31 @@
     </div>
   </dialog>
 
+
+  <!-- Доступи співробітника -->
+  <dialog id="acc-dialog" class="dialog" aria-labelledby="acc-title">
+    <h2 id="acc-title">Доступи: <span id="acc-who"></span></h2>
+    <form id="acc-form" novalidate>
+      <fieldset class="acc-set"><legend>Реєстр (відбір і розсилки)</legend>
+        <label class="check"><input type="checkbox" name="registry"> Реєстр — «Особи», «Дашборд», фільтри, сегменти</label>
+        <label class="check"><input type="checkbox" name="export"> Експорт — вивантаження Excel і CSV</label>
+        <label class="check"><input type="checkbox" name="import"> Імпорт — завантаження файлів</label>
+      </fieldset>
+      <fieldset class="acc-set"><legend>Кабінет (справи своїх осередків)</legend>
+        <label class="check"><input type="checkbox" name="cab200"> Кабінет 200 — родини загиблих</label>
+        <label class="check"><input type="checkbox" name="cab300"> Кабінет 300 — поранені</label>
+        <div id="acc-cells-wrap">
+          <p class="sublabel">Осередки, справи яких бачить і веде <button type="button" id="acc-all" class="btn-link">усі / жодного</button></p>
+          <div id="acc-cells" class="acc-cells"></div>
+        </div>
+      </fieldset>
+      <p class="tip">Без «Реєстру» співробітник бачить лише людей зі своїх справ. Справи без осередку бачить тільки адміністратор.</p>
+      <div class="form-actions">
+        <button class="btn-primary" type="submit">Зберегти</button>
+        <button id="acc-cancel" class="btn-secondary" type="button">Скасувати</button>
+      </div>
+    </form>
+  </dialog>
 
   <!-- Новий співробітник -->
   <dialog id="staff-dialog" class="dialog" aria-labelledby="staff-title">
@@ -995,25 +1026,25 @@
   <p id="loading" class="loading">Завантаження…</p>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="config.js?v=202610061212"></script>
+  <script src="config.js?v=202610061309"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="options.js?v=202610061212"></script>
-  <script src="ui.js?v=202610061212"></script>
-  <script src="validation.js?v=202610061212"></script>
-  <script src="filters.js?v=202610061212"></script>
-  <script src="segments.js?v=202610061212"></script>
-  <script src="picker.js?v=202610061212"></script>
-  <script src="merge.js?v=202610061212"></script>
-  <script src="persons.js?v=202610061212"></script>
-  <script src="export.js?v=202610061212"></script>
-  <script src="import.js?v=202610061212"></script>
-  <script src="mfa.js?v=202610061212"></script>
-  <script src="staff.js?v=202610061212"></script>
-  <script src="ua-map.js?v=202610061212"></script>
-  <script src="dashboard.js?v=202610061212"></script>
-  <script src="journal.js?v=202610061212"></script>
-  <script src="cabinet.js?v=202610061212"></script>
-  <script src="nav.js?v=202610061212"></script>
-  <script src="app.js?v=202610061212"></script>
+  <script src="options.js?v=202610061309"></script>
+  <script src="ui.js?v=202610061309"></script>
+  <script src="validation.js?v=202610061309"></script>
+  <script src="filters.js?v=202610061309"></script>
+  <script src="segments.js?v=202610061309"></script>
+  <script src="picker.js?v=202610061309"></script>
+  <script src="merge.js?v=202610061309"></script>
+  <script src="persons.js?v=202610061309"></script>
+  <script src="export.js?v=202610061309"></script>
+  <script src="import.js?v=202610061309"></script>
+  <script src="mfa.js?v=202610061309"></script>
+  <script src="staff.js?v=202610061309"></script>
+  <script src="ua-map.js?v=202610061309"></script>
+  <script src="dashboard.js?v=202610061309"></script>
+  <script src="journal.js?v=202610061309"></script>
+  <script src="cabinet.js?v=202610061309"></script>
+  <script src="nav.js?v=202610061309"></script>
+  <script src="app.js?v=202610061309"></script>
 </body>
 </html>

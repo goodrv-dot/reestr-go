@@ -440,6 +440,8 @@ window.Persons = (() => {
   // ---------- Список ----------
   function showList() {
     const fromCard = !$('form-view').hidden;
+    // без доступу до реєстру картку відкривають лише зі справи — повертаємо в кабінет
+    if (fromCard && window.ACCESS && !window.ACCESS.registry) { $('form-view').hidden = true; $('list-view').hidden = false; document.querySelector('.tab[data-tab="cabinet"]').click(); return; }
     $('form-view').hidden = true;
     $('list-view').hidden = false;
     loadList().then(() => { if (fromCard) window.scrollTo(0, listScrollY); });

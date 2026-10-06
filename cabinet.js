@@ -8,7 +8,11 @@ window.Cabinet = (() => {
   let module = '200';
   let defs = [], statuses = [], staff = new Map(), cases = [];
   let current = null;           // відкрита справа
-  let quick = '';               // mine | overdue | problem
+  let quick = '';               // mine | overdue | problem | fresh | nocell
+  let seen = new Map();         // case_id → коли я відкривав справу
+  let returnTo = null;          // справа, до якої повернутися після картки реєстру
+  const acc = () => window.ACCESS || { admin: isAdmin, registry: true, cab200: true, cab300: true, cells: [] };
+  const isNew = (c) => !!c.transferred_at && c.transferred_by !== me && !(seen.get(c.id) >= c.transferred_at);
   const today = () => new Date().toISOString().slice(0, 10);
   const fmt = (iso) => (iso ? iso.slice(0, 10).split('-').reverse().join('.') : '');
   const fio = (p) => [p.last_name, p.first_name, p.patronymic].filter(Boolean).join(' ');
@@ -39,6 +43,10 @@ window.Cabinet = (() => {
 
   // ---------- Завантаження ----------
   async function load() {
+    const A = acc();
+    if (!A['cab' + module]) module = A.cab200 ? '200' : '300';
+    document.querySelectorAll('.cab-mod').forEach((b) => { b.hidden = !A['cab' + b.dataset.m]; });
+    $('cq-nocell-btn').hidden = !isAdmin;
     document.querySelectorAll('.cab-mod').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.m === module)));
     $('cab-title').textContent = module === '200' ? 'Кабінет 200 — супровід родин загиблих' : 'Кабінет 300 — супровід поранених';
     $('cab-status-line').textContent = 'Завантажуємо…';
@@ -68,6 +76,8 @@ window.Cabinet = (() => {
         .in('related_person_id', ids.slice(i, i + 150)).order('created_at');
       (data || []).forEach((r) => { if (r.person) kin.set(r.related_person_id, [...(kin.get(r.related_person_id) || []), r]); });
     }
+    const sn = await db.from('case_seen').select('case_id, seen_at');
+    seen = new Map((sn.data || []).map((r) => [r.case_id, r.seen_at]));
     cases.forEach((c) => {
       c.vals = Object.fromEntries((c.case_values || []).map((v) => [v.stage_key, v.value]));
       c.kin = kin.get(c.person_id) || [];
@@ -76,6 +86,8 @@ window.Cabinet = (() => {
     fillFilters();
     $('cab-status-line').textContent = '';
     render();
+    badge();
+    if (returnTo) { const id = returnTo; returnTo = null; if (cases.some((c) => c.id === id)) openCase(id, true); }
   }
 
   // Найближча дія за правилами нагадувань
@@ -118,6 +130,8 @@ window.Cabinet = (() => {
       if (quick === 'mine' && c.executor_id !== me) return false;
       if (quick === 'overdue' && !(c.next && c.next.overdue)) return false;
       if (quick === 'problem' && c.status !== 'Проблема') return false;
+      if (quick === 'fresh' && !isNew(c)) return false;
+      if (quick === 'nocell' && c.cell_id) return false;
       return true;
     });
   }
@@ -128,6 +142,9 @@ window.Cabinet = (() => {
     $('cq-mine').textContent = cnt((c) => c.executor_id === me);
     $('cq-overdue').textContent = cnt((c) => c.next && c.next.overdue);
     $('cq-problem').textContent = cnt((c) => c.status === 'Проблема');
+    $('cq-fresh').textContent = cnt(isNew);
+    $('cq-fresh-btn').hidden = !cnt(isNew) && quick !== 'fresh';
+    $('cq-nocell').textContent = cnt((c) => !c.cell_id);
     document.querySelectorAll('.cab-quick').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.q === quick)));
     $('cab-count').textContent = `${list.length} з ${cases.length}`;
     const { cells } = Persons.ctx();
@@ -151,6 +168,7 @@ window.Cabinet = (() => {
         <td><span class="cab-progress"><i style="width:${pct}%"></i></span> <span class="muted">${filled}/${totalStages}</span></td>`;
       tr.children[0].textContent = c.journal_id;
       tr.children[1].textContent = fio(c.person);
+      if (isNew(c)) { const b = document.createElement('span'); b.className = 'cab-new-mark'; b.textContent = 'нова'; b.title = 'Справу передано у ваш осередок'; tr.children[1].append(' ', b); }
       tr.children[2].innerHTML = rec ? '<span></span><br><span class="muted"></span>' : '<span class="muted">родину не встановлено</span>';
       if (rec) {
         tr.children[2].firstChild.textContent = `${rec.relation_degree}: ${fio(rec.person)}` + (c.kin.length > 1 ? ` (+${c.kin.length - 1})` : '');
@@ -221,7 +239,7 @@ window.Cabinet = (() => {
   const nm = (x) => V.normalizeName(x).value || null;
   const badName = (...xs) => { const e = xs.map((x) => V.normalizeName(x).error).find(Boolean); if (e) Persons.toast('ПІБ: ' + e); return !!e; };
   const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
-  const openPerson = (id) => { document.querySelector('.tab[data-tab="registry"]').click(); Persons.openForm(id); };
+  const openPerson = (id) => { returnTo = current ? current.id : null; document.querySelector('.tab[data-tab="registry"]').click(); Persons.openForm(id); };
   const secDefs = (sec) => defs.filter((d) => (d.section || 'other') === sec);
   const contactOf = (c) => c.kin.find((k) => k.person.id === c.contact_person_id) || c.kin[0] || null;
 
@@ -233,6 +251,7 @@ window.Cabinet = (() => {
     window.scrollTo(0, 0);
     tab = 'all';
     const c = current, p = c.person;
+    if (isNew(c)) { const at = new Date().toISOString(); seen.set(c.id, at); db.from('case_seen').upsert({ case_id: c.id, user_id: me, seen_at: at }, { onConflict: 'user_id,case_id' }).then(() => badge()); }
     $('case-link').onclick = () => copyLink(`?case=${encodeURIComponent(c.journal_id)}`, `Посилання на справу ${c.journal_id} скопійовано`);
     $('case-open-person').onclick = () => openPerson(p.id);
 
@@ -511,22 +530,12 @@ window.Cabinet = (() => {
     const ph = { value: phv };
     const btn = form.querySelector('button'); btn.disabled = true;
     try {
-      const { data: np, error } = await db.from('persons').insert({
-        last_name: nm(g('ln')), first_name: nm(g('fn')), patronymic: g('pn') ? nm(g('pn')) : null,
-        phone: ph.value, settlement: g('st') || null, cell_id: c.cell_id, region_id: p.region_id || null, created_by: me, source: 'Вручну'
-      }).select('id, last_name, first_name, patronymic, phone, settlement').single();
-      if (error) { console.error(error); Persons.toast(error.code === '23505' ? 'Людина з таким телефоном уже є в реєстрі — додайте зв’язок у її картці' : 'Не вдалося додати родича'); return; }
-      const progName = module === '200' ? 'Супровід родин загиблих (200)' : 'Супровід поранених (300)';
-      const prog = [...Persons.ctx().programs].find(([, n]) => n === progName);
-      if (prog) await db.from('person_programs').insert({ person_id: np.id, program_id: prog[0], role: 'linked' });
-      const rel = {
-        person_id: np.id, related_person_id: p.id, relation_degree: g('deg'), related_full_name: fio(p),
-        related_status: OPT.related_status.includes(p.military_status) ? p.military_status : 'Невідомо', related_mp: 'Так',
-        related_birth_date: p.birth_date, related_death_date: p.death_date, related_burial_date: p.burial_date,
-        related_burial_place: p.burial_place, related_callsign: p.callsign, related_unit_id: p.mp_unit_id, related_unit_code: p.military_unit_code
-      };
-      const r2 = await db.from('military_relations').insert(rel).select('id, related_person_id, relation_degree, created_at').single();
-      if (r2.error) { console.error(r2.error); Persons.toast('Картку створено, але зв’язок не записався — додайте його в картці родича'); return; }
+      const kinRec = { last_name: nm(g('ln')), first_name: nm(g('fn')), patronymic: g('pn') ? nm(g('pn')) : null, phone: ph.value, settlement: g('st') || null };
+      const { data: res, error } = await db.rpc('add_case_kin', { p_case: c.id, p_last: kinRec.last_name, p_first: kinRec.first_name, p_patr: kinRec.patronymic || '',
+        p_degree: g('deg'), p_phone: ph.value || '', p_settlement: kinRec.settlement || '' });
+      if (error) { console.error(error); Persons.toast(error.code === '23505' ? 'Людина з таким телефоном уже є в реєстрі — зверніться до адміністратора, щоб пов’язати картки' : 'Не вдалося додати родича'); return; }
+      const np = { id: res.person_id, ...kinRec };
+      const r2 = { data: { id: res.relation_id, related_person_id: p.id, relation_degree: g('deg') } };
       c.kin.push({ ...r2.data, person: np });
       if (module === '200' && c.status === 'Родину не встановлено' && statuses.some((s) => s.name === 'В роботі')) { await saveCase({ status: 'В роботі' }); $('case-status').value = 'В роботі'; }
       Persons.toast('Родича додано');
@@ -553,7 +562,10 @@ window.Cabinet = (() => {
     const d = $('cab-new'); d.querySelector('form').reset();
     $('cab-new-title').textContent = module === '200' ? 'Нова справа 200 — загиблий' : 'Нова справа 300 — поранений';
     const sel = $('cab-new-cell'); sel.innerHTML = '<option value="">— не вказано —</option>';
-    [...Persons.ctx().cells].forEach(([cid, n]) => sel.add(new Option(n, cid)));
+    const A = acc();
+    if (!isAdmin) sel.innerHTML = '';
+    [...Persons.ctx().cells].filter(([cid]) => isAdmin || A.cells.includes(cid)).forEach(([cid, n]) => sel.add(new Option(n, cid)));
+    if (!isAdmin && !sel.options.length) { Persons.toast('Вам не призначено жодного осередку — зверніться до адміністратора'); return; }
     d.showModal();
   }
   async function submitNew(e) {
@@ -565,7 +577,7 @@ window.Cabinet = (() => {
     if (dup && !confirm(`У кабінеті вже є справа ${dup.journal_id}: ${fio(dup.person)}. Усе одно створити нову?`)) return;
     const { data, error } = await db.rpc('create_case', { p_module: module, p_last: nm(g('ln')), p_first: nm(g('fn')),
       p_patr: g('pn') ? nm(g('pn')) : '', p_cell: g('cell') ? Number(g('cell')) : null });
-    if (error) { console.error(error); Persons.toast('Не вдалося створити справу'); return; }
+    if (error) { console.error(error); Persons.toast(/Немає доступу/.test(error.message || '') ? 'Немає доступу до цього осередку' : 'Не вдалося створити справу'); return; }
     $('cab-new').close();
     await load();
     openCase(data);
@@ -677,5 +689,17 @@ window.Cabinet = (() => {
     else Persons.toast(`Справу ${jid} не знайдено або немає доступу`);
   }
 
-  return { init, load, openByJournal };
+  // Лічильник нових справ на вкладці «Кабінет»
+  async function badge() {
+    const tabEl = document.querySelector('.tab[data-tab="cabinet"]'); if (!tabEl || !db) return;
+    const [cs, sn] = await Promise.all([
+      db.from('cases').select('id, transferred_at, transferred_by').not('transferred_at', 'is', null),
+      db.from('case_seen').select('case_id, seen_at')]);
+    const s = new Map((sn.data || []).map((r) => [r.case_id, r.seen_at]));
+    const n = (cs.data || []).filter((c) => c.transferred_by !== me && !(s.get(c.id) >= c.transferred_at)).length;
+    tabEl.textContent = 'Кабінет';
+    if (n) { const b = document.createElement('span'); b.className = 'tab-badge'; b.textContent = n; b.title = 'Нові справи у ваших осередках'; tabEl.append(' ', b); }
+  }
+
+  return { init, load, openByJournal, badge };
 })();

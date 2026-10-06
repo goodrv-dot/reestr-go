@@ -32,6 +32,10 @@ function showApp(operator, userId) {
   $('user-role').textContent = ROLE_LABELS[operator.role] || operator.role;
   startIdleTimer();
   $('staff-tab').hidden = operator.role !== 'admin';
+  const A = window.ACCESS, hasCab = A.cab200 || A.cab300;
+  const tabBtn = (t) => document.querySelector(`.tab[data-tab="${t}"]`);
+  tabBtn('registry').hidden = !A.registry; tabBtn('dashboard').hidden = !A.registry;
+  tabBtn('import').hidden = !A.import; tabBtn('cabinet').hidden = !hasCab;
   Persons.init(db, operator).then(() => {
     if (!window.__exp) {
       Exporter.init();
@@ -42,6 +46,8 @@ function showApp(operator, userId) {
       Cabinet.init(db, userId, operator.role === 'admin');
       window.__exp = true;
     }
+    if (!A.registry && !new URLSearchParams(location.search).get('case')) tabBtn(hasCab ? 'cabinet' : 'manual').click();
+    else if (hasCab) Cabinet.badge();
     openDeepLink();
   }).catch((e) => {
     console.error(e);
@@ -99,6 +105,9 @@ async function enterWithSession(session) {
       showLogin('Не вдалося підтвердити доступ. Увійдіть ще раз.');
       return;
     }
+    const adm = operator.role === 'admin';
+    window.ACCESS = { admin: adm, registry: adm || !!acc.can_registry, import: adm || !!acc.can_import,
+      cab200: adm || !!acc.can_cab200, cab300: adm || !!acc.can_cab300, cells: acc.cell_ids || [] };
     showApp(operator, userId);
   } catch (e) {
     console.error(e);

@@ -12,6 +12,14 @@ window.Cabinet = (() => {
   const today = () => new Date().toISOString().slice(0, 10);
   const fmt = (iso) => (iso ? iso.slice(0, 10).split('-').reverse().join('.') : '');
   const fio = (p) => [p.last_name, p.first_name, p.patronymic].filter(Boolean).join(' ');
+  // Кольори статусів: з бази, з уточненнями; текст темний на світлому тлі
+  const STATUS_OVERRIDE = { 'В роботі': '#f2b705' };
+  const statusColor = (name, fromDb) => STATUS_OVERRIDE[name] || fromDb || '#8a96a1';
+  const inkFor = (hex) => {
+    const h = hex.replace('#', ''); const n = parseInt(h.length === 3 ? h.split('').map((x) => x + x).join('') : h, 16);
+    const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+    return (0.299 * r + 0.587 * g + 0.114 * b) > 160 ? '#3d2e00' : '#ffffff';
+  };
   const addDays = (iso, n) => { const d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
 
   function init(client, userId, admin) {
@@ -147,7 +155,9 @@ window.Cabinet = (() => {
       }
       tr.children[3].textContent = cells.get(c.cell_id) || '—';
       const sp = tr.children[4].firstChild;
-      sp.textContent = c.status || '—'; sp.style.setProperty('--st', color.get(c.status) || '#8a96a1');
+      sp.textContent = c.status || '—';
+      const col = statusColor(c.status, color.get(c.status));
+      sp.style.setProperty('--st', col); sp.style.color = inkFor(col);
       tr.children[5].textContent = staff.get(c.executor_id) || (c.vals.executor_legacy ? `(${c.vals.executor_legacy})` : '—');
       if (c.next) {
         tr.children[6].textContent = `${c.next.label} — до ${fmt(c.next.due)}`;

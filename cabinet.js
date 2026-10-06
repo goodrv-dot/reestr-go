@@ -182,17 +182,30 @@ window.Cabinet = (() => {
   const PERSON_FIELDS = {
     '200': {
       person: [['last_name', 'Прізвище'], ['first_name', 'Ім’я'], ['patronymic', 'По батькові'], ['callsign', 'Позивний'], ['birth_date', 'Дата народження', 'date'],
-        ['death_date', 'Дата загибелі', 'date'], ['military_unit_code', 'Військова частина'], ['mp_unit_id', 'Бригада', 'unit'], ['region_id', 'Регіон (область)', 'region']],
+        ['death_date', 'Дата загибелі', 'date'], ['military_unit_code', 'Військова частина', 'code'], ['mp_unit_id', 'Бригада', 'unit'], ['region_id', 'Регіон (область)', 'region']],
       burial: [['burial_place', 'Місце поховання'], ['burial_date', 'Дата поховання', 'date']]
     },
     '300': {
       person: [['last_name', 'Прізвище'], ['first_name', 'Ім’я'], ['patronymic', 'По батькові'], ['callsign', 'Позивний'], ['birth_date', 'Дата народження', 'date'],
-        ['phone', 'Номер телефону', 'phone'], ['military_unit_code', 'Військова частина'], ['mp_unit_id', 'Бригада', 'unit'], ['region_id', 'Регіон (область)', 'region'],
+        ['phone', 'Номер телефону', 'phone'], ['military_unit_code', 'Військова частина', 'code'], ['mp_unit_id', 'Бригада', 'unit'], ['region_id', 'Регіон (область)', 'region'],
         ['wound_date', 'Дата поранення', 'date']]
     }
   };
   const P_LABELS = Object.fromEntries([['p_comment', 'Примітки'], ...Object.values(PERSON_FIELDS).flatMap((m) => Object.values(m).flat()).map(([k, l]) => ['p_' + k, l])]);
+  const UNIT_CODES = ['А0216', 'А0878', 'А1275', 'А1325', 'А1965', 'А2062', 'А2611', 'А2613', 'А2777', 'А2802', 'А3821', 'А4210', 'А4217', 'А4548', 'А4635', 'А4765', 'А4822', 'А4916', 'А4935', 'А5025', 'А5074', 'А7053', 'А7382'];
+  const unitCodes = () => [...new Set([...UNIT_CODES, ...cases.map((c) => c.person.military_unit_code).filter(Boolean)])].sort((a, b) => a.localeCompare(b, 'uk'));
   let tab = 'all';
+  // Телефон: рівно 10 цифр після 0 (або +380…); помилку показуємо біля поля й не зберігаємо
+  function phoneOf(el) {
+    const raw = el.value.trim(); const r = V.normalizePhone(raw);
+    let hint = el.parentElement.querySelector('.field-err');
+    if (!hint) { hint = document.createElement('span'); hint.className = 'field-err'; el.after(hint); }
+    const bad = raw && !r.value;
+    el.classList.toggle('is-bad', !!bad);
+    hint.textContent = bad ? `Невірний номер (${raw.replace(/\D/g, '').length} цифр) — не збережено. Приклад: 050 123 45 67` : (r.warning || '');
+    if (bad) { Persons.toast('Телефон введено з помилкою — не збережено'); el.focus(); return undefined; }
+    return r.value;
+  }
   const nm = (x) => V.normalizeName(x).value || null;
   const badName = (...xs) => { const e = xs.map((x) => V.normalizeName(x).error).find(Boolean); if (e) Persons.toast('ПІБ: ' + e); return !!e; };
   const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
@@ -248,11 +261,10 @@ window.Cabinet = (() => {
     $('case-take').hidden = c.executor_id === me;
     const box = $('case-contact'); const k = contactOf(c);
     if (!k) { box.innerHTML = '<span class="muted">Контактну особу не вказано — додайте рідних у розділі «Родина».</span>'; return; }
-    box.innerHTML = '<span class="muted">Контактна особа:</span> <b></b> <span class="muted"></span> <a></a>';
+    box.innerHTML = '<span class="muted">Контактна особа:</span> <b></b> <span class="muted"></span> <b class="case-phone"></b>';
     box.children[1].textContent = fio(k.person);
     box.children[2].textContent = `(${k.relation_degree})`;
-    if (k.person.phone) { box.children[3].textContent = V.formatPhone(k.person.phone); box.children[3].href = 'tel:' + k.person.phone; }
-    else box.children[3].textContent = 'без телефону';
+    box.children[3].textContent = k.person.phone ? V.formatPhone(k.person.phone) : 'без телефону';
   }
 
   function renderHelpers() {
@@ -315,8 +327,8 @@ window.Cabinet = (() => {
     const c = current, p = c.person; const { units, regions } = Persons.ctx();
     const out = [];
     ((PERSON_FIELDS[module] || {})[sec] || []).forEach(([key, label, type]) => {
-      const kind = type === 'date' ? 'date' : type === 'unit' || type === 'region' ? 'map' : type === 'phone' ? 'phone' : key === 'comment' ? 'text' : 'line';
-      out.push({ id: 'p-' + key, label, kind, options: type === 'unit' ? units : type === 'region' ? regions : null,
+      const kind = type === 'code' ? 'list' : type === 'date' ? 'date' : type === 'unit' || type === 'region' ? 'map' : type === 'phone' ? 'phone' : key === 'comment' ? 'text' : 'line';
+      out.push({ id: 'p-' + key, label, kind, options: type === 'code' ? unitCodes() : type === 'unit' ? units : type === 'region' ? regions : null,
         value: p[key], onSave: (val, el) => savePerson(key, val, type, el) });
     });
     secDefs(sec).forEach((d) => {
@@ -384,12 +396,10 @@ window.Cabinet = (() => {
         <label>Спорідненість<select data-f="deg">${OPT.relation_degree.map((o) => `<option>${esc(o)}</option>`).join('')}</select></label>
         <label>Телефон<input data-f="phone" type="tel"></label>
         <label>Населений пункт, адреса<input data-f="settlement"></label>
-        <label class="fam-contact"><input type="radio" name="fam-contact"> контактна особа</label>
-        <a class="fam-call" hidden>Подзвонити</a>`;
+        <label class="fam-contact"><input type="radio" name="fam-contact"> контактна особа</label>`;
       const q = (f) => row.querySelector(`[data-f="${f}"]`);
       row.children[0].textContent = fio(k.person); row.children[0].onclick = () => openPerson(k.person.id);
       q('deg').value = k.relation_degree; q('phone').value = V.formatPhone(k.person.phone) || ''; q('settlement').value = k.person.settlement || '';
-      const call = row.querySelector('.fam-call'); if (k.person.phone) { call.hidden = false; call.href = 'tel:' + k.person.phone; }
       const radio = row.querySelector('[type=radio]'); radio.checked = contact === k;
       radio.onchange = async () => { await saveCase({ contact_person_id: k.person.id }); renderHead(); };
       q('deg').onchange = async () => {
@@ -398,9 +408,8 @@ window.Cabinet = (() => {
         k.relation_degree = q('deg').value; Persons.toast('Збережено'); renderHead();
       };
       q('phone').onchange = async () => {
-        const r = V.normalizePhone(q('phone').value);
-        if (q('phone').value.trim() && !r.value) { Persons.toast('Телефон введено з помилкою'); return; }
-        if (await updPerson(k.person.id, { phone: r.value })) { k.person.phone = r.value; renderStages(); renderHead(); }
+        const ph = phoneOf(q('phone')); if (ph === undefined) return;
+        if (await updPerson(k.person.id, { phone: ph })) { k.person.phone = ph; renderStages(); renderHead(); }
       };
       q('settlement').onchange = async () => {
         const v = q('settlement').value.trim() || null;
@@ -435,8 +444,8 @@ window.Cabinet = (() => {
     const c = current, p = c.person; const g = (n) => form.elements[n].value.trim();
     if (!g('ln') || !g('fn')) { Persons.toast('Вкажіть прізвище та ім’я'); return; }
     if (badName(g('ln'), g('fn'), g('pn'))) return;
-    const ph = V.normalizePhone(g('phone'));
-    if (g('phone') && !ph.value) { Persons.toast('Телефон введено з помилкою'); return; }
+    const phv = phoneOf(form.elements.phone); if (phv === undefined) return;
+    const ph = { value: phv };
     const btn = form.querySelector('button'); btn.disabled = true;
     try {
       const { data: np, error } = await db.from('persons').insert({
@@ -464,7 +473,7 @@ window.Cabinet = (() => {
 
   async function savePerson(key, val, type, el) {
     const c = current, p = c.person; let v = val || null;
-    if (type === 'phone') { const r = V.normalizePhone(val); if (val && !r.value) { Persons.toast('Телефон введено з помилкою'); return; } v = r.value; }
+    if (type === 'phone') { v = phoneOf(el); if (v === undefined) return; }
     if (type === 'unit' || type === 'region') v = val ? Number(val) : null;
     if (['last_name', 'first_name', 'patronymic'].includes(key) && v && badName(v)) { el.value = p[key] || ''; return; }
     if ((key === 'last_name' || key === 'first_name')) { if (!v) { Persons.toast('Прізвище та ім’я обов’язкові'); el.value = p[key] || ''; return; } v = nm(v); }

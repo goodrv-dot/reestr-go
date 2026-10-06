@@ -13,6 +13,8 @@ window.Cabinet = (() => {
   let returnTo = null;          // справа, до якої повернутися після картки реєстру
   const acc = () => window.ACCESS || { admin: isAdmin, registry: true, cab200: true, cab300: true, cells: [] };
   const isNew = (c) => !!c.transferred_at && c.transferred_by !== me && !(seen.get(c.id) >= c.transferred_at);
+  // дата для фільтра періоду: 200 — поховання, 300 — поранення
+  const dateKey = () => (module === '200' ? 'burial_date' : 'wound_date');
   const today = () => new Date().toISOString().slice(0, 10);
   const fmt = (iso) => (iso ? iso.slice(0, 10).split('-').reverse().join('.') : '');
   const fio = (p) => [p.last_name, p.first_name, p.patronymic].filter(Boolean).join(' ');
@@ -29,7 +31,8 @@ window.Cabinet = (() => {
   function init(client, userId, admin) {
     db = client; me = userId; isAdmin = admin;
     document.querySelectorAll('.cab-mod').forEach((b) => b.addEventListener('click', () => { module = b.dataset.m; quick = ''; load(); }));
-    ['cab-search', 'cab-status', 'cab-exec', 'cab-cell'].forEach((id) => $(id).addEventListener('input', render));
+    ['cab-search', 'cab-status', 'cab-exec', 'cab-cell', 'cab-from', 'cab-to'].forEach((id) => $(id).addEventListener('input', render));
+    $('cab-date-clear').addEventListener('click', () => { $('cab-from').value = ''; $('cab-to').value = ''; render(); });
     document.querySelectorAll('.cab-quick').forEach((b) => b.addEventListener('click', () => { quick = quick === b.dataset.q ? '' : b.dataset.q; render(); }));
     $('cab-back').addEventListener('click', closeCase);
     $('cab-settings-btn').hidden = !isAdmin;
@@ -50,6 +53,7 @@ window.Cabinet = (() => {
     document.querySelectorAll('.cab-mod').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.m === module)));
     $('cab-title').textContent = module === '200' ? 'Кабінет 200 — супровід родин загиблих' : 'Кабінет 300 — супровід поранених';
     $('cab-status-line').textContent = 'Завантажуємо…';
+    $('cab-date-label').textContent = module === '200' ? 'Дата поховання:' : 'Дата поранення:';
     const [d, st, ops] = await Promise.all([
       db.from('case_stage_defs').select('*').eq('module', module).eq('active', true).order('sort'),
       db.from('case_statuses').select('*').eq('module', module).order('sort'),
@@ -121,7 +125,9 @@ window.Cabinet = (() => {
   function filtered() {
     const q = $('cab-search').value.trim().toLowerCase();
     const st = $('cab-status').value, ex = $('cab-exec').value, ce = $('cab-cell').value;
+    const from = $('cab-from').value, to = $('cab-to').value, dk = dateKey();
     return cases.filter((c) => {
+      if (from || to) { const d = c.person[dk]; if (!d || (from && d < from) || (to && d > to)) return false; }
       if (q && !(fio(c.person).toLowerCase().includes(q) || c.journal_id.toLowerCase().includes(q) ||
         c.kin.some((k) => fio(k.person).toLowerCase().includes(q) || (k.person.phone || '').includes(q.replace(/\D/g, '') || '§')))) return false;
       if (st && c.status !== st) return false;
@@ -146,7 +152,9 @@ window.Cabinet = (() => {
     $('cq-fresh-btn').hidden = !cnt(isNew) && quick !== 'fresh';
     $('cq-nocell').textContent = cnt((c) => !c.cell_id);
     document.querySelectorAll('.cab-quick').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.q === quick)));
-    $('cab-count').textContent = `${list.length} з ${cases.length}`;
+    const hasDate = !!($('cab-from').value || $('cab-to').value);
+    $('cab-date-clear').hidden = !hasDate;
+    $('cab-count').textContent = `${list.length} з ${cases.length}` + (hasDate ? ` · без дати: ${cases.filter((c) => !c.person[dateKey()]).length} (у період не потрапляють)` : '');
     const { cells } = Persons.ctx();
     const color = new Map(statuses.map((s) => [s.name, s.color]));
     const totalStages = defs.filter((d) => (d.section || 'other') !== 'head').length;
@@ -168,6 +176,7 @@ window.Cabinet = (() => {
         <td><span class="cab-progress"><i style="width:${pct}%"></i></span> <span class="muted">${filled}/${totalStages}</span></td>`;
       tr.children[0].textContent = c.journal_id;
       tr.children[1].textContent = fio(c.person);
+      { const d = c.person[dateKey()]; if (d) { const m = document.createElement('span'); m.className = 'muted cab-date'; m.textContent = (module === '200' ? 'поховання ' : 'поранення ') + fmt(d); tr.children[1].append(document.createElement('br'), m); } }
       if (isNew(c)) { const b = document.createElement('span'); b.className = 'cab-new-mark'; b.textContent = 'нова'; b.title = 'Справу передано у ваш осередок'; tr.children[1].append(' ', b); }
       tr.children[2].innerHTML = rec ? '<span></span><br><span class="muted"></span>' : '<span class="muted">родину не встановлено</span>';
       if (rec) {

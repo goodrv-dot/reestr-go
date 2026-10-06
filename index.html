@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Unbounded:wght@600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=202610061330">
+  <link rel="stylesheet" href="style.css?v=202610061405">
 </head>
 <body>
 
@@ -337,6 +337,12 @@
           <select id="cab-status" aria-label="Статус"></select>
           <select id="cab-exec" aria-label="Виконавець"></select>
           <select id="cab-cell" aria-label="Осередок"></select>
+          <span class="cab-dates">
+            <span id="cab-date-label" class="muted">Дата поховання:</span>
+            <label>з <input id="cab-from" type="date" aria-label="Дата від"></label>
+            <label>по <input id="cab-to" type="date" aria-label="Дата до"></label>
+            <button id="cab-date-clear" type="button" class="btn-link" hidden>скинути</button>
+          </span>
         </div>
         <div class="qchips" role="group" aria-label="Швидкі фільтри">
           <button type="button" class="qchip cab-quick" data-q="mine" aria-pressed="false">Мої <b id="cq-mine">0</b></button>
@@ -662,7 +668,7 @@
         <ul>
           <li><b>Кабінет</b> — робота зі справами: одна справа = один загиблий (200) або поранений (300) разом із родиною. Перемикач <b>200 | 300</b> угорі.</li>
           <li>У списку: ID справи (той самий, що в журналі), родина й телефон, осередок, статус, виконавець, <b>наступна дія</b> (напр. «Другий дзвінок — до 12.10»; червоним — прострочено) і прогрес етапів.</li>
-          <li>Швидкі фільтри: <b>Мої</b> (де я виконавець), <b>Прострочені</b>, <b>Проблема</b>; а також пошук, статус, виконавець, осередок.</li>
+          <li>Швидкі фільтри: <b>Мої</b> (де я виконавець), <b>Прострочені</b>, <b>Проблема</b>; а також пошук, статус, виконавець, осередок і <b>період</b>: у «200» — за датою поховання, у «300» — за датою поранення (можна вказати лише «з» або лише «по»; справи без дати в період не потрапляють).</li>
           <li><b>Справа — основне робоче місце.</b> Усі поля можна заповнювати й виправляти прямо тут; зміни зберігаються одразу й самі потрапляють у картку реєстру. Угорі — <b>контактна особа</b> з телефоном (з ким тримати зв’язок).</li>
           <li>Поля зібрані в <b>розділи</b> (Особа, Сповіщення, Родина, Поховання, Супровід…). «Усі розділи» показує все підряд, кнопка розділу — лише його. <b>Примітки</b> завжди праворуч угорі. На кнопці розділу видно, скільки заповнено («4/7»); червона кнопка — у розділі є прострочене. Порожні поля згорнуті під «Незаповнені поля».</li>
           <li><b>Родина:</b> рідні рядками — спорідненість, телефон, адреса правляться на місці; «+ Додати родича» створює його картку в реєстрі. Позначка «контактна особа» визначає, кого показувати вгорі справи.</li>
@@ -1026,25 +1032,25 @@
   <p id="loading" class="loading">Завантаження…</p>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="config.js?v=202610061330"></script>
+  <script src="config.js?v=202610061405"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="options.js?v=202610061330"></script>
-  <script src="ui.js?v=202610061330"></script>
-  <script src="validation.js?v=202610061330"></script>
-  <script src="filters.js?v=202610061330"></script>
-  <script src="segments.js?v=202610061330"></script>
-  <script src="picker.js?v=202610061330"></script>
-  <script src="merge.js?v=202610061330"></script>
-  <script src="persons.js?v=202610061330"></script>
-  <script src="export.js?v=202610061330"></script>
-  <script src="import.js?v=202610061330"></script>
-  <script src="mfa.js?v=202610061330"></script>
-  <script src="staff.js?v=202610061330"></script>
-  <script src="ua-map.js?v=202610061330"></script>
-  <script src="dashboard.js?v=202610061330"></script>
-  <script src="journal.js?v=202610061330"></script>
-  <script src="cabinet.js?v=202610061330"></script>
-  <script src="nav.js?v=202610061330"></script>
-  <script src="app.js?v=202610061330"></script>
+  <script src="options.js?v=202610061405"></script>
+  <script src="ui.js?v=202610061405"></script>
+  <script src="validation.js?v=202610061405"></script>
+  <script src="filters.js?v=202610061405"></script>
+  <script src="segments.js?v=202610061405"></script>
+  <script src="picker.js?v=202610061405"></script>
+  <script src="merge.js?v=202610061405"></script>
+  <script src="persons.js?v=202610061405"></script>
+  <script src="export.js?v=202610061405"></script>
+  <script src="import.js?v=202610061405"></script>
+  <script src="mfa.js?v=202610061405"></script>
+  <script src="staff.js?v=202610061405"></script>
+  <script src="ua-map.js?v=202610061405"></script>
+  <script src="dashboard.js?v=202610061405"></script>
+  <script src="journal.js?v=202610061405"></script>
+  <script src="cabinet.js?v=202610061405"></script>
+  <script src="nav.js?v=202610061405"></script>
+  <script src="app.js?v=202610061405"></script>
 </body>
 </html>

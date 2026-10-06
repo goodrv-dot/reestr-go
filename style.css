@@ -850,3 +850,10 @@ tr[data-module="m300"] { --mod-c: #5b3f8c; }
 .fam-row label.fam-contact { flex-direction: row; align-items: center; gap: 0.4rem; padding-bottom: 0.45rem; }
 .fam-call { padding-bottom: 0.45rem; font-weight: 600; }
 .fam-add summary { cursor: pointer; color: var(--sea); font-weight: 600; margin-bottom: 0.5rem; }
+.case-sec-title { margin: 1.3rem 0 0.6rem; padding-bottom: 0.25rem; border-bottom: 2px solid var(--line); font-size: 1rem; color: var(--sea); }
+.case-sec-title:first-child { margin-top: 0.3rem; }
+.case-notes-card { border-left: 4px solid var(--brass); }
+.case-notes-card .stage { border-left: 0; padding-left: 0; }
+.case-notes-card .stage label { display: none; }
+.case-notes-card textarea { min-height: 6rem; }
+.case-empty summary { overflow-wrap: anywhere; }

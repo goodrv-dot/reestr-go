@@ -175,26 +175,24 @@ window.Cabinet = (() => {
 
   // ---------- Справа ----------
   const SECTIONS = {
-    '200': [['person', 'Особа'], ['notice', 'Сповіщення'], ['family', 'Родина'], ['burial', 'Поховання'], ['support', 'Супровід'], ['awards', 'Нагороди і юридичне'], ['problems', 'Проблеми і примітки'], ['other', 'Інше']],
-    '300': [['person', 'Особа'], ['treat', 'Лікування'], ['docs', 'Документи'], ['family', 'Родина'], ['problems', 'Проблеми і примітки'], ['other', 'Інше']]
+    '200': [['person', 'Особа'], ['notice', 'Сповіщення'], ['family', 'Родина'], ['burial', 'Поховання'], ['support', 'Супровід'], ['awards', 'Нагороди і юридичне'], ['problems', 'Проблеми'], ['other', 'Інше']],
+    '300': [['person', 'Особа'], ['treat', 'Лікування'], ['docs', 'Документи'], ['family', 'Родина'], ['problems', 'Проблеми'], ['other', 'Інше']]
   };
   // Поля особи, які редагуються у справі й одразу потрапляють у картку реєстру
   const PERSON_FIELDS = {
     '200': {
       person: [['last_name', 'Прізвище'], ['first_name', 'Ім’я'], ['patronymic', 'По батькові'], ['callsign', 'Позивний'], ['birth_date', 'Дата народження', 'date'],
         ['death_date', 'Дата загибелі', 'date'], ['military_unit_code', 'Військова частина'], ['mp_unit_id', 'Бригада', 'unit'], ['region_id', 'Регіон (область)', 'region']],
-      burial: [['burial_place', 'Місце поховання'], ['burial_date', 'Дата поховання', 'date']],
-      problems: [['comment', 'Примітки']]
+      burial: [['burial_place', 'Місце поховання'], ['burial_date', 'Дата поховання', 'date']]
     },
     '300': {
       person: [['last_name', 'Прізвище'], ['first_name', 'Ім’я'], ['patronymic', 'По батькові'], ['callsign', 'Позивний'], ['birth_date', 'Дата народження', 'date'],
         ['phone', 'Номер телефону', 'phone'], ['military_unit_code', 'Військова частина'], ['mp_unit_id', 'Бригада', 'unit'], ['region_id', 'Регіон (область)', 'region'],
-        ['wound_date', 'Дата поранення', 'date']],
-      problems: [['comment', 'Примітки']]
+        ['wound_date', 'Дата поранення', 'date']]
     }
   };
-  const P_LABELS = Object.fromEntries(Object.values(PERSON_FIELDS).flatMap((m) => Object.values(m).flat()).map(([k, l]) => ['p_' + k, l]));
-  let tab = 'person';
+  const P_LABELS = Object.fromEntries([['p_comment', 'Примітки'], ...Object.values(PERSON_FIELDS).flatMap((m) => Object.values(m).flat()).map(([k, l]) => ['p_' + k, l])]);
+  let tab = 'all';
   const nm = (x) => V.normalizeName(x).value || null;
   const badName = (...xs) => { const e = xs.map((x) => V.normalizeName(x).error).find(Boolean); if (e) Persons.toast('ПІБ: ' + e); return !!e; };
   const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
@@ -208,7 +206,7 @@ window.Cabinet = (() => {
     $('cab-list').hidden = true; $('cab-case').hidden = false;
     if (!noPush) history.pushState({ view: 'case' }, '');
     window.scrollTo(0, 0);
-    tab = 'person';
+    tab = 'all';
     const c = current, p = c.person;
     $('case-link').onclick = () => copyLink(`?case=${encodeURIComponent(c.journal_id)}`, `Посилання на справу ${c.journal_id} скопійовано`);
     $('case-open-person').onclick = () => openPerson(p.id);
@@ -337,35 +335,40 @@ window.Cabinet = (() => {
   function renderStages() {
     const c = current;
     const secs = SECTIONS[module].filter(([k]) => k === 'family' || sectionFields(k).length);
-    if (!secs.some(([k]) => k === tab)) tab = secs[0][0];
+    if (tab !== 'all' && !secs.some(([k]) => k === tab)) tab = 'all';
     const tabs = $('case-tabs'); tabs.innerHTML = '';
-    secs.forEach(([k, label]) => {
-      const fs = sectionFields(k);
+    const chip = (k, label, count, crit) => {
       const b = document.createElement('button');
-      b.type = 'button'; b.className = 'qchip case-tab'; b.setAttribute('aria-pressed', String(k === tab));
-      const overdue = fs.some((f) => f.state === 'is-overdue');
-      b.innerHTML = `<span></span> <b></b>`;
-      b.firstChild.textContent = label;
-      b.lastChild.textContent = k === 'family' ? String(c.kin.length) : `${fs.filter(isFilled).length}/${fs.length}`;
-      if (overdue) b.classList.add('qchip-crit');
+      b.type = 'button'; b.className = 'qchip case-tab' + (crit ? ' qchip-crit' : ''); b.setAttribute('aria-pressed', String(k === tab));
+      b.innerHTML = '<span></span> <b></b>'; b.firstChild.textContent = label; b.lastChild.textContent = count;
       b.onclick = () => { tab = k; renderStages(); };
       tabs.appendChild(b);
+    };
+    const all = secs.filter(([k]) => k !== 'family').flatMap(([k]) => sectionFields(k));
+    chip('all', 'Усі розділи', `${all.filter(isFilled).length}/${all.length}`, false);
+    secs.forEach(([k, label]) => {
+      const fs = sectionFields(k);
+      chip(k, label, k === 'family' ? String(c.kin.length) : `${fs.filter(isFilled).length}/${fs.length}`, fs.some((f) => f.state === 'is-overdue'));
     });
     const box = $('case-stages'); box.innerHTML = '';
-    if (tab === 'family') box.appendChild(familyEl());
-    const fs = sectionFields(tab);
-    const shown = fs.filter((f) => isFilled(f) || f.hint), hidden = fs.filter((f) => !isFilled(f) && !f.hint);
-    const grid = document.createElement('div'); grid.className = 'case-stages';
-    shown.forEach((f) => grid.appendChild(fieldEl(f)));
-    if (shown.length) box.appendChild(grid);
-    if (hidden.length) {
-      const det = document.createElement('details'); det.className = 'case-empty';
-      det.open = !shown.length || emptyOpen.has(tab);
-      det.innerHTML = `<summary>Незаповнені поля (${hidden.length})</summary><div class="case-stages"></div>`;
-      det.addEventListener('toggle', () => { det.open ? emptyOpen.add(tab) : emptyOpen.delete(tab); });
-      hidden.forEach((f) => det.lastChild.appendChild(fieldEl(f)));
-      box.appendChild(det);
-    }
+    secs.filter(([k]) => tab === 'all' || k === tab).forEach(([k, label]) => {
+      if (tab === 'all') { const h = document.createElement('h3'); h.className = 'case-sec-title'; h.textContent = label; box.appendChild(h); }
+      if (k === 'family') box.appendChild(familyEl());
+      const fs = sectionFields(k);
+      const shown = fs.filter((f) => isFilled(f) || f.hint), hidden = fs.filter((f) => !isFilled(f) && !f.hint);
+      if (shown.length) { const grid = document.createElement('div'); grid.className = 'case-stages'; shown.forEach((f) => grid.appendChild(fieldEl(f))); box.appendChild(grid); }
+      if (hidden.length) {
+        const det = document.createElement('details'); det.className = 'case-empty';
+        det.open = (tab !== 'all' && !shown.length) || emptyOpen.has(k);
+        det.innerHTML = `<summary>Незаповнені поля (${hidden.length}): ${esc(hidden.map((f) => f.label).join(', '))}</summary><div class="case-stages"></div>`;
+        det.addEventListener('toggle', () => { det.open ? emptyOpen.add(k) : emptyOpen.delete(k); });
+        hidden.forEach((f) => det.lastChild.appendChild(fieldEl(f)));
+        box.appendChild(det);
+      }
+    });
+    // Примітки — завжди на видноті
+    const nb = $('case-notes'); nb.innerHTML = '';
+    nb.appendChild(fieldEl({ id: 'p-comment', label: 'Примітки (з журналу й картки)', kind: 'text', value: c.person.comment, onSave: (val, el) => savePerson('comment', val, null, el) }));
   }
   const emptyOpen = new Set();
 
@@ -468,7 +471,7 @@ window.Cabinet = (() => {
     if (key === 'patronymic' && v) v = nm(v);
     if (!(await updPerson(p.id, { [key]: v }))) { renderStages(); return; }
     p[key] = v;
-    renderHead(); renderStages(); loadHistory();
+    renderHead(); if (key !== 'comment') renderStages(); loadHistory();
   }
 
   // ---------- Нова справа ----------

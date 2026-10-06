@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Unbounded:wght@600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=202610061028">
+  <link rel="stylesheet" href="style.css?v=202610061040">
 </head>
 <body>
 
@@ -380,6 +380,10 @@
             <div id="case-stages"></div>
           </section>
           <aside>
+            <section class="case-card case-notes-card">
+              <h2>Примітки</h2>
+              <div id="case-notes"></div>
+            </section>
             <section class="case-card">
               <h2>Історія змін</h2>
               <ul id="case-history" class="case-history"></ul>
@@ -653,7 +657,7 @@
           <li>У списку: ID справи (той самий, що в журналі), родина й телефон, осередок, статус, виконавець, <b>наступна дія</b> (напр. «Другий дзвінок — до 12.10»; червоним — прострочено) і прогрес етапів.</li>
           <li>Швидкі фільтри: <b>Мої</b> (де я виконавець), <b>Прострочені</b>, <b>Проблема</b>; а також пошук, статус, виконавець, осередок.</li>
           <li><b>Справа — основне робоче місце.</b> Усі поля можна заповнювати й виправляти прямо тут; зміни зберігаються одразу й самі потрапляють у картку реєстру. Угорі — <b>контактна особа</b> з телефоном (з ким тримати зв’язок).</li>
-          <li>Поля зібрані в <b>розділи</b> (Особа, Сповіщення, Родина, Поховання, Супровід…). На кнопці розділу видно, скільки заповнено («4/7»); червона кнопка — у розділі є прострочене. Порожні поля згорнуті під «Незаповнені поля».</li>
+          <li>Поля зібрані в <b>розділи</b> (Особа, Сповіщення, Родина, Поховання, Супровід…). «Усі розділи» показує все підряд, кнопка розділу — лише його. <b>Примітки</b> завжди праворуч угорі. На кнопці розділу видно, скільки заповнено («4/7»); червона кнопка — у розділі є прострочене. Порожні поля згорнуті під «Незаповнені поля».</li>
           <li><b>Родина:</b> рідні рядками — спорідненість, телефон, адреса правляться на місці; «+ Додати родича» створює його картку в реєстрі. Позначка «контактна особа» визначає, кого показувати вгорі справи.</li>
           <li><b>Виконавець</b> — хто веде й заповнює справу (кнопка «Взяти собі»). <b>Допомагають</b> — співробітники, які залучені, але не ведуть. <b>Відповідальний (по осередку)</b> — людина від осередку.</li>
           <li><b>+ Нова справа</b> — завести загиблого чи пораненого прямо в кабінеті, без таблиці: досить прізвища та імені.</li>
@@ -985,25 +989,25 @@
   <p id="loading" class="loading">Завантаження…</p>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="config.js?v=202610061028"></script>
+  <script src="config.js?v=202610061040"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="options.js?v=202610061028"></script>
-  <script src="ui.js?v=202610061028"></script>
-  <script src="validation.js?v=202610061028"></script>
-  <script src="filters.js?v=202610061028"></script>
-  <script src="segments.js?v=202610061028"></script>
-  <script src="picker.js?v=202610061028"></script>
-  <script src="merge.js?v=202610061028"></script>
-  <script src="persons.js?v=202610061028"></script>
-  <script src="export.js?v=202610061028"></script>
-  <script src="import.js?v=202610061028"></script>
-  <script src="mfa.js?v=202610061028"></script>
-  <script src="staff.js?v=202610061028"></script>
-  <script src="ua-map.js?v=202610061028"></script>
-  <script src="dashboard.js?v=202610061028"></script>
-  <script src="journal.js?v=202610061028"></script>
-  <script src="cabinet.js?v=202610061028"></script>
-  <script src="nav.js?v=202610061028"></script>
-  <script src="app.js?v=202610061028"></script>
+  <script src="options.js?v=202610061040"></script>
+  <script src="ui.js?v=202610061040"></script>
+  <script src="validation.js?v=202610061040"></script>
+  <script src="filters.js?v=202610061040"></script>
+  <script src="segments.js?v=202610061040"></script>
+  <script src="picker.js?v=202610061040"></script>
+  <script src="merge.js?v=202610061040"></script>
+  <script src="persons.js?v=202610061040"></script>
+  <script src="export.js?v=202610061040"></script>
+  <script src="import.js?v=202610061040"></script>
+  <script src="mfa.js?v=202610061040"></script>
+  <script src="staff.js?v=202610061040"></script>
+  <script src="ua-map.js?v=202610061040"></script>
+  <script src="dashboard.js?v=202610061040"></script>
+  <script src="journal.js?v=202610061040"></script>
+  <script src="cabinet.js?v=202610061040"></script>
+  <script src="nav.js?v=202610061040"></script>
+  <script src="app.js?v=202610061040"></script>
 </body>
 </html>

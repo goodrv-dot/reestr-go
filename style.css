@@ -858,5 +858,6 @@ tr[data-module="m300"] { --mod-c: #5b3f8c; }
 .case-notes-card textarea { min-height: 6rem; }
 .case-empty summary { overflow-wrap: anywhere; }
 .field-err { display: block; color: var(--err); font-size: 0.82rem; min-height: 0; }
-input.is-bad { border-color: var(--err) !important; background: #fdf1ef !important; }
+input.is-bad, textarea.is-bad { border-color: var(--err) !important; background: #fdf1ef !important; }
 .case-phone { white-space: nowrap; }
+.case-contact-name { margin: 0; font-weight: 700; font-size: 1rem; }

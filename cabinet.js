@@ -206,6 +206,18 @@ window.Cabinet = (() => {
     if (bad) { Persons.toast('Телефон введено з помилкою — не збережено'); el.focus(); return undefined; }
     return r.value;
   }
+  // Телефони всередині тексту («черговий 050 123 45 67»): неправильний номер не зберігаємо
+  function phonesInText(el) {
+    const ex = V.extractPhones(el.value); const phones = ex.phones;
+    // «схоже на телефон»: починається з +, 0, 380 чи 80 і має від 9 цифр (дати й номери наказів не чіпаємо)
+    const bad = ex.bad.filter((r) => /^(\+|0|380|80)/.test(r.trim()) && r.replace(/\D/g, '').length >= 9);
+    let hint = el.parentElement.querySelector('.field-err');
+    if (!hint) { hint = document.createElement('span'); hint.className = 'field-err'; el.after(hint); }
+    el.classList.toggle('is-bad', bad.length > 0);
+    hint.textContent = bad.length ? `Невірний номер: ${bad.join(', ')} — не збережено. Приклад: 050 123 45 67, іноземний — з «+»` : (phones.map((p) => p.warning).filter((w) => w && /ноземн/.test(w))[0] || '');
+    if (bad.length) { Persons.toast('Телефон введено з помилкою — не збережено'); el.focus(); return false; }
+    return true;
+  }
   const nm = (x) => V.normalizeName(x).value || null;
   const badName = (...xs) => { const e = xs.map((x) => V.normalizeName(x).error).find(Boolean); if (e) Persons.toast('ПІБ: ' + e); return !!e; };
   const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
@@ -261,8 +273,9 @@ window.Cabinet = (() => {
     $('case-take').hidden = c.executor_id === me;
     const box = $('case-contact'); const k = contactOf(c);
     if (!k) { box.innerHTML = '<span class="muted">Контактну особу не вказано — додайте рідних у розділі «Родина».</span>'; return; }
-    box.innerHTML = '<span class="muted">Контактна особа:</span> <b></b> <span class="muted"></span> <b class="case-phone"></b>';
+    box.innerHTML = '<span class="muted">Контактна особа:</span> <button type="button" class="btn-link case-contact-name" title="Відкрити картку в реєстрі"></button> <span class="muted"></span> <b class="case-phone"></b>';
     box.children[1].textContent = fio(k.person);
+    box.children[1].onclick = () => openPerson(k.person.id);
     box.children[2].textContent = `(${k.relation_degree})`;
     box.children[3].textContent = k.person.phone ? V.formatPhone(k.person.phone) : 'без телефону';
   }
@@ -333,7 +346,7 @@ window.Cabinet = (() => {
     });
     secDefs(sec).forEach((d) => {
       const v = c.vals[d.key] ?? ''; const f = { id: 's-' + d.key, label: d.label, kind: d.kind === 'text' ? 'text' : d.kind, options: d.options, value: v,
-        onSave: (val) => saveValue(d.key, val) };
+        onSave: (val, el) => { if (/контакт/i.test(d.label) && !phonesInText(el)) return; saveValue(d.key, val); } };
       if (d.remind_after && !v && c.vals[d.remind_after] && /^\d{4}-\d{2}-\d{2}/.test(c.vals[d.remind_after])) {
         const due = addDays(c.vals[d.remind_after].slice(0, 10), d.remind_days || 0);
         f.hint = `Потрібно до ${fmt(due)}`; f.state = due < today() ? 'is-overdue' : 'is-due';

@@ -8,6 +8,7 @@ window.Cabinet = (() => {
   let module = '200';
   let defs = [], statuses = [], staff = new Map(), cases = [];
   let current = null;           // відкрита справа
+  let preset = null;            // вибірка з дашборда: {ids:Set, label}
   let quick = '';               // mine | overdue | problem | fresh | nocell
   let seen = new Map();         // case_id → коли я відкривав справу
   let returnTo = null;          // справа, до якої повернутися після картки реєстру
@@ -30,7 +31,8 @@ window.Cabinet = (() => {
 
   function init(client, userId, admin) {
     db = client; me = userId; isAdmin = admin;
-    document.querySelectorAll('.cab-mod').forEach((b) => b.addEventListener('click', () => { module = b.dataset.m; quick = ''; load(); }));
+    document.querySelectorAll('.cab-mod').forEach((b) => b.addEventListener('click', () => { module = b.dataset.m; quick = ''; preset = null; load(); }));
+    $('cab-preset-clear').addEventListener('click', () => { preset = null; render(); });
     try { $('cab-sort').value = localStorage.getItem('cab_sort') || 'new'; } catch { /* без сховища — типовий порядок */ }
     if (!$('cab-sort').value) $('cab-sort').value = 'new';
     try { $('cab-pin').checked = localStorage.getItem('cab_pin') !== '0'; } catch { /* ок */ }
@@ -194,8 +196,9 @@ window.Cabinet = (() => {
     const st = $('cab-status').value, ex = $('cab-exec').value, ce = $('cab-cell').value;
     const from = $('cab-from').value, to = $('cab-to').value, dk = dateKey();
     const stSel = $('cab-status').value;
-    const showClosed = quick === 'closed' || !!q || statuses.some((s) => s.name === stSel && s.closed);
+    const showClosed = !!preset || quick === 'closed' || !!q || statuses.some((s) => s.name === stSel && s.closed);
     return cases.filter((c) => {
+      if (preset && !preset.ids.has(c.id)) return false;
       if (!showClosed && isClosed(c)) return false;
       if (quick === 'closed' && !isClosed(c)) return false;
       if (from || to) { const d = c.person[dk]; if (!d || (from && d < from) || (to && d > to)) return false; }
@@ -254,7 +257,7 @@ window.Cabinet = (() => {
 
   function render() {
     const list = sorted(filtered());
-    const sig = [module, quick, ...['cab-search', 'cab-status', 'cab-exec', 'cab-cell', 'cab-from', 'cab-to', 'cab-sort'].map((id) => $(id).value), $('cab-pin').checked].join('|');
+    const sig = [module, quick, ...['cab-search', 'cab-status', 'cab-exec', 'cab-cell', 'cab-from', 'cab-to', 'cab-sort'].map((id) => $(id).value), $('cab-pin').checked, preset ? preset.label : ''].join('|');
     if (sig !== lastSig) { page = 1; lastSig = sig; }
     const pages = Math.max(1, Math.ceil(list.length / PAGE)); if (page > pages) page = pages;
     const cnt = (f) => cases.filter((c) => !isClosed(c)).filter(f).length;
@@ -267,6 +270,7 @@ window.Cabinet = (() => {
     $('cq-fresh-btn').hidden = !cnt(isNew) && quick !== 'fresh';
     $('cq-nocell').textContent = cnt((c) => !c.cell_id);
     document.querySelectorAll('.cab-quick').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.q === quick)));
+    $('cab-preset').hidden = !preset; if (preset) $('cab-preset-label').textContent = preset.label;
     const hasDate = !!($('cab-from').value || $('cab-to').value);
     $('cab-date-clear').hidden = !hasDate;
     $('cab-count').textContent = `${list.length} з ${cases.length}` + (closedN && !list.some(isClosed) ? ` · завершених приховано: ${closedN}` : '') + (hasDate ? ` · без дати: ${noDateCount()} (у період не потрапляють)` : '');
@@ -968,5 +972,13 @@ window.Cabinet = (() => {
     });
   }
 
-  return { init, load, openByJournal, badge };
+  // Відкрити кабінет із готовою вибіркою справ (з дашборда)
+  function openPreset(mod, ids, label) {
+    module = mod; quick = ''; preset = { ids: new Set(ids), label };
+    ['cab-search', 'cab-status', 'cab-exec', 'cab-cell', 'cab-from', 'cab-to'].forEach((id) => { $(id).value = ''; });
+    if (!$('cab-case').hidden) { $('cab-case').hidden = true; $('cab-list').hidden = false; current = null; }
+    document.querySelector('.tab[data-tab="cabinet"]').click();
+  }
+
+  return { init, load, openByJournal, badge, openPreset };
 })();

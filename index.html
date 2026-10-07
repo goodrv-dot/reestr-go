@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Unbounded:wght@600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=202610070948">
+  <link rel="stylesheet" href="style.css?v=202610071055">
 </head>
 <body>
 
@@ -61,6 +61,13 @@
         </nav>
       </div>
       <div class="topbar-user">
+        <div class="bell-wrap">
+          <button id="bell-btn" class="bell-btn" type="button" aria-label="Сповіщення" aria-haspopup="true" hidden>
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>
+            <span id="bell-count" class="bell-count" hidden></span>
+          </button>
+          <div id="bell-panel" class="bell-panel" role="dialog" aria-label="Сповіщення" hidden></div>
+        </div>
         <button id="profile-btn" class="profile-btn" type="button" title="Мій профіль">
           <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
           <span id="user-name"></span>
@@ -358,6 +365,7 @@
           <button type="button" class="qchip cab-quick qchip-crit" data-q="overdue" aria-pressed="false">Прострочені <b id="cq-overdue">0</b></button>
           <button type="button" class="qchip cab-quick qchip-warn" data-q="problem" aria-pressed="false">Проблема <b id="cq-problem">0</b></button>
           <button type="button" id="cq-fresh-btn" class="qchip cab-quick qchip-new" data-q="fresh" aria-pressed="false" hidden>Нові <b id="cq-fresh">0</b></button>
+          <button type="button" id="cq-closed-btn" class="qchip cab-quick" data-q="closed" aria-pressed="false" hidden>Завершені <b id="cq-closed">0</b></button>
           <button type="button" id="cq-nocell-btn" class="qchip cab-quick" data-q="nocell" aria-pressed="false" hidden>Нерозподілені <b id="cq-nocell">0</b></button>
           <span class="muted" id="cab-count"></span>
         </div>
@@ -681,7 +689,8 @@
           <li>Список показує по <b>100 справ на сторінку</b>, перехід — кнопками сторінок унизу. Під номером справи — кружечки, як в «Особах»: <b>червоний</b> — скільки важливого не заповнено (або прострочено), <b>жовтий</b> — скільки бажано заповнити, зелена галочка — усе заповнено.</li>
           <li>У списку: ID справи (той самий, що в журналі), родина й телефон, осередок, статус, виконавець, <b>наступна дія</b> (напр. «Другий дзвінок — до 12.10»; червоним — прострочено) і прогрес етапів.</li>
           <li><b>Блок термінових дій</b> угорі кабінету — перше, що видно після входу: скільки прострочено, що на сьогодні й на тиждень у ваших справах, і самі справи. Лічильники «Прострочено», «На сьогодні», «На цьому тижні» — це кнопки: натисніть, щоб побачити саме ці справи (сірий лічильник із нулем означає, що таких справ немає). <b>«Зроблено»</b> одним натиском ставить сьогоднішню дату й прибирає справу зі списку. Терміни мають три ступені: сіре «до 20.10» → жовте «залишилось 2 дні» → червоне «прострочено на 5 днів». Прострочені справи стоять першими (позначку «прострочені зверху» можна зняти), рядок має червону смугу. На вкладці «Кабінет» — червона цифра прострочених у ваших справах.</li>
-          <li><b>Завершені справи.</b> Зі статусом «Документи ✅» або «Архів» терміни й нагадування вимикаються: справа не потрапляє в «Прострочені» і в блок термінових дій. Сама справа лишається у списку, її можна відкривати й редагувати; повернули статус «В роботі» — терміни знову діють.</li>
+          <li><b>Завершені справи.</b> Зі статусом «Документи ✅» або «Архів» терміни й нагадування вимикаються: справа не потрапляє в «Прострочені» і в блок термінових дій. Такі справи <b>приховані з основного списку</b>: їх показує кнопка <b>«Завершені»</b>, вибір цього статусу у фільтрі або пошук за прізвищем. Справу в архіві можна відкривати й редагувати як завжди; повернули статус «В роботі» — вона знову в основному списку, і терміни діють.</li>
+          <li><b>Дзвіночок</b> угорі праворуч — сповіщення саме для вас як виконавця: прострочені дії, дії на сьогодні, нові справи у вашому осередку та справи, які вам призначили. Число на дзвіночку — скільки всього; червоний дзвіночок — є прострочене. Натисніть на рядок — відкриється справа. Оновлюється саме раз на 5 хвилин і після кожної вашої дії.</li>
           <li>Швидкі фільтри: <b>Мої</b> (де я виконавець), <b>Прострочені</b>, <b>Проблема</b>; а також пошук, статус, виконавець, осередок <b>порядок</b> (типово — нові справи зверху, у порядку додавання; можна старі зверху, за датою чи за алфавітом) і <b>період</b>: у «200» — за датою поховання, у «300» — за датою поранення (можна вказати лише «з» або лише «по»; справи без дати в період не потрапляють).</li>
           <li><b>Справа — основне робоче місце.</b> Усі поля можна заповнювати й виправляти прямо тут; зміни зберігаються одразу й самі потрапляють у картку реєстру. Угорі — <b>контактна особа</b> з телефоном (з ким тримати зв’язок).</li>
           <li>Поля зібрані в <b>розділи</b> (Особа, Сповіщення, Родина, Поховання, Супровід…). «Усі розділи» показує все підряд, кнопка розділу — лише його. <b>Примітки</b> завжди праворуч угорі. На кнопці розділу видно, скільки заповнено («4/7»); червона кнопка — у розділі є прострочене. Порожні поля згорнуті під «Незаповнені поля».</li>
@@ -1077,25 +1086,25 @@
   <p id="loading" class="loading">Завантаження…</p>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="config.js?v=202610070948"></script>
+  <script src="config.js?v=202610071055"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="options.js?v=202610070948"></script>
-  <script src="ui.js?v=202610070948"></script>
-  <script src="validation.js?v=202610070948"></script>
-  <script src="filters.js?v=202610070948"></script>
-  <script src="segments.js?v=202610070948"></script>
-  <script src="picker.js?v=202610070948"></script>
-  <script src="merge.js?v=202610070948"></script>
-  <script src="persons.js?v=202610070948"></script>
-  <script src="export.js?v=202610070948"></script>
-  <script src="import.js?v=202610070948"></script>
-  <script src="mfa.js?v=202610070948"></script>
-  <script src="staff.js?v=202610070948"></script>
-  <script src="ua-map.js?v=202610070948"></script>
-  <script src="dashboard.js?v=202610070948"></script>
-  <script src="journal.js?v=202610070948"></script>
-  <script src="cabinet.js?v=202610070948"></script>
-  <script src="nav.js?v=202610070948"></script>
-  <script src="app.js?v=202610070948"></script>
+  <script src="options.js?v=202610071055"></script>
+  <script src="ui.js?v=202610071055"></script>
+  <script src="validation.js?v=202610071055"></script>
+  <script src="filters.js?v=202610071055"></script>
+  <script src="segments.js?v=202610071055"></script>
+  <script src="picker.js?v=202610071055"></script>
+  <script src="merge.js?v=202610071055"></script>
+  <script src="persons.js?v=202610071055"></script>
+  <script src="export.js?v=202610071055"></script>
+  <script src="import.js?v=202610071055"></script>
+  <script src="mfa.js?v=202610071055"></script>
+  <script src="staff.js?v=202610071055"></script>
+  <script src="ua-map.js?v=202610071055"></script>
+  <script src="dashboard.js?v=202610071055"></script>
+  <script src="journal.js?v=202610071055"></script>
+  <script src="cabinet.js?v=202610071055"></script>
+  <script src="nav.js?v=202610071055"></script>
+  <script src="app.js?v=202610071055"></script>
 </body>
 </html>

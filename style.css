@@ -990,3 +990,19 @@ button.today-n[aria-pressed="true"] { border-color: var(--ink); box-shadow: 0 0 
 .today-more { margin-top: 0.25rem; font-size: 0.82rem; }
 .due-tag { white-space: nowrap; }
 .cab-today .today-more:last-child { margin-bottom: 0.1rem; }
+
+/* ---- Дзвіночок ---- */
+.bell-wrap { position: relative; }
+.bell-btn { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 2.2rem; height: 2.2rem; border-radius: 50%; background: transparent; border: 1px solid #5d8098; color: #fff; }
+.bell-btn:hover { border-color: #fff; }
+.bell-btn.has-over { background: var(--err); border-color: var(--err); }
+.bell-count { position: absolute; top: -0.35rem; right: -0.45rem; min-width: 1.15rem; height: 1.15rem; padding: 0 0.25rem; border-radius: 999px; background: #f2b705; color: #3d2e00; font-size: 0.7rem; font-weight: 700; line-height: 1.15rem; text-align: center; }
+.bell-panel { position: absolute; z-index: 40; right: 0; top: calc(100% + 0.5rem); width: min(24rem, 92vw); max-height: 70vh; overflow: auto; background: var(--white); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.2); padding: 0.8rem 0.9rem; }
+.bell-panel h2 { margin: 0 0 0.4rem; font-size: 1rem; color: var(--sea); }
+.bell-panel h3 { margin: 0.6rem 0 0.25rem; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.bell-panel h3.n-over { color: var(--err); } .bell-panel h3.n-now { color: #7a5a10; } .bell-panel h3.n-new { color: #9a3412; }
+.bell-panel ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.bell-item { width: 100%; text-align: left; display: flex; flex-direction: column; gap: 1px; padding: 0.3rem 0.5rem; border: 0; border-radius: 6px; background: #f6f8f9; font-weight: 400; font-size: 0.85rem; color: var(--ink); }
+.bell-item:hover { background: #e7f0f7; }
+.bell-item span { color: var(--muted); font-size: 0.78rem; }
+@media (max-width: 760px) { .bell-panel { position: fixed; right: 4vw; left: 4vw; top: 3.5rem; width: auto; } }

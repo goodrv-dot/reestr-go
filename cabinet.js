@@ -193,7 +193,11 @@ window.Cabinet = (() => {
     const q = $('cab-search').value.trim().toLowerCase();
     const st = $('cab-status').value, ex = $('cab-exec').value, ce = $('cab-cell').value;
     const from = $('cab-from').value, to = $('cab-to').value, dk = dateKey();
+    const stSel = $('cab-status').value;
+    const showClosed = quick === 'closed' || !!q || statuses.some((s) => s.name === stSel && s.closed);
     return cases.filter((c) => {
+      if (!showClosed && isClosed(c)) return false;
+      if (quick === 'closed' && !isClosed(c)) return false;
       if (from || to) { const d = c.person[dk]; if (!d || (from && d < from) || (to && d > to)) return false; }
       if (q && !(fio(c.person).toLowerCase().includes(q) || c.journal_id.toLowerCase().includes(q) ||
         c.kin.some((k) => fio(k.person).toLowerCase().includes(q) || (k.person.phone || '').includes(q.replace(/\D/g, '') || '§')))) return false;
@@ -246,7 +250,9 @@ window.Cabinet = (() => {
     const sig = [module, quick, ...['cab-search', 'cab-status', 'cab-exec', 'cab-cell', 'cab-from', 'cab-to', 'cab-sort'].map((id) => $(id).value), $('cab-pin').checked].join('|');
     if (sig !== lastSig) { page = 1; lastSig = sig; }
     const pages = Math.max(1, Math.ceil(list.length / PAGE)); if (page > pages) page = pages;
-    const cnt = (f) => cases.filter(f).length;
+    const cnt = (f) => cases.filter((c) => !isClosed(c)).filter(f).length;
+    const closedN = cases.filter(isClosed).length;
+    $('cq-closed').textContent = closedN; $('cq-closed-btn').hidden = !closedN && quick !== 'closed';
     $('cq-mine').textContent = cnt((c) => c.executor_id === me);
     $('cq-overdue').textContent = cnt((c) => c.next && c.next.overdue);
     $('cq-problem').textContent = cnt((c) => c.status === 'Проблема');
@@ -256,7 +262,7 @@ window.Cabinet = (() => {
     document.querySelectorAll('.cab-quick').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.q === quick)));
     const hasDate = !!($('cab-from').value || $('cab-to').value);
     $('cab-date-clear').hidden = !hasDate;
-    $('cab-count').textContent = `${list.length} з ${cases.length}` + (hasDate ? ` · без дати: ${cases.filter((c) => !c.person[dateKey()]).length} (у період не потрапляють)` : '');
+    $('cab-count').textContent = `${list.length} з ${cases.length}` + (closedN && !list.some(isClosed) ? ` · завершених приховано: ${closedN}` : '') + (hasDate ? ` · без дати: ${cases.filter((c) => !c.person[dateKey()]).length} (у період не потрапляють)` : '');
     const { cells } = Persons.ctx();
     const color = new Map(statuses.map((s) => [s.name, s.color]));
     const totalStages = defs.filter((d) => (d.section || 'other') !== 'head').length;
@@ -378,7 +384,7 @@ window.Cabinet = (() => {
     window.scrollTo(0, 0);
     tab = 'all';
     const c = current, p = c.person;
-    if (isNew(c)) { const at = new Date().toISOString(); seen.set(c.id, at); db.from('case_seen').upsert({ case_id: c.id, user_id: me, seen_at: at }, { onConflict: 'user_id,case_id' }).then(() => badge()); }
+    if (isNew(c) || !seen.has(c.id)) { const at = new Date().toISOString(); seen.set(c.id, at); db.from('case_seen').upsert({ case_id: c.id, user_id: me, seen_at: at }, { onConflict: 'user_id,case_id' }).then(() => badge()); }
     $('case-link').onclick = () => copyLink(`?case=${encodeURIComponent(c.journal_id)}`, `Посилання на справу ${c.journal_id} скопійовано`);
     $('case-open-person').onclick = () => openPerson(p.id);
 
@@ -904,19 +910,55 @@ window.Cabinet = (() => {
     else Persons.toast(`Справу ${jid} не знайдено або немає доступу`);
   }
 
-  // Лічильник нових справ на вкладці «Кабінет»
+  // ---------- Дзвіночок: сповіщення для мене (виконавця) + лічильники на вкладці ----------
+  const NOTE = {
+    overdue: ['Прострочено', 'n-over'], today: ['На сьогодні', 'n-now'],
+    new: ['Нова справа у вашому осередку', 'n-new'], assigned: ['Вам призначено справу', 'n-new']
+  };
+  let notes = [], bellWired = false;
   async function badge() {
     const tabEl = document.querySelector('.tab[data-tab="cabinet"]'); if (!tabEl || !db) return;
-    const [cs, sn, od] = await Promise.all([
-      db.from('cases').select('id, transferred_at, transferred_by').not('transferred_at', 'is', null),
-      db.from('case_seen').select('case_id, seen_at'),
-      db.rpc('my_overdue_count')]);
-    const s = new Map((sn.data || []).map((r) => [r.case_id, r.seen_at]));
-    const n = (cs.data || []).filter((c) => c.transferred_by !== me && !(s.get(c.id) >= c.transferred_at)).length;
+    const { data, error } = await db.rpc('my_notifications');
+    if (error) { console.error(error); return; }
+    notes = data || [];
+    const cnt = (k) => notes.filter((x) => x.kind === k).length;
     tabEl.textContent = 'Кабінет';
-    if (n) { const b = document.createElement('span'); b.className = 'tab-badge'; b.textContent = n; b.title = 'Нові справи у ваших осередках'; tabEl.append(' ', b); }
-    const o = Number(od && od.data) || 0;
-    if (o) { const b = document.createElement('span'); b.className = 'tab-badge tab-badge-over'; b.textContent = o; b.title = 'Прострочені дії у моїх справах'; tabEl.append(' ', b); }
+    const pill = (n, cls, title) => { if (!n) return; const b = document.createElement('span'); b.className = 'tab-badge ' + cls; b.textContent = n; b.title = title; tabEl.append(' ', b); };
+    pill(cnt('new') + cnt('assigned'), '', 'Нові та призначені вам справи');
+    pill(cnt('overdue'), 'tab-badge-over', 'Прострочені дії у моїх справах');
+    const bell = $('bell-btn'); if (!bell) return;
+    bell.hidden = false;
+    const nb = $('bell-count'); nb.textContent = notes.length > 99 ? '99+' : notes.length; nb.hidden = !notes.length;
+    bell.classList.toggle('has-over', cnt('overdue') > 0);
+    bell.title = notes.length ? `Сповіщень: ${notes.length}` : 'Сповіщень немає';
+    if (!bellWired) {
+      bellWired = true;
+      bell.addEventListener('click', (e) => { e.stopPropagation(); const p = $('bell-panel'); p.hidden = !p.hidden; if (!p.hidden) renderBell(); });
+      document.addEventListener('click', (e) => { if (!e.target.closest('#bell-panel')) $('bell-panel').hidden = true; });
+      document.addEventListener('keydown', (e) => { if (e.key === 'Escape') $('bell-panel').hidden = true; });
+      setInterval(() => { if (!document.hidden) badge(); }, 5 * 60 * 1000);       // оновлення раз на 5 хв
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) badge(); });
+    }
+    if (!$('bell-panel').hidden) renderBell();
+  }
+  function renderBell() {
+    const p = $('bell-panel'); p.innerHTML = '<h2>Сповіщення</h2>';
+    if (!notes.length) { p.insertAdjacentHTML('beforeend', '<p class="muted">Нічого нового: прострочених дій і нових справ немає.</p>'); return; }
+    ['overdue', 'today', 'new', 'assigned'].forEach((k) => {
+      const list = notes.filter((x) => x.kind === k); if (!list.length) return;
+      const h = document.createElement('h3'); h.className = NOTE[k][1]; h.textContent = `${NOTE[k][0]} — ${list.length}`; p.appendChild(h);
+      const ul = document.createElement('ul');
+      list.slice(0, 15).forEach((x) => {
+        const li = document.createElement('li'); const b = document.createElement('button'); b.type = 'button'; b.className = 'bell-item';
+        b.innerHTML = '<b></b><span></span>';
+        b.firstChild.textContent = x.fio;
+        b.lastChild.textContent = x.label ? `${x.label} · ${x.days < 0 ? `прострочено на ${-x.days} ${plural(-x.days, 'день', 'дні', 'днів')}` : 'сьогодні'}` : `справа ${x.journal_id}`;
+        b.onclick = () => { p.hidden = true; document.querySelector('.tab[data-tab="cabinet"]').click(); openByJournal(x.journal_id); };
+        li.appendChild(b); ul.appendChild(li);
+      });
+      p.appendChild(ul);
+      if (list.length > 15) { const m = document.createElement('p'); m.className = 'muted'; m.textContent = `…і ще ${list.length - 15} — дивіться в кабінеті`; p.appendChild(m); }
+    });
   }
 
   return { init, load, openByJournal, badge };

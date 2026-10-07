@@ -102,8 +102,11 @@ window.Cabinet = (() => {
   }
 
   // Найближча дія за правилами нагадувань
+  // Завершені справи («Документи ✅», «Архів» — позначка closed у статусі): термінів і нагадувань немає
+  const isClosed = (c) => statuses.some((s) => s.name === c.status && s.closed);
   function nextAction(c) {
     let best = null;
+    if (isClosed(c)) return null;
     defs.filter((d) => d.remind_after && d.remind_days != null).forEach((d) => {
       if (c.vals[d.key]) return;                    // уже зроблено
       const base = c.vals[d.remind_after];
@@ -231,7 +234,7 @@ window.Cabinet = (() => {
     defs.forEach((d) => {
       if ((d.section || 'other') === 'head' || c.vals[d.key]) return;
       const base = d.remind_after && c.vals[d.remind_after];
-      const overdue = base && /^\d{4}-\d{2}-\d{2}/.test(base) && addDays(base.slice(0, 10), d.remind_days || 0) < today();
+      const overdue = !isClosed(c) && base && /^\d{4}-\d{2}-\d{2}/.test(base) && addDays(base.slice(0, 10), d.remind_days || 0) < today();
       (overdue || CRIT.has('s-' + d.key) ? crit++ : soft++);
     });
     return { crit, soft };
@@ -493,7 +496,7 @@ window.Cabinet = (() => {
     secDefs(sec).forEach((d) => {
       const v = c.vals[d.key] ?? ''; const f = { id: 's-' + d.key, label: d.label, kind: d.kind === 'text' ? 'text' : d.kind, options: d.options, value: v,
         onSave: (val, el) => { if (/контакт/i.test(d.label) && !phonesInText(el)) return; saveValue(d.key, val); } };
-      if (d.remind_after && !v && c.vals[d.remind_after] && /^\d{4}-\d{2}-\d{2}/.test(c.vals[d.remind_after])) {
+      if (!isClosed(c) && d.remind_after && !v && c.vals[d.remind_after] && /^\d{4}-\d{2}-\d{2}/.test(c.vals[d.remind_after])) {
         const due = addDays(c.vals[d.remind_after].slice(0, 10), d.remind_days || 0);
         f.hint = `Потрібно до ${fmt(due)}`; f.state = due < today() ? 'is-overdue' : 'is-due';
       }
@@ -812,6 +815,7 @@ window.Cabinet = (() => {
     const { error } = await db.from('cases').update(patch).eq('id', c.id);
     if (error) { console.error(error); Persons.toast('Не вдалося зберегти'); return; }
     Object.assign(c, patch);
+    if ('status' in patch) { c.next = nextAction(c); renderHead(); renderStages(); }
     $('case-take').hidden = c.executor_id === me;
     if ('executor_id' in patch) renderHelpers();
     Persons.toast('Збережено');

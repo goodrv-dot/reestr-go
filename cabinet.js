@@ -31,10 +31,14 @@ window.Cabinet = (() => {
   function init(client, userId, admin) {
     db = client; me = userId; isAdmin = admin;
     document.querySelectorAll('.cab-mod').forEach((b) => b.addEventListener('click', () => { module = b.dataset.m; quick = ''; load(); }));
+    try { $('cab-sort').value = localStorage.getItem('cab_sort') || 'new'; } catch { /* без сховища — типовий порядок */ }
+    if (!$('cab-sort').value) $('cab-sort').value = 'new';
+    $('cab-sort').addEventListener('change', () => { try { localStorage.setItem('cab_sort', $('cab-sort').value); } catch { /* ок */ } render(); });
     ['cab-search', 'cab-status', 'cab-exec', 'cab-cell', 'cab-from', 'cab-to'].forEach((id) => $(id).addEventListener('input', render));
     $('cab-date-clear').addEventListener('click', () => { $('cab-from').value = ''; $('cab-to').value = ''; render(); });
     document.querySelectorAll('.cab-quick').forEach((b) => b.addEventListener('click', () => { quick = quick === b.dataset.q ? '' : b.dataset.q; render(); }));
     $('cab-back').addEventListener('click', closeCase);
+    $('cab-pager').addEventListener('click', (e) => { const b = e.target.closest('.pg-btn'); if (!b || b.disabled) return; page = Number(b.dataset.page); render(); $('cab-table').scrollIntoView({ block: 'start' }); });
     $('cab-settings-btn').hidden = !isAdmin;
     $('cab-settings-btn').addEventListener('click', openSettings);
     $('cab-new-btn').addEventListener('click', openNew);
@@ -54,6 +58,7 @@ window.Cabinet = (() => {
     $('cab-title').textContent = module === '200' ? 'Кабінет 200 — супровід родин загиблих' : 'Кабінет 300 — супровід поранених';
     $('cab-status-line').textContent = 'Завантажуємо…';
     $('cab-date-label').textContent = module === '200' ? 'Дата поховання:' : 'Дата поранення:';
+    $('cab-sort').querySelector('[value="date"]').textContent = module === '200' ? 'за датою поховання' : 'за датою поранення';
     const [d, st, ops] = await Promise.all([
       db.from('case_stage_defs').select('*').eq('module', module).eq('active', true).order('sort'),
       db.from('case_statuses').select('*').eq('module', module).order('sort'),
@@ -142,8 +147,41 @@ window.Cabinet = (() => {
     });
   }
 
+  // Порядок списку. «Додавання»: час створення справи; для справ з одного імпорту (час однаковий) —
+  // дата сповіщення (200) / звернення (300), далі номер справи.
+  function sorted(list) {
+    const mode = $('cab-sort').value || 'new';
+    const reg = (c) => c.vals[module === '200' ? 'notice_date' : 'appeal_date'] || '';
+    const cmp = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
+    const added = (a, b) => cmp((a.created_at || '').slice(0, 16), (b.created_at || '').slice(0, 16)) || cmp(reg(a), reg(b)) || cmp(a.journal_id, b.journal_id);
+    const byDate = (a, b) => { const x = a.person[dateKey()] || '', y = b.person[dateKey()] || ''; return (!x) - (!y) || cmp(y, x); };
+    const f = mode === 'old' ? added : mode === 'abc' ? (a, b) => fio(a.person).localeCompare(fio(b.person), 'uk') : mode === 'date' ? byDate : (a, b) => added(b, a);
+    return [...list].sort(f);
+  }
+
+  // Скільки не заповнено у справі: важливе (червоне) і решта (жовте) — та сама логіка, що в підказках справи
+  function gaps(c) {
+    let crit = 0, soft = 0; const p = c.person, k = contactOf(c);
+    if (!c.status) crit++; if (!c.executor_id) crit++; if (!c.cell_id) crit++;
+    if (!k || !k.person.phone) crit++;
+    Object.values(PERSON_FIELDS[module] || {}).flat().forEach(([key]) => {
+      if (p[key] === null || p[key] === undefined || p[key] === '') (CRIT.has('p-' + key) ? crit++ : soft++);
+    });
+    defs.forEach((d) => {
+      if ((d.section || 'other') === 'head' || c.vals[d.key]) return;
+      const base = d.remind_after && c.vals[d.remind_after];
+      const overdue = base && /^\d{4}-\d{2}-\d{2}/.test(base) && addDays(base.slice(0, 10), d.remind_days || 0) < today();
+      (overdue || CRIT.has('s-' + d.key) ? crit++ : soft++);
+    });
+    return { crit, soft };
+  }
+  const PAGE = 100; let page = 1, lastSig = '';
+
   function render() {
-    const list = filtered();
+    const list = sorted(filtered());
+    const sig = [module, quick, ...['cab-search', 'cab-status', 'cab-exec', 'cab-cell', 'cab-from', 'cab-to', 'cab-sort'].map((id) => $(id).value)].join('|');
+    if (sig !== lastSig) { page = 1; lastSig = sig; }
+    const pages = Math.max(1, Math.ceil(list.length / PAGE)); if (page > pages) page = pages;
     const cnt = (f) => cases.filter(f).length;
     $('cq-mine').textContent = cnt((c) => c.executor_id === me);
     $('cq-overdue').textContent = cnt((c) => c.next && c.next.overdue);
@@ -160,7 +198,7 @@ window.Cabinet = (() => {
     const totalStages = defs.filter((d) => (d.section || 'other') !== 'head').length;
     const tb = $('cab-table').tBodies[0];
     tb.innerHTML = '';
-    list.slice(0, 500).forEach((c) => {
+    list.slice((page - 1) * PAGE, page * PAGE).forEach((c) => {
       const tr = document.createElement('tr');
       const rec = contactOf(c);
       const filled = defs.filter((d) => (d.section || 'other') !== 'head' && c.vals[d.key]).length;
@@ -175,6 +213,10 @@ window.Cabinet = (() => {
         <td class="cab-next"></td>
         <td><span class="cab-progress"><i style="width:${pct}%"></i></span> <span class="muted">${filled}/${totalStages}</span></td>`;
       tr.children[0].textContent = c.journal_id;
+      { const g = gaps(c); const q = document.createElement('span'); q.className = 'cab-q';
+        if (!g.crit && !g.soft) q.innerHTML = '<span class="q-ok" title="Усе заповнено">✓</span>';
+        else q.innerHTML = (g.crit ? `<span class="q-pill q-pill-crit" title="Потрібно заповнити: ${g.crit}">${g.crit}</span>` : '') + (g.soft ? `<span class="q-pill q-pill-warn" title="Бажано заповнити: ${g.soft}">${g.soft}</span>` : '');
+        tr.children[0].append(document.createElement('br'), q); }
       tr.children[1].textContent = fio(c.person);
       { const d = c.person[dateKey()]; if (d) { const m = document.createElement('span'); m.className = 'muted cab-date'; m.textContent = (module === '200' ? 'поховання ' : 'поранення ') + fmt(d); tr.children[1].append(document.createElement('br'), m); } }
       if (isNew(c)) { const b = document.createElement('span'); b.className = 'cab-new-mark'; b.textContent = 'нова'; b.title = 'Справу передано у ваш осередок'; tr.children[1].append(' ', b); }
@@ -196,7 +238,16 @@ window.Cabinet = (() => {
       tr.addEventListener('click', () => openCase(c.id));
       tb.appendChild(tr);
     });
-    $('cab-more').hidden = list.length <= 500;
+    // сторінки по 100
+    const pg = $('cab-pager'); pg.hidden = pages <= 1; pg.innerHTML = '';
+    if (pages > 1) {
+      const nums = [...new Set([1, page - 2, page - 1, page, page + 1, page + 2, pages])].filter((n) => n >= 1 && n <= pages).sort((a, b) => a - b);
+      let html = `<button type="button" class="pg-btn" data-page="${page - 1}" ${page === 1 ? 'disabled' : ''} aria-label="Попередня сторінка">‹</button>`, prev = 0;
+      nums.forEach((n) => { if (n - prev > 1) html += '<span class="pg-gap">…</span>'; html += `<button type="button" class="pg-btn${n === page ? ' is-current' : ''}" data-page="${n}" ${n === page ? 'aria-current="page"' : ''}>${n}</button>`; prev = n; });
+      html += `<button type="button" class="pg-btn" data-page="${page + 1}" ${page === pages ? 'disabled' : ''} aria-label="Наступна сторінка">›</button>`;
+      html += `<span class="pg-info">${(page - 1) * PAGE + 1}–${Math.min(list.length, page * PAGE)} з ${list.length}</span>`;
+      pg.innerHTML = html;
+    }
     $('cab-empty').hidden = list.length > 0;
   }
 

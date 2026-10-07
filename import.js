@@ -767,7 +767,8 @@ window.Importer = (() => {
       mil: [top(7), sub('7.1'), sub('7.2')], unit: top(8), kin: top(9),
       interests: top(11), needs: top(12), other: top(15),
       consent: hs.findIndex((h) => /підтверджую достовірність/i.test(h)),
-      toMil: hs.findIndex((h) => /ким ви доводитеся військовому/i.test(h))     // необов’язкове питання: якщо є у формі — знімає попередження
+      toMil: hs.findIndex((h) => /ким ви доводитеся військовому/i.test(h)),    // необов’язкове питання: якщо є у формі — знімає попередження
+      milBd: hs.findIndex((h) => /дата народження\s+(морського піхотинця|військов)/i.test(h))   // необов’язкове: допомагає відрізнити однофамільців
     };
     const kidCols = (b) => ({ name: [sub(`10.${b}1`), sub(`10.${b}2`), sub(`10.${b}3`)], bd: sub(`10.${b}4`), sex: sub(`10.${b}5`) });
     const kids = [1, 2, 3, 4, 5].map(kidCols);
@@ -793,10 +794,30 @@ window.Importer = (() => {
         } else rec.warnings.push(`Дата народження представника: ${String(chk.error || 'невірна дата').toLowerCase()} — не записано`);
       }
       const tm = clean(at(r, I.toMil));
-      if (tm && rec.relations[0]) {
+      const noKinWarn = () => { rec.warnings = rec.warnings.filter((w) => !/ким представник доводиться військовому|схоже на ПІБ представника/.test(w)); };
+      if (/^я сам/i.test(tm)) {
+        // представник сам є військовим: зв’язок не потрібен, статус — у його картці
+        const rel = rec.relations[0];
+        const st = rel ? rel.related_status : p.military_status;
+        if (rel && ['Діючий військовослужбовець', 'Ветеран'].includes(st)) {
+          p.military_status = st; p.mp_relation = 'Так';
+          p.mp_relation_type = st === 'Ветеран' ? 'Ветеран МП' : 'Діючий військовослужбовець МП';
+          p.mp_unit_id = rel.related_unit_id; p.mp_unit_other = rel.related_unit_other;
+          rec.relations = []; noKinWarn();
+          rec.info.push('Представник сам є військовим МП (так вказано у формі)');
+          if (letters(join(r, I.mil)) && letters(join(r, I.mil)) !== letters(join(r, I.rep))) rec.warnings.push('У формі вказано, що представник сам військовий, але ПІБ військового інше — перевірте');
+        } else if (rel) rec.warnings.push(`У формі вказано «${tm}», але категорія родини — «${st}». Перевірте, хто заповнював анкету`);
+      } else if (tm && rec.relations[0]) {
         const deg = OPT.relation_degree.find((d) => d.toLowerCase() === tm.toLowerCase());
         if (deg) { rec.relations[0].relation_degree = deg; rec.warnings = rec.warnings.filter((w) => !/ким представник доводиться військовому/.test(w)); }
         else rec.warnings.push(`Спорідненість із військовим «${tm}» не зі списку — вкажіть вручну`);
+      }
+      const mb = at(r, I.milBd);
+      if (clean(mb) || mb instanceof Date) {
+        const iso = toDate(mb); const chk = iso ? V.checkBirthDate(iso) : { error: 'невірна дата' };
+        if (!iso || chk.error) rec.warnings.push(`Дата народження військового: ${String(chk.error || 'невірна дата').toLowerCase()} — не записано`);
+        else if (rec.relations[0]) rec.relations[0].related_birth_date = iso;
+        else if (!p.birth_date) p.birth_date = iso;      // представник сам військовий
       }
       const sx = clean(at(r, I.repSex)).toLowerCase();
       if (/^чол/.test(sx)) p.sex = 'Чоловіча'; else if (/^жін/.test(sx)) p.sex = 'Жіноча';

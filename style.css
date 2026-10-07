@@ -976,3 +976,17 @@ input.is-bad, textarea.is-bad { border-color: var(--err) !important; background:
 .cab-table tr.row-soon td:first-child { box-shadow: inset 5px 0 0 #d9a400; }
 .tab-badge-over { background: var(--err); }
 .cab-pin-wrap { font-size: 0.92rem; white-space: nowrap; }
+
+/* компактніший блок термінових дій; лічильники — кнопки-перемикачі */
+.cab-today { padding: 0.45rem 0.8rem; margin-bottom: 0.7rem; }
+.today-head h2 { font-size: 0.95rem; }
+button.today-n { font: inherit; font-size: 0.8rem; border: 2px solid transparent; cursor: pointer; padding: 0.02rem 0.55rem; }
+button.today-n b { font-size: 0.9rem; }
+button.today-n:disabled { cursor: default; opacity: 0.7; }
+button.today-n[aria-pressed="true"] { border-color: var(--ink); box-shadow: 0 0 0 2px #fff inset; }
+.today-list { margin-top: 0.4rem; gap: 2px; }
+.today-item { padding: 0.12rem 0.5rem; font-size: 0.85rem; border-left-width: 3px; border-radius: 4px; grid-template-columns: minmax(10rem, 1.6fr) minmax(8rem, 1fr) minmax(9rem, auto) auto; }
+.today-item .btn-small { padding: 0.1rem 0.6rem; font-size: 0.8rem; min-height: 0; }
+.today-more { margin-top: 0.25rem; font-size: 0.82rem; }
+.due-tag { white-space: nowrap; }
+.cab-today .today-more:last-child { margin-bottom: 0.1rem; }

@@ -33,6 +33,8 @@ window.Cabinet = (() => {
     document.querySelectorAll('.cab-mod').forEach((b) => b.addEventListener('click', () => { module = b.dataset.m; quick = ''; load(); }));
     try { $('cab-sort').value = localStorage.getItem('cab_sort') || 'new'; } catch { /* без сховища — типовий порядок */ }
     if (!$('cab-sort').value) $('cab-sort').value = 'new';
+    try { $('cab-pin').checked = localStorage.getItem('cab_pin') !== '0'; } catch { /* ок */ }
+    $('cab-pin').addEventListener('change', () => { try { localStorage.setItem('cab_pin', $('cab-pin').checked ? '1' : '0'); } catch { /* ок */ } render(); });
     $('cab-sort').addEventListener('change', () => { try { localStorage.setItem('cab_sort', $('cab-sort').value); } catch { /* ок */ } render(); });
     ['cab-search', 'cab-status', 'cab-exec', 'cab-cell', 'cab-from', 'cab-to'].forEach((id) => $(id).addEventListener('input', render));
     $('cab-date-clear').addEventListener('click', () => { $('cab-from').value = ''; $('cab-to').value = ''; render(); });
@@ -107,9 +109,59 @@ window.Cabinet = (() => {
       const base = c.vals[d.remind_after];
       if (!base || !/^\d{4}-\d{2}-\d{2}/.test(base)) return;
       const due = addDays(base.slice(0, 10), d.remind_days);
-      if (!best || due < best.due) best = { label: d.label, due, overdue: due < today() };
+      if (!best || due < best.due) best = { key: d.key, kind: d.kind, label: d.label, due };
     });
+    if (best) {
+      best.days = Math.round((new Date(best.due + 'T00:00:00Z') - new Date(today() + 'T00:00:00Z')) / 86400000);   // <0 — прострочено
+      best.overdue = best.days < 0;
+      best.level = best.days < 0 ? 'over' : best.days <= 3 ? 'soon' : 'later';
+    }
     return best;
+  }
+  const plural = (n, a, b, c) => { const m = n % 100, k = n % 10; return m > 10 && m < 20 ? c : k === 1 ? a : k >= 2 && k <= 4 ? b : c; };
+  const dueText = (x) => (x.days < 0 ? `прострочено на ${-x.days} ${plural(-x.days, 'день', 'дні', 'днів')}` : x.days === 0 ? 'сьогодні'
+    : x.days <= 3 ? `залишилось ${x.days} ${plural(x.days, 'день', 'дні', 'днів')}` : `до ${fmt(x.due)}`);
+
+  // ---------- «Сьогодні»: що горить у моїх справах ----------
+  let todayAll = false;
+  function renderToday() {
+    const box = $('cab-today');
+    const mineN = cases.filter((c) => c.executor_id === me).length;
+    const scopeAll = todayAll || !mineN;
+    const pool = cases.filter((c) => c.next && c.next.days <= 7 && (scopeAll || c.executor_id === me)).sort((a, b) => a.next.days - b.next.days);
+    const over = pool.filter((c) => c.next.days < 0), now = pool.filter((c) => c.next.days === 0), week = pool.filter((c) => c.next.days > 0);
+    box.hidden = false; box.className = 'cab-today' + (over.length ? ' has-over' : now.length ? ' has-now' : '');
+    box.innerHTML = `<div class="today-head"><h2></h2><span class="today-counts"></span><span class="today-scope"></span></div><ul class="today-list"></ul><p class="today-more"></p>`;
+    box.querySelector('h2').textContent = scopeAll ? 'На контролі — усі справи' : 'Мої справи на сьогодні';
+    const cnt = box.querySelector('.today-counts');
+    [['over', 'Прострочено', over.length], ['now', 'На сьогодні', now.length], ['week', 'На цьому тижні', week.length]].forEach(([k, l, n]) => {
+      const sp = document.createElement('span'); sp.className = 'today-n today-' + k + (n ? '' : ' is-zero'); sp.innerHTML = '<b></b> '; sp.firstChild.textContent = n; sp.append(l); cnt.appendChild(sp);
+    });
+    if (mineN) { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn-link'; b.textContent = scopeAll ? 'лише мої' : 'показати всі справи'; b.onclick = () => { todayAll = !todayAll; renderToday(); }; box.querySelector('.today-scope').appendChild(b); }
+    const ul = box.querySelector('.today-list'); const LIMIT = todayOpen ? 50 : 6;
+    pool.slice(0, LIMIT).forEach((c) => {
+      const li = document.createElement('li'); li.className = 'today-item lvl-' + c.next.level;
+      li.innerHTML = '<button type="button" class="btn-link today-name"></button><span class="today-what"></span><span class="today-due"></span><span class="today-act"></span>';
+      li.children[0].textContent = fio(c.person); li.children[0].onclick = () => openCase(c.id);
+      li.children[1].textContent = c.next.label; li.children[2].textContent = dueText(c.next);
+      const done = document.createElement('button'); done.type = 'button'; done.className = 'btn-secondary btn-small';
+      if (c.next.kind === 'date') { done.textContent = 'Зроблено сьогодні'; done.onclick = () => markDone(c, done); }
+      else { done.textContent = 'Заповнити'; done.onclick = () => openCase(c.id); }
+      li.children[3].appendChild(done); ul.appendChild(li);
+    });
+    const more = box.querySelector('.today-more');
+    if (!pool.length) { ul.remove(); more.textContent = 'Нічого термінового: прострочених і найближчих дій немає.'; more.className = 'today-more today-ok'; }
+    else if (pool.length > LIMIT || todayOpen) { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn-link'; b.textContent = todayOpen ? 'згорнути' : `показати ще ${pool.length - LIMIT}`; b.onclick = () => { todayOpen = !todayOpen; renderToday(); }; more.appendChild(b); }
+    else more.remove();
+  }
+  let todayOpen = false;
+  async function markDone(c, btn) {
+    const k = c.next.key, label = c.next.label; btn.disabled = true;
+    const { error } = await db.from('case_values').upsert({ case_id: c.id, stage_key: k, value: today(), source: 'app', updated_by: me, updated_at: new Date().toISOString() }, { onConflict: 'case_id,stage_key' });
+    if (error) { console.error(error); Persons.toast('Не вдалося зберегти'); btn.disabled = false; return; }
+    c.vals[k] = today(); c.next = nextAction(c);
+    Persons.toast(`${label}: зроблено сьогодні` + (c.next ? `. Далі — ${c.next.label}, ${dueText(c.next)}` : ''));
+    render(); badge();
   }
 
   function fillFilters() {
@@ -156,7 +208,9 @@ window.Cabinet = (() => {
     const added = (a, b) => cmp((a.created_at || '').slice(0, 16), (b.created_at || '').slice(0, 16)) || cmp(reg(a), reg(b)) || cmp(a.journal_id, b.journal_id);
     const byDate = (a, b) => { const x = a.person[dateKey()] || '', y = b.person[dateKey()] || ''; return (!x) - (!y) || cmp(y, x); };
     const f = mode === 'old' ? added : mode === 'abc' ? (a, b) => fio(a.person).localeCompare(fio(b.person), 'uk') : mode === 'date' ? byDate : (a, b) => added(b, a);
-    return [...list].sort(f);
+    const pin = $('cab-pin').checked;
+    const ov = (c) => (c.next && c.next.overdue ? 0 : 1);
+    return [...list].sort((a, b) => (pin ? ov(a) - ov(b) || (ov(a) === 0 ? a.next.days - b.next.days : 0) : 0) || f(a, b));
   }
 
   // Скільки не заповнено у справі: важливе (червоне) і решта (жовте) — та сама логіка, що в підказках справи
@@ -179,7 +233,7 @@ window.Cabinet = (() => {
 
   function render() {
     const list = sorted(filtered());
-    const sig = [module, quick, ...['cab-search', 'cab-status', 'cab-exec', 'cab-cell', 'cab-from', 'cab-to', 'cab-sort'].map((id) => $(id).value)].join('|');
+    const sig = [module, quick, ...['cab-search', 'cab-status', 'cab-exec', 'cab-cell', 'cab-from', 'cab-to', 'cab-sort'].map((id) => $(id).value), $('cab-pin').checked].join('|');
     if (sig !== lastSig) { page = 1; lastSig = sig; }
     const pages = Math.max(1, Math.ceil(list.length / PAGE)); if (page > pages) page = pages;
     const cnt = (f) => cases.filter(f).length;
@@ -232,8 +286,10 @@ window.Cabinet = (() => {
       sp.style.setProperty('--st', col); sp.style.color = inkFor(col);
       tr.children[5].textContent = staff.get(c.executor_id) || (c.vals.executor_legacy ? `(${c.vals.executor_legacy})` : '—');
       if (c.next) {
-        tr.children[6].textContent = `${c.next.label} — до ${fmt(c.next.due)}`;
-        tr.children[6].classList.toggle('is-overdue', c.next.overdue);
+        tr.children[6].innerHTML = '<span></span><br><span class="due-tag"></span>';
+        tr.children[6].firstChild.textContent = c.next.label;
+        tr.children[6].lastChild.textContent = dueText(c.next); tr.children[6].lastChild.classList.add('due-' + c.next.level);
+        tr.classList.add('row-' + c.next.level);
       } else tr.children[6].textContent = '—';
       tr.addEventListener('click', () => openCase(c.id));
       tb.appendChild(tr);
@@ -249,6 +305,7 @@ window.Cabinet = (() => {
       pg.innerHTML = html;
     }
     $('cab-empty').hidden = list.length > 0;
+    renderToday();
   }
 
   // ---------- Справа ----------
@@ -351,7 +408,7 @@ window.Cabinet = (() => {
     sub.textContent = `${c.journal_id} · ${module === '200' ? 'загиблий' : 'поранений'}`;
     if (p.death_date) { const d = document.createElement('b'); d.className = 'death-date'; d.textContent = `дата смерті ${fmt(p.death_date)}`; sub.append(' · ', d); }
     sub.append((p.burial_date ? ` · поховання ${fmt(p.burial_date)}` : '') +
-      (p.wound_date ? ` · поранення ${fmt(p.wound_date)}` : '') + (c.next ? ` · далі: ${c.next.label} до ${fmt(c.next.due)}` : ''));
+      (p.wound_date ? ` · поранення ${fmt(p.wound_date)}` : '') + (c.next ? ` · далі: ${c.next.label}, ${dueText(c.next)}` : ''));
     $('case-take').hidden = c.executor_id === me;
     const box = $('case-contact'); const k = contactOf(c);
     if (!k) { box.innerHTML = '<span class="muted">Контактну особу не вказано — додайте рідних у розділі «Родина».</span>'; return; }
@@ -839,13 +896,16 @@ window.Cabinet = (() => {
   // Лічильник нових справ на вкладці «Кабінет»
   async function badge() {
     const tabEl = document.querySelector('.tab[data-tab="cabinet"]'); if (!tabEl || !db) return;
-    const [cs, sn] = await Promise.all([
+    const [cs, sn, od] = await Promise.all([
       db.from('cases').select('id, transferred_at, transferred_by').not('transferred_at', 'is', null),
-      db.from('case_seen').select('case_id, seen_at')]);
+      db.from('case_seen').select('case_id, seen_at'),
+      db.rpc('my_overdue_count')]);
     const s = new Map((sn.data || []).map((r) => [r.case_id, r.seen_at]));
     const n = (cs.data || []).filter((c) => c.transferred_by !== me && !(s.get(c.id) >= c.transferred_at)).length;
     tabEl.textContent = 'Кабінет';
     if (n) { const b = document.createElement('span'); b.className = 'tab-badge'; b.textContent = n; b.title = 'Нові справи у ваших осередках'; tabEl.append(' ', b); }
+    const o = Number(od && od.data) || 0;
+    if (o) { const b = document.createElement('span'); b.className = 'tab-badge tab-badge-over'; b.textContent = o; b.title = 'Прострочені дії у моїх справах'; tabEl.append(' ', b); }
   }
 
   return { init, load, openByJournal, badge };

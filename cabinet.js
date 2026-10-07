@@ -245,6 +245,13 @@ window.Cabinet = (() => {
   }
   const PAGE = 100; let page = 1, lastSig = '';
 
+  // Справи без дати, які пройшли б решту фільтрів (тобто «загубилися» саме через період)
+  function noDateCount() {
+    const f = $('cab-from').value, t = $('cab-to').value; $('cab-from').value = ''; $('cab-to').value = '';
+    const n = filtered().filter((c) => !c.person[dateKey()]).length;
+    $('cab-from').value = f; $('cab-to').value = t; return n;
+  }
+
   function render() {
     const list = sorted(filtered());
     const sig = [module, quick, ...['cab-search', 'cab-status', 'cab-exec', 'cab-cell', 'cab-from', 'cab-to', 'cab-sort'].map((id) => $(id).value), $('cab-pin').checked].join('|');
@@ -262,7 +269,7 @@ window.Cabinet = (() => {
     document.querySelectorAll('.cab-quick').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.q === quick)));
     const hasDate = !!($('cab-from').value || $('cab-to').value);
     $('cab-date-clear').hidden = !hasDate;
-    $('cab-count').textContent = `${list.length} з ${cases.length}` + (closedN && !list.some(isClosed) ? ` · завершених приховано: ${closedN}` : '') + (hasDate ? ` · без дати: ${cases.filter((c) => !c.person[dateKey()]).length} (у період не потрапляють)` : '');
+    $('cab-count').textContent = `${list.length} з ${cases.length}` + (closedN && !list.some(isClosed) ? ` · завершених приховано: ${closedN}` : '') + (hasDate ? ` · без дати: ${noDateCount()} (у період не потрапляють)` : '');
     const { cells } = Persons.ctx();
     const color = new Map(statuses.map((s) => [s.name, s.color]));
     const totalStages = defs.filter((d) => (d.section || 'other') !== 'head').length;

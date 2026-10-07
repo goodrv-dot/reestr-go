@@ -10,15 +10,13 @@ window.Dashboard = (() => {
     children: { label: 'Дітей',                   calc: (p) => (p.children_ages || []).length },
     minors:   { label: 'Неповнолітніх дітей',     calc: (p) => (p.children_ages || []).filter((a) => a < 18).length },
     critical: { label: 'Карток з критичними позначками', calc: (p) => (p.critical_count > 0 ? 1 : 0) },
-    burials:  { label: 'Поховань' },
-    cases200: { label: 'Справ 200 (загиблі)', cases: '200' },
-    cases300: { label: 'Справ 300 (поранені)', cases: '300' }
+    cases200: { label: 'Справ 200 (загиблі)', cases: '200', what: 'поховання', chart: 'Поховання по місяцях', none: 'без дати поховання' },
+    cases300: { label: 'Справ 300 (поранені)', cases: '300', what: 'поранення', chart: 'Поранення по місяцях', none: 'без дати поранення' }
   };
   const hasCab = (m) => { const A = window.ACCESS; return !A || !!A['cab' + m]; };
-  let caseRows = null;      // [{id, module, region, burial}] — справи кабінету з областю за осередком
+  let caseRows = null;      // [{id, module, region, month}] — month: 200 = поховання, 300 = поранення; — справи кабінету з областю за осередком
   const MONTHS = ['січень', 'лютий', 'березень', 'квітень', 'травень', 'червень', 'липень', 'серпень', 'вересень', 'жовтень', 'листопад', 'грудень'];
   const MONTHS_SHORT = ['січ', 'лют', 'бер', 'кві', 'тра', 'чер', 'лип', 'сер', 'вер', 'жов', 'лис', 'гру'];
-  let burials = null;       // [{month:'2026-09', region:'Одеська'}]
   let period = { from: '', to: '' };
   let metric = 'persons';
   let rows = [];
@@ -39,19 +37,18 @@ window.Dashboard = (() => {
     document.querySelectorAll('.dash-metric').forEach((b) => b.addEventListener('click', () => {
       metric = b.dataset.m;
       document.querySelectorAll('.dash-metric').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
-      if (metric === 'burials' && !burials) loadBurials().then(render);
-      else if (METRICS[metric].cases && !caseRows) loadCases().then(render);
+      period = { from: '', to: '' };
+      if (METRICS[metric].cases && !caseRows) loadCases().then(render);
       else render();
     }));
     $('dash-png').addEventListener('click', downloadPng);
-    $('dash-refresh').addEventListener('click', () => { burials = null; caseRows = null; refresh(); });
+    $('dash-refresh').addEventListener('click', () => { caseRows = null; refresh(); });
     document.querySelectorAll('.dash-metric[data-m^="cases"]').forEach((b) => { b.hidden = !hasCab(b.dataset.m.slice(5)); });
     $('dash-reset').addEventListener('click', () => { Persons.resetAll(); refresh(); });
     $('dash-from').addEventListener('change', () => { period.from = $('dash-from').value; fixPeriod('from'); render(); });
     $('dash-to').addEventListener('change', () => { period.to = $('dash-to').value; fixPeriod('to'); render(); });
     $('dash-all').addEventListener('click', () => {
-      const ms = burialMonths();
-      period = { from: ms[0] || '', to: ms[ms.length - 1] || '' };
+      period = { from: '', to: '' };
       render();
     });
     buildMap();
@@ -132,7 +129,6 @@ window.Dashboard = (() => {
         rows.push(...data);
         if (data.length < 1000) break;
       }
-      if (metric === 'burials') await loadBurials();
       if (METRICS[metric].cases) await loadCases();
       $('dash-status').textContent = '';
       const cond = selectionText();
@@ -153,32 +149,30 @@ window.Dashboard = (() => {
 
   function render() {
     const { regions } = Persons.ctx();
-    const isBur = metric === 'burials';
-    const caseMod = METRICS[metric].cases;
-    $('dash-burials').hidden = !isBur;
-    $('dash-cond').hidden = isBur || !!caseMod;
-    $('dash-hint').hidden = isBur || !!caseMod;
-    $('dash-case-hint').hidden = !(isBur ? burials && burials.fromCases : caseMod);
+    const M = METRICS[metric];
+    const caseMod = M.cases;
+    $('dash-burials').hidden = !caseMod;
+    $('dash-cond').hidden = !!caseMod;
+    $('dash-hint').hidden = !!caseMod;
+    $('dash-case-hint').hidden = !caseMod;
     byRegion = new Map();
     let total = 0, noRegion = 0, abroad = 0;
-    if (isBur) {
-      if (!burials) return;
-      $('dash-from').value = period.from; $('dash-to').value = period.to;
-      burials.forEach((b) => {
-        if (period.from && b.month < period.from) return;
-        if (period.to && b.month > period.to) return;
-        total++;
-        if (!b.region) { noRegion++; return; }
-        byRegion.set(b.region, (byRegion.get(b.region) || 0) + 1);
-      });
-      renderMonths();
-    } else if (caseMod) {
+    if (caseMod) {
       if (!caseRows) return;
-      caseRows.filter((c) => c.module === caseMod).forEach((c) => {
+      $('dash-from').value = period.from; $('dash-to').value = period.to;
+      $('dash-period-label').textContent = `Дата ${M.what}: з`;
+      $('dash-months-name').textContent = M.chart;
+      $('dash-months').setAttribute('aria-label', M.chart);
+      const mine = caseRows.filter((c) => c.module === caseMod);
+      mine.filter(inPeriod).forEach((c) => {
         total++;
         if (!c.region) { noRegion++; return; }
         byRegion.set(c.region, (byRegion.get(c.region) || 0) + 1);
       });
+      const undated = mine.filter((c) => !c.month).length;
+      $('dash-note').textContent = `Усього справ ${caseMod}: ${mine.length}` + (undated ? `, з них ${M.none}: ${undated}` : '') +
+        (hasPeriod() ? '. Коли обрано період, справи без дати не рахуються — «увесь час» показує всі.' : '.');
+      renderMonths(mine);
     } else {
       const calc = METRICS[metric].calc;
       rows.forEach((p) => {
@@ -208,7 +202,7 @@ window.Dashboard = (() => {
     // Легенда
     $('dash-legend-max').textContent = max || 0;
     $('dash-legend-min').textContent = max ? 1 : 0;
-    $('dash-title').textContent = isBur ? `Поховання: ${periodText()}` : `${METRICS[metric].label} по областях`;
+    $('dash-title').textContent = caseMod && hasPeriod() ? `Справи ${caseMod} · ${M.what}: ${periodText()}` : `${M.label} по областях`;
 
     // Підсумки
     $('dash-total').textContent = total;
@@ -231,14 +225,14 @@ window.Dashboard = (() => {
       btn.querySelector('i').style.width = `${(v / (max || 1)) * 100}%`;
       btn.querySelector('i').style.background = color(v / (max || 1));
       btn.querySelector('b').textContent = v;
-      btn.title = (caseMod || (isBur && burials && burials.fromCases)) ? 'Відкрити ці справи в Кабінеті' : 'Відкрити список осіб цієї області';
+      btn.title = caseMod ? 'Відкрити ці справи в Кабінеті' : 'Відкрити список осіб цієї області';
       btn.addEventListener('click', () => openRegion(name));
       li.appendChild(btn);
       ul.appendChild(li);
     });
   }
 
-  // ---------- Поховання ----------
+  // ---------- Справи кабінету ----------
   // Справи кабінету: область — за осередком справи, інакше за областю людини
   async function loadCases() {
     const { db, regions } = Persons.ctx();
@@ -248,7 +242,7 @@ window.Dashboard = (() => {
     const all = [];
     for (let from = 0; ; from += 1000) {
       const { data, error } = await db.from('cases')
-        .select('id, module, cell_id, person:persons!cases_person_id_fkey(region_id, cell_id, burial_date)')
+        .select('id, module, cell_id, person:persons!cases_person_id_fkey(region_id, cell_id, burial_date, wound_date)')
         .order('id').range(from, from + 999);
       if (error) { console.error(error); $('dash-status').textContent = 'Не вдалося завантажити справи.'; caseRows = []; return; }
       all.push(...data);
@@ -257,68 +251,13 @@ window.Dashboard = (() => {
     caseRows = all.map((c) => {
       const p = c.person || {};
       const name = regions.get(cellRegion.get(c.cell_id) || cellRegion.get(p.cell_id) || p.region_id);
-      return { id: c.id, module: c.module, region: name && name !== 'За кордоном' ? name : null, burial: p.burial_date || null };
+      return { id: c.id, module: c.module, region: name && name !== 'За кордоном' ? name : null, month: ((c.module === '200' ? p.burial_date : p.wound_date) || '').slice(0, 7) || null };
     });
     $('dash-status').textContent = '';
   }
 
-  async function loadBurials() {
-    const { db, regions } = Persons.ctx();
-    // З доступом до Кабінету 200 поховання рахуємо за справами: одна справа — один загиблий, клік відкриває справи
-    if (hasCab('200')) {
-      if (!caseRows) await loadCases();
-      burials = (caseRows || []).filter((c) => c.module === '200' && c.burial).map((c) => ({ month: c.burial.slice(0, 7), region: c.region, caseIds: [c.id], personIds: [] }));
-      burials.fromCases = true;
-      const ms0 = burialMonths(); const last0 = ms0[ms0.length - 1] || new Date().toISOString().slice(0, 7);
-      if (!period.from) period = { from: last0, to: last0 };
-      $('dash-status').textContent = burials.length ? '' : 'У справах «200» ще немає дат поховання.';
-      return;
-    }
-    $('dash-status').textContent = 'Рахуємо поховання…';
-    const cres = await db.from('cells').select('id, region_id');
-    const cellRegion = new Map((cres.data || []).map((c) => [c.id, c.region_id]));
-    const all = [];
-    for (let from = 0; ; from += 1000) {
-      const { data, error } = await db.from('military_relations')
-        .select('related_full_name, related_death_date, related_burial_date, persons!military_relations_person_id_fkey!inner(id, region_id, cell_id)')
-        .eq('related_status', 'Загиблий').not('related_burial_date', 'is', null)
-        .order('id').range(from, from + 999);
-      if (error) { console.error(error); $('dash-status').textContent = 'Не вдалося завантажити поховання.'; burials = []; return; }
-      all.push(...data);
-      if (data.length < 1000) break;
-    }
-    // Картки самих загиблих (коли родину не встановлено)
-    for (let from = 0; ; from += 1000) {
-      const { data, error } = await db.from('persons')
-        .select('id, last_name, first_name, patronymic, death_date, burial_date, region_id, cell_id')
-        .eq('military_status', 'Загиблий').not('burial_date', 'is', null)
-        .order('id').range(from, from + 999);
-      if (error) { console.error(error); break; }
-      data.forEach((p) => all.push({
-        related_full_name: [p.last_name, p.first_name, p.patronymic].filter(Boolean).join(' '),
-        related_death_date: p.death_date, related_burial_date: p.burial_date,
-        persons: { id: p.id, region_id: p.region_id, cell_id: p.cell_id }
-      }));
-      if (data.length < 1000) break;
-    }
-    const seen = new Map();
-    burials = [];
-    all.forEach((r) => {
-      const key = (r.related_full_name || '').toLowerCase().replace(/\s+/g, ' ').trim() + '|' + (r.related_death_date || r.related_burial_date);
-      if (seen.has(key)) { seen.get(key).personIds.push(r.persons.id); return; }   // ще один родич того ж загиблого
-      const rid = cellRegion.get(r.persons.cell_id) || r.persons.region_id;
-      const name = regions.get(rid);
-      const item = { month: r.related_burial_date.slice(0, 7), region: name && name !== 'За кордоном' ? name : null, personIds: [r.persons.id] };
-      seen.set(key, item);
-      burials.push(item);
-    });
-    const ms = burialMonths();
-    const last = ms[ms.length - 1] || new Date().toISOString().slice(0, 7);
-    if (!period.from) period = { from: last, to: last };
-    $('dash-status').textContent = burials.length ? '' : 'Ще немає загиблих з датою поховання. Повторно імпортуйте журнал «200» — дати поховання доповняться.';
-  }
-
-  function burialMonths() { return [...new Set((burials || []).map((b) => b.month))].sort(); }
+  const hasPeriod = () => !!(period.from || period.to);
+  const inPeriod = (c) => !hasPeriod() || (!!c.month && (!period.from || c.month >= period.from) && (!period.to || c.month <= period.to));
 
   function fixPeriod(changed) {
     if (period.from && period.to && period.from > period.to) {
@@ -338,13 +277,13 @@ window.Dashboard = (() => {
   }
 
   // Стовпчики по місяцях: 12 місяців, що закінчуються обраним «по»
-  function renderMonths() {
+  function renderMonths(mine) {
     const svg = $('dash-months');
-    const end = period.to || burialMonths().slice(-1)[0] || new Date().toISOString().slice(0, 7);
+    const end = period.to || mine.map((c) => c.month).filter(Boolean).sort().slice(-1)[0] || new Date().toISOString().slice(0, 7);
     const months = [];
     let [y, m] = end.split('-').map(Number);
     for (let i = 0; i < 12; i++) { months.unshift(`${y}-${String(m).padStart(2, '0')}`); m--; if (!m) { m = 12; y--; } }
-    const counts = months.map((mm) => burials.filter((b) => b.month === mm).length);
+    const counts = months.map((mm) => mine.filter((c) => c.month === mm).length);
     const max = Math.max(1, ...counts);
     const W = 720, H = 190, padB = 34, padT = 22, bw = W / 12;
     svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
@@ -352,7 +291,7 @@ window.Dashboard = (() => {
     months.forEach((mm, i) => {
       const v = counts[i];
       const h = (H - padB - padT) * (v / max);
-      const sel = (!period.from || mm >= period.from) && (!period.to || mm <= period.to);
+      const sel = hasPeriod() && (!period.from || mm >= period.from) && (!period.to || mm <= period.to);
       const g = document.createElementNS(NS, 'g');
       g.setAttribute('class', 'mbar' + (sel ? ' is-sel' : ''));
       g.setAttribute('tabindex', '0');
@@ -378,36 +317,14 @@ window.Dashboard = (() => {
   }
 
   // Клік по області → «Особи» з фільтром області
-  // (для поховань — саме родини загиблих, похованих у цьому періоді)
+  // (для справ — ці справи в Кабінеті, з урахуванням обраного періоду)
   function openRegion(name) {
     const caseMod = METRICS[metric].cases;
     if (caseMod) {
-      const ids = (caseRows || []).filter((c) => c.module === caseMod && c.region === name).map((c) => c.id);
+      const ids = (caseRows || []).filter((c) => c.module === caseMod && c.region === name && inPeriod(c)).map((c) => c.id);
       if (!ids.length) { Persons.toast(`${short(name)}: справ немає`); return; }
-      Cabinet.openPreset(caseMod, ids, `Дашборд: справи ${caseMod}, ${short(name)} — ${ids.length}`);
-      return;
-    }
-    if (metric === 'burials' && burials && burials.fromCases) {
-      const ids = [];
-      burials.forEach((b) => { if (b.region === name && (!period.from || b.month >= period.from) && (!period.to || b.month <= period.to)) ids.push(...b.caseIds); });
-      if (!ids.length) { Persons.toast(`${short(name)}: поховань за цей період немає`); return; }
-      Cabinet.openPreset('200', ids, `Дашборд: поховання ${periodText()}, ${short(name)} — ${ids.length}`);
-      return;
-    }
-    if (metric === 'burials') {
-      const ids = [];
-      let n = 0;
-      (burials || []).forEach((b) => {
-        if (b.region !== name) return;
-        if (period.from && b.month < period.from) return;
-        if (period.to && b.month > period.to) return;
-        n++;
-        ids.push(...b.personIds);
-      });
-      Persons.resetAll();
-      Filters.setPreset(ids, `Поховання: ${periodText()}, ${name} — родини ${n} загиблих`);
-      document.querySelector('.tab[data-tab="registry"]').click();
-      Persons.toast(`Родини загиблих: ${name}, ${periodText()}`);
+      const when = hasPeriod() ? `, ${METRICS[metric].what} ${periodText()}` : '';
+      Cabinet.openPreset(caseMod, ids, `Дашборд: справи ${caseMod}${when}, ${short(name)} — ${ids.length}`);
       return;
     }
     const { regions } = Persons.ctx();
@@ -439,8 +356,8 @@ window.Dashboard = (() => {
       t.setAttribute('fill', t.classList.contains('on-dark') ? '#ffffff' : '#16222e');
     });
     const inner = map.innerHTML;
-    const cond = metric === 'burials'
-      ? 'За осередком ГО (або областю родини), кожен загиблий один раз'
+    const cond = METRICS[metric].cases
+      ? 'Дані з Кабінету: одна справа — одна людина, область за осередком справи'
       : (selectionText().join('; ') || 'Увесь реєстр');
     const svg = `<svg xmlns="${NS}" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
       <rect width="100%" height="100%" fill="#ffffff"/>
@@ -458,8 +375,8 @@ window.Dashboard = (() => {
       c.getContext('2d').drawImage(img, 0, 0);
       const a = document.createElement('a');
       a.href = c.toDataURL('image/png');
-      a.download = metric === 'burials'
-        ? `pohovannia_${period.from || 'all'}_${period.to || 'all'}.png`
+      a.download = METRICS[metric].cases
+        ? `spravy${METRICS[metric].cases}_${period.from || 'all'}_${period.to || 'all'}.png`
         : `karta_${metric}_${new Date().toISOString().slice(0, 10)}.png`;
       a.click();
     };

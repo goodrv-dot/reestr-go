@@ -74,10 +74,17 @@ window.Importer = (() => {
   // ============================================================
   const TEMPLATES = [
     {
-      id: 'kids_mp',
-      label: 'Діти Морської піхоти (відповіді Google Форми)',
+      id: 'kids_mp_v2',
+      label: 'Діти Морської піхоти — нова форма (ПІБ трьома полями, до 5 дітей)',
       program: 'Діти Морської піхоти',
-      detect: (hdr) => hdr.some((h) => clean(h).startsWith('10.')) && hdr.some((h) => /дитин/i.test(clean(h))),
+      detect: (hdr) => hdr.some((h) => /^10\.11\s/.test(clean(h))),
+      parse: parseKidsV2
+    },
+    {
+      id: 'kids_mp',
+      label: 'Діти Морської піхоти (відповіді Google Форми, стара форма)',
+      program: 'Діти Морської піхоти',
+      detect: (hdr) => !hdr.some((h) => /^10\.11\s/.test(clean(h))) && hdr.some((h) => clean(h).startsWith('10.')) && hdr.some((h) => /дитин/i.test(clean(h))),
       parse: parseKids
     }
     ,
@@ -746,6 +753,67 @@ window.Importer = (() => {
     return out;
   }
 
+  // ---------- «Діти МП», нова форма: ПІБ трьома полями, другий телефон, дата народження і стать представника, до 5 дітей ----------
+  // Рядок перетворюємо на формат старої форми й далі працює вже відкалібрований розбір; нові поля дописуємо після нього.
+  // Аркуш зі старими відповідями під новими заголовками (повне ПІБ в одній клітинці) теж проходить: порожні частини просто не додаються.
+  function parseKidsV2(rows, hdr, ctx) {
+    const hs = hdr.map((h) => clean(h));
+    const top = (n) => hs.findIndex((h) => new RegExp('^' + n + '\\.\\s').test(h));            // «1. …»
+    const sub = (k) => hs.findIndex((h) => new RegExp('^' + k.replace(/\./g, '\\.') + '\\s').test(h));   // «1.1 …», «10.11 …»
+    const tsI = hs.findIndex((h) => /позначка|відмітка|отметка|timestamp/i.test(h));
+    const I = {
+      rep: [top(1), sub('1.1'), sub('1.2')], repBd: sub('1.3'), repSex: sub('1.4'),
+      phone: top(2), phone2: sub('2.1'), email: top(3), region: top(4), place: top(5), cat: top(6),
+      mil: [top(7), sub('7.1'), sub('7.2')], unit: top(8), kin: top(9),
+      interests: top(11), needs: top(12), other: top(15),
+      consent: hs.findIndex((h) => /підтверджую достовірність/i.test(h)),
+      toMil: hs.findIndex((h) => /ким ви доводитеся військовому/i.test(h))     // необов’язкове питання: якщо є у формі — знімає попередження
+    };
+    const kidCols = (b) => ({ name: [sub(`10.${b}1`), sub(`10.${b}2`), sub(`10.${b}3`)], bd: sub(`10.${b}4`), sex: sub(`10.${b}5`) });
+    const kids = [1, 2, 3, 4, 5].map(kidCols);
+    if (I.rep[0] < 0 || I.phone < 0 || kids[0].name[0] < 0 || kids[0].bd < 0) throw new Error('У файлі бракує колонок нової форми «Діти Морської піхоти» (ПІБ представника, телефон, дитина 10.11–10.14).');
+    const at = (r, i) => (i >= 0 ? r[i] : null);
+    const join = (r, idx) => idx.map((i) => clean(at(r, i))).filter(Boolean).join(' ');
+    const oldHdr = ['Позначка часу', '1. Представник', '2. Телефон', '3. Пошта', '4. Область', '5. Населений пункт', '6. Категорія', '7. Військовий', '8. Підрозділ',
+      '9. Споріднення з дитиною', '10. Дитина', '11. Дата народження дитини', '12. Стать дитини', '13. Напрямки', '14. Особливі потреби', '15. Інші діти', '16. Згода'];
+    const oldRows = rows.map((r) => [at(r, tsI), join(r, I.rep), [at(r, I.phone), at(r, I.phone2)].map(clean).filter(Boolean).join(' '), at(r, I.email), at(r, I.region),
+      at(r, I.place), at(r, I.cat), join(r, I.mil), at(r, I.unit), at(r, I.kin), join(r, kids[0].name), at(r, kids[0].bd), at(r, kids[0].sex),
+      at(r, I.interests), at(r, I.needs), at(r, I.other), at(r, I.consent)]);
+    const out = parseKids(oldRows, oldHdr, ctx);
+    const byRow = new Map(); out.forEach((rec) => { if (!rec.isRelative && !byRow.has(rec.rows[0])) byRow.set(rec.rows[0], rec); });
+    rows.forEach((r, i) => {
+      const rec = byRow.get(i + 2); if (!rec) return;
+      const p = rec.person;
+      // представник: дата народження і стать
+      if (clean(at(r, I.repBd)) || at(r, I.repBd) instanceof Date) {
+        const iso = toDate(at(r, I.repBd)); const chk = iso ? V.checkBirthDate(iso) : { error: 'невірна дата' };
+        if (iso && !chk.error) {
+          p.birth_date = iso;
+          if (yearsOld(iso) < 16) rec.warnings.push(`Представнику ${yearsOld(iso)} років — перевірте дату народження`);
+        } else rec.warnings.push(`Дата народження представника: ${String(chk.error || 'невірна дата').toLowerCase()} — не записано`);
+      }
+      const tm = clean(at(r, I.toMil));
+      if (tm && rec.relations[0]) {
+        const deg = OPT.relation_degree.find((d) => d.toLowerCase() === tm.toLowerCase());
+        if (deg) { rec.relations[0].relation_degree = deg; rec.warnings = rec.warnings.filter((w) => !/ким представник доводиться військовому/.test(w)); }
+        else rec.warnings.push(`Спорідненість із військовим «${tm}» не зі списку — вкажіть вручну`);
+      }
+      const sx = clean(at(r, I.repSex)).toLowerCase();
+      if (/^чол/.test(sx)) p.sex = 'Чоловіча'; else if (/^жін/.test(sx)) p.sex = 'Жіноча';
+      // діти 2–5
+      const ts = toDate(at(r, tsI));
+      kids.slice(1).forEach((k, n) => {
+        const name = join(r, k.name), bd = at(r, k.bd);
+        if (!name && !clean(bd) && !(bd instanceof Date)) return;
+        if (!name) { rec.warnings.push(`Дитина ${n + 2}: є дата народження, але немає ПІБ — не додано`); return; }
+        const kid = makeChild(name, bd, at(r, k.sex), at(r, I.interests), null, ts, rec);
+        if (kid && !rec.children.some((c) => c.full_name === kid.full_name && c.birth_date === kid.birth_date)) rec.children.push(kid);
+      });
+      if (rec.children.length) p.has_children = 'Так';
+    });
+    return out;
+  }
+
   function makeChild(name, bd, sex, interests, needs, ts, rec) {
     const { iso, fix } = toDateNote(bd);
     const nm = clean(name);
@@ -1334,5 +1402,5 @@ window.Importer = (() => {
     Persons.showList();
   }
 
-  return { init, _test: { parseKids, toDate, splitFio, mergeByPhone } };
+  return { init, _test: { parseKids, parseKidsV2, TEMPLATES, toDate, splitFio, mergeByPhone } };
 })();

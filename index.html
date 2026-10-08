@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Unbounded:wght@600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=202610081123">
+  <link rel="stylesheet" href="style.css?v=202610081127">
 </head>
 <body>
 
@@ -762,6 +762,7 @@
         <ol>
           <li>Вкладка «Імпорт» → оберіть шаблон → оберіть файл. Шаблони: «Діти Морської піхоти» (відповіді Google Форми), «Загиблі (200)», «Поранені (300)». Якщо шаблон обрано не той, система визначить його сама.</li>
           <li>Перегляньте таблицю. <b>Зелені</b> — нові особи. <b>Сині</b> — людина вже є в реєстрі (той самий телефон): буде лише доповнено дітей, пошту, область. <b>Жовті</b> — імпортуються, але потребують перевірки. <b>Червоні</b> — не імпортуються.</li>
+          <li><b>Неіснуючі дати</b> (31.09, 30.02, 29.02 у невисокосний рік) не записуються — рядок стає жовтим з поясненням «Дати … не існує». Правильну дату внесіть потім у картці чи справі.</li>
           <li>Для червоних натисніть «Завантажити файл помилок», виправте у файлі та завантажте повторно.</li>
           <li>Натисніть «Імпортувати». Кілька анкет з одним телефоном стануть однією особою з кількома дітьми.</li>
         </ol>
@@ -1094,25 +1095,25 @@
   <p id="loading" class="loading">Завантаження…</p>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="config.js?v=202610081123"></script>
+  <script src="config.js?v=202610081127"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="options.js?v=202610081123"></script>
-  <script src="ui.js?v=202610081123"></script>
-  <script src="validation.js?v=202610081123"></script>
-  <script src="filters.js?v=202610081123"></script>
-  <script src="segments.js?v=202610081123"></script>
-  <script src="picker.js?v=202610081123"></script>
-  <script src="merge.js?v=202610081123"></script>
-  <script src="persons.js?v=202610081123"></script>
-  <script src="export.js?v=202610081123"></script>
-  <script src="import.js?v=202610081123"></script>
-  <script src="mfa.js?v=202610081123"></script>
-  <script src="staff.js?v=202610081123"></script>
-  <script src="ua-map.js?v=202610081123"></script>
-  <script src="dashboard.js?v=202610081123"></script>
-  <script src="journal.js?v=202610081123"></script>
-  <script src="cabinet.js?v=202610081123"></script>
-  <script src="nav.js?v=202610081123"></script>
-  <script src="app.js?v=202610081123"></script>
+  <script src="options.js?v=202610081127"></script>
+  <script src="ui.js?v=202610081127"></script>
+  <script src="validation.js?v=202610081127"></script>
+  <script src="filters.js?v=202610081127"></script>
+  <script src="segments.js?v=202610081127"></script>
+  <script src="picker.js?v=202610081127"></script>
+  <script src="merge.js?v=202610081127"></script>
+  <script src="persons.js?v=202610081127"></script>
+  <script src="export.js?v=202610081127"></script>
+  <script src="import.js?v=202610081127"></script>
+  <script src="mfa.js?v=202610081127"></script>
+  <script src="staff.js?v=202610081127"></script>
+  <script src="ua-map.js?v=202610081127"></script>
+  <script src="dashboard.js?v=202610081127"></script>
+  <script src="journal.js?v=202610081127"></script>
+  <script src="cabinet.js?v=202610081127"></script>
+  <script src="nav.js?v=202610081127"></script>
+  <script src="app.js?v=202610081127"></script>
 </body>
 </html>

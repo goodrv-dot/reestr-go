@@ -16,14 +16,27 @@ window.Importer = (() => {
   const letters = (s) => clean(s).toLowerCase().replace(/[^a-zа-яіїєґ’']/gi, '');
   const pad = (n) => String(n).padStart(2, '0');
 
+  // Чи існує така дата насправді: 31.09 чи 29.02 у невисокосний рік браузер мовчки
+  // перетворює на 1 жовтня / 1 березня — такі дати не приймаємо; рік — 1900–2100
+  function realIso(y, m, d) {
+    y = +y; m = +m; d = +d;
+    if (!(y >= 1900 && y <= 2100) || m < 1 || m > 12 || d < 1) return null;
+    const t = new Date(Date.UTC(y, m - 1, d));
+    if (t.getUTCFullYear() !== y || t.getUTCMonth() !== m - 1 || t.getUTCDate() !== d) {
+      lastDateBad = `${pad(d)}.${pad(m)}.${y}`;
+      if (curRow != null) badDates.set(curRow, [...new Set([...(badDates.get(curRow) || []), lastDateBad])]);
+      return null;
+    }
+    return `${y}-${pad(m)}-${pad(d)}`;
+  }
   // Дата з Excel: число (серійний номер), Date або текст «31.01.2013», «08,11.2021», «2013-01-31»
   function toDate(v) {
     if (v === null || v === undefined || v === '') return null;
     if (typeof v === 'number') {
       const d = XLSX.SSF.parse_date_code(v);
-      return d ? `${d.y}-${pad(d.m)}-${pad(d.d)}` : null;
+      return d ? realIso(d.y, d.m, d.d) : null;
     }
-    if (v instanceof Date) return `${v.getFullYear()}-${pad(v.getMonth() + 1)}-${pad(v.getDate())}`;
+    if (v instanceof Date) return isNaN(v) ? null : realIso(v.getFullYear(), v.getMonth() + 1, v.getDate());
     const s = clean(v);
     let m = s.match(/^(\d{1,2})[.,/\-](\d{1,2})[.,/\-](\d{2,4})/);
     if (m) {
@@ -36,16 +49,18 @@ window.Importer = (() => {
         year = year <= cy ? 2000 + year : 1900 + year;
         lastDateFix = (lastDateFix ? lastDateFix + ', ' : '') + `рік «${y}» прочитано як ${year}`;
       }
-      if (mon < 1 || mon > 12 || day < 1 || day > 31) return null;
-      const iso = `${year}-${pad(mon)}-${pad(day)}`;
-      return isNaN(new Date(iso + 'T00:00:00')) ? null : iso;
+      return realIso(year, mon, day);
     }
     m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-    return m ? `${m[1]}-${m[2]}-${m[3]}` : null;
+    return m ? realIso(m[1], m[2], m[3]) : null;
   }
   // Пояснення, якщо дату довелося виправити (читається одразу після toDate)
-  let lastDateFix = '';
-  function toDateNote(v) { lastDateFix = ''; const iso = toDate(v); return { iso, fix: lastDateFix }; }
+  let lastDateFix = '', lastDateBad = '';
+  function toDateNote(v) {
+    lastDateFix = ''; lastDateBad = '';
+    const iso = toDate(v);
+    return { iso, fix: lastDateBad ? `дати ${lastDateBad} не існує` : lastDateFix, bad: lastDateBad };
+  }
 
   // «Прізвище Ім’я По батькові» → частини
   function splitFio(raw) {
@@ -876,7 +891,10 @@ window.Importer = (() => {
     return (rec.roleOverride && rec.roleOverride[pid]) || (rec.isRelative ? 'linked' : 'main');
   }
 
+  // неіснуючі дати по рядках файлу: рядок → ['31.09.2026', …]; потрапляють у попередження
+  let curRow = null; const badDates = new Map();
   function newRecord(row) {
+    curRow = row;
     return {
       rows: [row], person: {}, relations: [], children: [], programs: [],
       errors: [], warnings: [], info: [], state: null, existing: null, include: true
@@ -1108,7 +1126,13 @@ window.Importer = (() => {
       }
       const ctx = Persons.ctx();
       const progId = (name) => [...ctx.programs].find(([, n]) => n === name)?.[0];
+      badDates.clear(); curRow = null;
       let list = template.parse(rawRows, header, { ...ctx, programByName: progId });
+      list.forEach((r) => {
+        if (r.isRelative) return;
+        const bad = badDates.get(r.rows[0]);
+        if (bad) r.warnings.push(`Дати ${bad.join(', ')} не існує (у місяці менше днів) — не записано, внесіть правильну в картці`);
+      });
       captureJournal(list, template);
       list = mergeByPhone(list);
       $('imp-status').textContent = 'Звіряємо з реєстром…';

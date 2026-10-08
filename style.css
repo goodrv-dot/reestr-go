@@ -1011,3 +1011,9 @@ button.today-n[aria-pressed="true"] { border-color: var(--ink); box-shadow: 0 0 
 /* Google-дзеркало: статус для адміністратора */
 .cab-mirror { font-size: 0.85rem; color: var(--muted, #5b6875); margin-left: 0.5rem; }
 .cab-mirror.is-bad { color: #9b2c2c; font-weight: 600; }
+
+/* поле-посилання (папка з документами) */
+.link-field { display: flex; gap: 0.5rem; align-items: center; }
+.link-field input { flex: 1; min-width: 0; }
+.link-open { white-space: nowrap; font-size: 0.9rem; }
+.case-docs { font-weight: 600; white-space: nowrap; }

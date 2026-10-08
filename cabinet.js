@@ -443,12 +443,21 @@ window.Cabinet = (() => {
       (p.wound_date ? ` · поранення ${fmt(p.wound_date)}` : '') + (c.next ? ` · далі: ${c.next.label}, ${dueText(c.next)}` : ''));
     $('case-take').hidden = c.executor_id === me;
     const box = $('case-contact'); const k = contactOf(c);
-    if (!k) { box.innerHTML = '<span class="muted">Контактну особу не вказано — додайте рідних у розділі «Родина».</span>'; return; }
+    // посилання на папку з документами (поле типу «посилання» з «Налаштування полів»)
+    const docsLink = () => {
+      const d = defs.find((x) => x.kind === 'link' && safeUrl(c.vals[x.key]));
+      if (!d) return;
+      const a = document.createElement('a');
+      a.className = 'case-docs'; a.href = c.vals[d.key]; a.target = '_blank'; a.rel = 'noopener'; a.textContent = '📁 Документи'; a.title = d.label;
+      box.append(' · ', a);
+    };
+    if (!k) { box.innerHTML = '<span class="muted">Контактну особу не вказано — додайте рідних у розділі «Родина».</span>'; docsLink(); return; }
     box.innerHTML = '<span class="muted">Контактна особа:</span> <button type="button" class="btn-link case-contact-name" title="Відкрити картку в реєстрі"></button> <span class="muted"></span> <b class="case-phone"></b>';
     box.children[1].textContent = fio(k.person);
     box.children[1].onclick = () => openPerson(k.person.id);
     box.children[2].textContent = `(${k.relation_degree})`;
     box.children[3].textContent = k.person.phone ? V.formatPhone(k.person.phone) : 'без телефону';
+    docsLink();
   }
 
   function renderHelpers() {
@@ -479,6 +488,7 @@ window.Cabinet = (() => {
   }
 
   // Одне поле: {id,label,kind,options,value,hint,state,onSave}
+  const safeUrl = (u) => /^https?:\/\/\S+$/i.test(String(u || '').trim());
   function fieldEl(f) {
     const wrap = document.createElement('div');
     wrap.className = 'stage' + (f.cls ? ' ' + f.cls : '') + (f.id.endsWith('p-death_date') ? ' is-death' : '');
@@ -491,12 +501,15 @@ window.Cabinet = (() => {
       control = `<select id="${id}"><option value=""></option>${opts.map((o) => `<option>${esc(o)}</option>`).join('')}</select>`;
     } else if (f.kind === 'map') {
       control = `<select id="${id}"><option value=""></option>${[...f.options].map(([k, n]) => `<option value="${k}">${esc(n)}</option>`).join('')}</select>`;
+    } else if (f.kind === 'link') {
+      control = `<span class="link-field"><input id="${id}" type="url" inputmode="url" placeholder="https://drive.google.com/…"><a class="link-open" target="_blank" rel="noopener" hidden>Відкрити ↗</a></span>`;
     } else if (f.kind === 'line' || f.kind === 'phone') control = `<input id="${id}" type="${f.kind === 'phone' ? 'tel' : 'text'}">`;
     else control = `<textarea id="${id}" rows="1"></textarea>`;
     wrap.innerHTML = `<label for="${id}"></label>${control}<p class="stage-hint"></p>`;
     wrap.querySelector('label').textContent = f.label;
     const el = wrap.querySelector('#' + id);
     if (f.kind !== 'date') el.value = f.kind === 'phone' ? (V.formatPhone(v) || '') : String(v);
+    if (f.kind === 'link') { const a = wrap.querySelector('.link-open'); if (safeUrl(v)) { a.href = v; a.hidden = false; } }
     if (f.hint) { wrap.querySelector('.stage-hint').textContent = f.hint; wrap.classList.add(f.state || 'is-due'); }
     if (v !== '' && v != null) wrap.classList.add('is-done');
     el.addEventListener('change', () => f.onSave(el.value.trim(), el));
@@ -517,7 +530,10 @@ window.Cabinet = (() => {
     });
     secDefs(sec).forEach((d) => {
       const v = c.vals[d.key] ?? ''; const f = { id: 's-' + d.key, label: d.label, kind: d.kind === 'text' ? 'text' : d.kind, options: d.options, value: v,
-        onSave: (val, el) => { if (/контакт/i.test(d.label) && !phonesInText(el)) return; saveValue(d.key, val); } };
+        onSave: (val, el) => {
+          if (d.kind === 'link' && val && !safeUrl(val)) { Persons.toast('Вставте повне посилання, що починається з https://'); el.value = v; return; }
+          if (/контакт/i.test(d.label) && !phonesInText(el)) return; saveValue(d.key, val);
+        } };
       if (!isClosed(c) && d.remind_after && !v && c.vals[d.remind_after] && /^\d{4}-\d{2}-\d{2}/.test(c.vals[d.remind_after])) {
         const due = addDays(c.vals[d.remind_after].slice(0, 10), d.remind_days || 0);
         f.hint = `Потрібно до ${fmt(due)}`; f.state = due < today() ? 'is-overdue' : 'is-due';
@@ -577,6 +593,7 @@ window.Cabinet = (() => {
     if (f.kind === 'date') return fmt(String(f.value));
     if (f.kind === 'map') return f.options.get(Number(f.value)) || f.options.get(f.value) || String(f.value);
     if (f.kind === 'phone') return V.formatPhone(f.value) || String(f.value);
+    if (f.kind === 'link') return 'посилання ✓';
     return String(f.value);
   }
   // Підказки вгорі справи: що не заповнено (як «Стан картки» в реєстрі)
@@ -911,7 +928,7 @@ window.Cabinet = (() => {
       tr.innerHTML = `
         <td><input data-f="label"></td>
         <td><select data-f="section">${SECTIONS[module].filter(([k]) => k !== 'family' || module).map(([k, l]) => `<option value="${k}">${l}</option>`).join('')}<option value="head">Шапка (з журналу)</option></select></td>
-        <td><select data-f="kind"><option value="text">текст</option><option value="date">дата</option><option value="list">список</option><option value="bool">так/ні</option></select></td>
+        <td><select data-f="kind"><option value="text">текст</option><option value="date">дата</option><option value="list">список</option><option value="bool">так/ні</option><option value="link">посилання</option></select></td>
         <td><input data-f="options" placeholder="через кому"></td>
         <td><select data-f="remind_after"><option value="">—</option>${keys.map(([k, l]) => `<option value="${k}">${l.replace(/</g, '&lt;')}</option>`).join('')}</select></td>
         <td><input data-f="remind_days" type="number" min="0" style="width:5rem"></td>

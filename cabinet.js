@@ -316,16 +316,29 @@ window.Cabinet = (() => {
     const hit = [...staff].find(([, n]) => sk(n).split(/\s+/).includes(k)) || [...staff].find(([, n]) => sk(n).startsWith(k));
     return hit ? hit[0] : '';
   }
+  // «ВАРЖЕЛЬ», «Варжель», «варжель.» — одне прізвище (ключ без регістру й розділових знаків)
+  const surKey = (x) => sk(x).replace(/[^a-zа-яіїєґ-]/gi, '');
+  const titleCase = (x) => x.toLowerCase().replace(/(^|-)([a-zа-яіїєґ])/gi, (m, a, b) => a + b.toUpperCase());
   function openMatch() {
-    const counts = new Map();
-    cases.forEach((c) => [...surnames(c.vals.executor_legacy), ...surnames(c.vals.responsible)].forEach((x) => counts.set(x, (counts.get(x) || 0) + 1)));
+    const counts = new Map();      // ключ → { n, spell: Map(написання → скільки) }
+    cases.forEach((c) => [...surnames(c.vals.executor_legacy), ...surnames(c.vals.responsible)].forEach((x) => {
+      const k = surKey(x); if (!k) return;
+      const g = counts.get(k) || { n: 0, spell: new Map() };
+      g.n++; const w = x.replace(/[^a-zа-яіїєґ’'ʼ`-]/gi, ''); g.spell.set(w, (g.spell.get(w) || 0) + 1);
+      counts.set(k, g);
+    }));
     const tb = $('cab-match-body'); tb.innerHTML = '';
     if (!counts.size) tb.innerHTML = '<tr><td colspan="3" class="muted">У справах цього модуля немає виконавців зі старого журналу.</td></tr>';
-    [...counts].sort((a, b) => b[1] - a[1]).forEach(([sur, n]) => {
+    [...counts].sort((a, b) => b[1].n - a[1].n).forEach(([key, g]) => {
+      // показуємо звичайне написання («Варжель»), а не ВЕЛИКИМИ
+      const spells = [...g.spell].sort((a, b) => b[1] - a[1]).map(([w]) => w);
+      const sur = spells.find((w) => w !== w.toUpperCase() && w[0] === w[0].toUpperCase()) || titleCase(spells[0]);
+      const n = g.n;
       const tr = document.createElement('tr');
       tr.innerHTML = '<td></td><td></td><td><select class="match-sel"></select></td>';
       tr.children[0].textContent = sur; tr.children[1].textContent = n;
-      const sel = tr.querySelector('select'); sel.dataset.sur = sur;
+      if (spells.length > 1) tr.children[0].title = 'Написання в журналі: ' + spells.join(', ');
+      const sel = tr.querySelector('select'); sel.dataset.sur = key;
       sel.add(new Option('— не зіставляти —', ''));
       [...staff].sort((a, b) => a[1].localeCompare(b[1], 'uk')).forEach(([id, nm]) => sel.add(new Option(nm, id)));
       sel.value = guessStaff(sur);
@@ -340,11 +353,11 @@ window.Cabinet = (() => {
     const groups = new Map();
     cases.forEach((c) => {
       const patch = {};
-      const ex = surnames(c.vals.executor_legacy).map((x) => map.get(x)).filter(Boolean);
+      const ex = surnames(c.vals.executor_legacy).map((x) => map.get(surKey(x))).filter(Boolean);
       if (!c.executor_id && ex[0]) patch.executor_id = ex[0];
       const help = [...new Set(ex.slice(1))].filter((u) => u !== (patch.executor_id || c.executor_id));
       if (!(c.helper_ids || []).length && help.length) patch.helper_ids = help;
-      const rs = surnames(c.vals.responsible).map((x) => map.get(x)).filter(Boolean);
+      const rs = surnames(c.vals.responsible).map((x) => map.get(surKey(x))).filter(Boolean);
       if (!c.responsible_id && rs[0]) patch.responsible_id = rs[0];
       if (!Object.keys(patch).length) return;
       const key = JSON.stringify(patch);

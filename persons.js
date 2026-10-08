@@ -460,6 +460,16 @@ window.Persons = (() => {
     else showList();
   }
 
+  // Хто з людей має дитину з таким словом у ПІБ (кеш на кілька секунд — запит повторюється для списку й лічильників)
+  const childCache = new Map();
+  async function childOwners(w) {
+    const k = w.toLowerCase(); const hit = childCache.get(k);
+    if (hit && Date.now() - hit.t < 15000) return hit.ids;
+    const { data } = await db.from('children').select('person_id').ilike('full_name', `%${w.replace(/[%_,()]/g, ' ')}%`).limit(300);
+    const ids = [...new Set((data || []).map((r) => r.person_id))];
+    childCache.set(k, { t: Date.now(), ids });
+    return ids;
+  }
   function currentSearch() {
     return $('search').value.trim().replace(/[,()%*\\]/g, ' ').trim();
   }
@@ -474,14 +484,19 @@ window.Persons = (() => {
       const digitsAll = q.replace(/\D/g, '');
       const isPhone = digitsAll.length >= 9 && !/[a-zа-яіїєґ]/i.test(q);
       const words = isPhone ? [q] : q.split(/\s+/).filter(Boolean);
-      words.forEach((w) => {
+      for (const w of words) {
         const parts = [`last_name.ilike.%${w}%`, `first_name.ilike.%${w}%`, `patronymic.ilike.%${w}%`];
         const digits = w.replace(/\D/g, '');
         if (digits.length >= 3) parts.push(`phone.ilike.%${digits}%`);
         const full = digits.length >= 9 ? V.normalizePhone(digits).value : null;
         if (full) parts.push(`extra_phones.cs.{${full}}`);   // повний номер шукаємо й серед додаткових
+        // ім’я дитини — знаходимо її представника (з 3 літер)
+        if (!isPhone && w.replace(/[^a-zа-яіїєґ’']/gi, '').length >= 3) {
+          const ids = await childOwners(w);
+          if (ids.length) parts.push(`id.in.(${ids.join(',')})`);
+        }
         query = query.or(parts.join(','));
-      });
+      }
     }
     if (level !== 'all' && !(skip || []).includes('level')) query = applyLevel(query, level === 'main');
     return Filters.apply(query, db, skip);

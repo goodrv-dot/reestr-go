@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Розшифрувати копію</title>
+  <style>
+    :root { --bg: #f4f6f8; --card: #fff; --ink: #16222e; --muted: #5b6875; --line: #dde3e8; --accent: #14425f; --bad: #9b2c2c; --ok: #1f6b45; }
+    @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #12181e; --card: #1b232b; --ink: #e8edf1; --muted: #9aa7b3; --line: #2c3740; --accent: #7fb3d6; --bad: #f08a8a; --ok: #7ccfa2; } }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+    main { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }
+    h1 { font-size: 1.5rem; margin: 0 0 0.25rem; }
+    .muted { color: var(--muted); }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-top: 16px; }
+    label { display: block; font-weight: 600; margin: 0.6rem 0 0.25rem; }
+    input[type=password], input[type=file] { width: 100%; font: inherit; padding: 0.5rem; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--ink); }
+    button { font: inherit; font-weight: 600; padding: 0.55rem 1rem; border-radius: 8px; border: 1px solid var(--accent); background: var(--accent); color: #fff; cursor: pointer; margin-top: 0.8rem; }
+    button.sec { background: transparent; color: var(--accent); }
+    #status { margin-top: 0.8rem; min-height: 1.5em; }
+    .bad { color: var(--bad); font-weight: 600; } .ok { color: var(--ok); font-weight: 600; }
+    table { width: 100%; border-collapse: collapse; margin-top: 0.6rem; }
+    th, td { text-align: left; padding: 0.35rem 0.5rem; border-bottom: 1px solid var(--line); }
+    td.n { text-align: right; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Розшифрувати резервну копію</h1>
+  <p class="muted">Для адміністратора Реєстру ГО. Файл розшифровується лише тут, у вашому браузері, — нікуди не надсилається. Потрібен файл <code>reestr-backup-….bin</code> зі спільного диска і фраза-пароль <code>BACKUP_PASSPHRASE</code>.</p>
+  <div class="card">
+    <label for="file">Файл копії</label>
+    <input id="file" type="file" accept=".bin">
+    <label for="pass">Фраза-пароль</label>
+    <input id="pass" type="password" autocomplete="off">
+    <button id="go" type="button">Розшифрувати</button>
+    <p id="status" role="status"></p>
+  </div>
+  <div class="card" id="result" hidden>
+    <p><b>Копія від:</b> <span id="when"></span></p>
+    <table><thead><tr><th>Таблиця</th><th class="n">Рядків</th></tr></thead><tbody id="counts"></tbody></table>
+    <button id="dl" type="button">Завантажити все (JSON)</button>
+    <p class="muted">JSON потрібен для відновлення бази або щоб знайти втрачені дані. Зберігайте його так само обережно, як і саму базу: там персональні дані.</p>
+  </div>
+</main>
+<script>
+  const $ = (id) => document.getElementById(id);
+  const MAGIC = 'REESTR-BK1';
+  let parsed = null;
+  async function decrypt(buf, pass) {
+    const u = new Uint8Array(buf);
+    if (new TextDecoder().decode(u.slice(0, 10)) !== MAGIC) throw new Error('Це не файл резервної копії реєстру.');
+    const salt = u.slice(10, 26), iv = u.slice(26, 38), ct = u.slice(38);
+    const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(pass), 'PBKDF2', false, ['deriveKey']);
+    const key = await crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: 250000, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
+    let gz;
+    try { gz = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ct); }
+    catch { throw new Error('Невірна фраза-пароль або файл пошкоджено.'); }
+    const plain = await new Response(new Blob([gz]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
+    return JSON.parse(plain);
+  }
+  $('go').addEventListener('click', async () => {
+    const f = $('file').files[0], pass = $('pass').value;
+    const st = $('status'); st.className = '';
+    if (!f || !pass) { st.className = 'bad'; st.textContent = 'Оберіть файл і введіть фразу-пароль.'; return; }
+    st.textContent = 'Розшифровуємо…'; $('result').hidden = true;
+    try {
+      parsed = await decrypt(await f.arrayBuffer(), pass);
+      $('pass').value = '';
+      $('when').textContent = new Date(parsed.created_at).toLocaleString('uk-UA');
+      const tb = $('counts'); tb.innerHTML = '';
+      Object.entries(parsed.counts || {}).forEach(([t, n]) => {
+        const tr = document.createElement('tr'); tr.innerHTML = '<td></td><td class="n"></td>';
+        tr.children[0].textContent = t; tr.children[1].textContent = n; tb.appendChild(tr);
+      });
+      $('result').hidden = false; st.className = 'ok'; st.textContent = 'Копію розшифровано — вона ціла.';
+    } catch (e) { st.className = 'bad'; st.textContent = e.message || 'Не вдалося розшифрувати.'; }
+  });
+  $('dl').addEventListener('click', () => {
+    if (!parsed) return;
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(parsed)], { type: 'application/json' }));
+    a.download = 'reestr-backup-' + String(parsed.created_at).slice(0, 10) + '.json'; a.click();
+  });
+</script>
+</body>
+</html>

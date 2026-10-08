@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Unbounded:wght@600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=202610081127">
+  <link rel="stylesheet" href="style.css?v=202610081159">
 </head>
 <body>
 
@@ -337,6 +337,9 @@
             </div>
             <button id="cab-new-btn" class="btn-primary btn-small" type="button">+ Нова справа</button>
             <button id="cab-settings-btn" class="btn-secondary btn-small" type="button" hidden>Налаштування полів</button>
+            <button id="cab-bulk-btn" class="btn-secondary btn-small" type="button" aria-pressed="false" hidden>☑ Кілька справ</button>
+            <button id="cab-match-btn" class="btn-secondary btn-small" type="button" hidden>Виконавці з журналу</button>
+            <button id="cab-load-btn" class="btn-secondary btn-small" type="button" hidden>Навантаження</button>
             <span id="cab-mirror" class="cab-mirror" hidden></span>
           </div>
         </div>
@@ -371,10 +374,23 @@
           <button type="button" id="cq-nocell-btn" class="qchip cab-quick" data-q="nocell" aria-pressed="false" hidden>Нерозподілені <b id="cq-nocell">0</b></button>
           <span class="muted" id="cab-count"></span>
         </div>
+        <div id="cab-bulk" class="cab-bulk" hidden>
+          <span>Вибрано: <b id="cab-bulk-n">0</b></span>
+          <button id="cab-bulk-page" type="button" class="btn-link">усі на сторінці</button>
+          <button id="cab-bulk-all" type="button" class="btn-link">усі за фільтром (<span id="cab-bulk-total">0</span>)</button>
+          <button id="cab-bulk-none" type="button" class="btn-link">зняти вибір</button>
+          <span class="cab-bulk-set">
+            <select id="bk-exec" aria-label="Виконавець для вибраних"></select>
+            <select id="bk-resp" aria-label="Відповідальний для вибраних"></select>
+            <select id="bk-cell" aria-label="Осередок для вибраних"></select>
+            <select id="bk-status" aria-label="Статус для вибраних"></select>
+            <button id="bk-apply" type="button" class="btn-primary btn-small">Застосувати</button>
+          </span>
+        </div>
         <p id="cab-status-line" class="muted" role="status"></p>
         <div class="table-wrap">
           <table id="cab-table" class="cab-table">
-            <thead><tr><th>ID</th><th>Загиблий / поранений</th><th>Контактна особа</th><th>Осередок</th><th>Статус</th><th>Виконавець</th><th>Наступна дія</th><th>Заповнено</th></tr></thead>
+            <thead><tr><th class="cab-sel" hidden><input id="cab-sel-page" type="checkbox" aria-label="Вибрати всі на сторінці"></th><th>ID</th><th>Загиблий / поранений</th><th>Контактна особа</th><th>Осередок</th><th>Статус</th><th>Виконавець</th><th>Наступна дія</th><th>Заповнено</th></tr></thead>
             <tbody></tbody>
           </table>
         </div>
@@ -423,6 +439,7 @@
           <p id="case-summary-note" class="muted case-note"></p>
           <div id="case-summary"></div>
         </section>
+        <p class="case-foot"><button id="cab-back2" type="button" class="btn-link back">Назад до справ</button></p>
       </section>
     </main>
 
@@ -563,13 +580,14 @@
         <a href="#m-scenarios">Типові завдання</a>
         <a href="#m-2fa">2FA</a>
         <a href="#m-staff">Співробітники</a>
+        <a href="#m-backup">Резервні копії</a>
         <a href="#m-rules">Правила роботи з даними</a>
       </nav>
 
       <section id="m-start">
         <h2>Основи</h2>
         <ul>
-          <li><b>Пошук</b> — за прізвищем, ім’ям, по батькові або частиною телефону (від 3 цифр).</li>
+          <li><b>Пошук</b> — за прізвищем, ім’ям, по батькові або частиною телефону (від 3 цифр); можна кілька слів одразу («Дудчук Юрій Яремович»). Знаходить і за <b>ім’ям дитини</b> — покаже її представника.</li>
           <li>Відкрити картку — клік по рядку. <b>Нових людей у реєстрі вручну не заводять:</b> загиблих і поранених — у Кабінеті («+ Нова справа»), їхніх рідних — у справі (розділ «Родина»), «Діти МП» приходять з анкети через Імпорт. Реєстр — для відбору за фільтрами та розсилок.</li>
           <li>Обов’язкові лише <b>прізвище та ім’я</b>. Решту можна доповнити пізніше — система підкаже, чого бракує.</li>
           <li><b>Видаляти</b> особу може лише адміністратор.</li>
@@ -705,8 +723,12 @@
           <li><b>Зведення справи — компактний варіант</b> внизу — те саме, що у справі вгорі, але дрібно й на одному екрані, як рядок журналу: шапка, усі розділи, родина й примітки. Жовте — незаповнене, червоне — незаповнене важливе чи прострочене. Натисніть на будь-яке поле — і правте просто там. Обидва подання працюють з одними даними: змінили в одному — оновилось в іншому.</li>
           <li><b>+ Нова справа</b> — завести загиблого чи пораненого прямо в кабінеті, без таблиці: досить прізвища та імені. Натискайте «Створити справу» один раз: поки справа зберігається, кнопка неактивна, а повторне створення тієї самої справи система не допустить.</li>
           <li>Адміністратор у «Налаштування полів» змінює назви, розділ і порядок полів, варіанти списків і правила нагадувань, додає нові поля — докладно в розділі <a href="#m-fields">«Налаштування полів»</a>.</li>
+          <li><b>Кілька справ одразу</b> (адміністратор): кнопка «☑ Кілька справ» додає галочки в список. Відмітьте справи (або «усі на сторінці» / «усі за фільтром»), оберіть виконавця, відповідального, осередок чи статус і натисніть «Застосувати». Кожна зміна потрапляє в історію справи.</li>
+          <li><b>Виконавці з журналу</b> (адміністратор): прізвища зі старих журналів («Парм», «Парм, Маштакова») зіставляються зі співробітниками — система сама пропонує відповідність, ви перевіряєте. Заповнюються лише порожні поля: перше прізвище — виконавець, інші — «Допомагають», колонка «Відповідальний (по осередкам)» — відповідальний.</li>
+          <li><b>Навантаження</b> (адміністратор): скільки відкритих справ у кожного виконавця й осередку, скільки прострочено, зі статусом «Проблема», без контактної особи, без виконавця. Клік по рядку — ці справи в списку.</li>
+          <li>Унизу довгої справи теж є «Назад до справ» — не треба гортати вгору (зручно на телефоні).</li>
           <li><b>Папка з документами.</b> У справі є поле «Папка з документами (Google Диск)» (розділ «Інше» у 200, «Документи» у 300): вставте посилання на папку — у шапці справи з’явиться «📁 Документи», а поруч із полем — «Відкрити». Приймається лише повне посилання, що починається з https://. У журналі й Google-дзеркалі це колонка «Папка з документами».</li>
-          <li><b>Google-дзеркало.</b> Робот кожні 3 хвилини перевіряє, чи змінилось щось у справах, і переписує Google-таблиці-дзеркала (окремо для «200» і «300»): аркуш «Журнал», окремий аркуш на кожен осередок (усі області, навіть порожні) і «Довідники» — ті самі переліки, що в журналах 200 / 300, а осередки — повний список із бази; з них у колонках працюють випадні списки. Червоний уголок у клітинці означає лише «значення не зі списку». Уночі — повне оновлення. Дзеркало лише для перегляду: при спробі правити Google попередить, а правку робот перезапише, тож працюйте в кабінеті. Нові поля з «Налаштування полів» з’являються в ньому колонками в кінці. Адміністратор бачить біля «Налаштування полів», коли дзеркало оновлювалось.</li>
+          <li><b>Google-дзеркало.</b> Робот кожні 3 хвилини перевіряє, чи змінилось щось у справах, і переписує Google-таблиці-дзеркала (окремо для «200» і «300»): аркуш «Журнал», окремий аркуш на кожен осередок (усі області, навіть порожні) і «Довідники» — ті самі переліки, що в журналах 200 / 300, а осередки — повний список із бази; з них у колонках працюють випадні списки. Червоний уголок у клітинці означає лише «значення не зі списку». Уночі — повне оновлення. Дзеркало лише для перегляду: при спробі правити Google попередить, а правку робот перезапише, тож працюйте в кабінеті. Нові поля з «Налаштування полів» з’являються в ньому колонками в кінці. Адміністратор бачить біля «Налаштування полів», коли дзеркало оновлювалось і коли зроблено резервну копію; якщо робот чи копія дали збій — запис у дзвіночку адміністратора.</li>
           <li>Після імпорту журналів «200» / «300» нові справи з’являються в кабінеті автоматично. «Журнал 200 / 300» вивантажує вже дані кабінету.</li>
           <li><b>🔗 Посилання</b> у справі та в картці особи копіює пряме посилання. Його можна надіслати колезі або вставити в задачу (ERP, месенджер): після входу відкриється саме ця справа чи картка. Права доступу зберігаються — без доступу справа не відкриється. Щоб передати справу в роботу, призначте виконавця: вона з’явиться в нього у «Мої».</li>
         </ul>
@@ -863,6 +885,17 @@
           <li>При першому вході співробітник <b>обов’язково змінює пароль</b> на власний (щонайменше 10 символів).</li>
           <li>Забув пароль — «Скинути пароль»: новий тимчасовий пароль, старий перестає діяти.</li>
           <li>Людина пішла з ГО — «Деактивувати»: доступ зникає одразу, історія її дій зберігається. Повернути можна однією кнопкою.</li>
+        </ul>
+      </section>
+
+      <section id="m-backup">
+        <h2>Резервні копії (для адміністратора)</h2>
+        <ul>
+          <li>Щоночі о 02:05 робот робить <b>зашифровану копію всієї бази</b> і кладе її файлом <code>reestr-backup-….bin</code> у папку на спільному диску Google. Зберігаються останні 30 копій.</li>
+          <li>Розшифрувати копію може лише той, хто знає фразу-пароль <code>BACKUP_PASSPHRASE</code>. Зберігайте її окремо від комп’ютера (у сейфі чи менеджері паролів): без неї копія марна.</li>
+          <li>Перевірити копію: відкрийте сторінку <a href="restore.html" target="_blank" rel="noopener">«Розшифрувати копію»</a>, оберіть файл, введіть фразу-пароль — побачите, скільки рядків у кожній таблиці. Файл розшифровується лише у вашому браузері.</li>
+          <li>Раз на місяць перевіряйте одну копію — так ви знатимете, що відновлення справді можливе.</li>
+          <li>Облікові записи для входу (паролі, 2FA) у копію не входять — їх зберігає Supabase окремо.</li>
         </ul>
       </section>
 
@@ -1077,6 +1110,30 @@
     </form>
   </dialog>
 
+  <dialog id="cab-load" class="dialog dialog-wide" aria-labelledby="cab-load-title">
+    <h2 id="cab-load-title">Навантаження</h2>
+    <p class="muted">Відкриті справи поточного модуля (без «Документи ✅» та «Архів»). Клік по рядку — список цих справ у кабінеті.</p>
+    <h3>По виконавцях</h3>
+    <div class="table-wrap"><table class="cab-load-table" id="cab-load-exec"></table></div>
+    <h3>По осередках</h3>
+    <div class="table-wrap"><table class="cab-load-table" id="cab-load-cell"></table></div>
+    <div class="form-actions"><button id="cab-load-close" class="btn-secondary" type="button">Закрити</button></div>
+  </dialog>
+
+  <dialog id="cab-match" class="dialog dialog-wide" aria-labelledby="cab-match-title">
+    <h2 id="cab-match-title">Виконавці з журналу → співробітники</h2>
+    <p class="muted">У старих журналах виконавці записані прізвищами («Парм», «Парм, Маштакова»). Оберіть, хто з співробітників відповідає кожному прізвищу. Заповнюються лише <b>порожні</b> поля справ поточного модуля: перше прізвище — виконавець, інші — «Допомагають»; прізвище з колонки «Відповідальний (по осередкам)» — відповідальний. Уже призначене не змінюється.</p>
+    <div class="table-wrap"><table class="cab-match-table">
+      <thead><tr><th>Прізвище в журналі</th><th>Справ</th><th>Співробітник</th></tr></thead>
+      <tbody id="cab-match-body"></tbody>
+    </table></div>
+    <p id="cab-match-sum" class="muted"></p>
+    <div class="form-actions">
+      <button id="cab-match-apply" class="btn-primary" type="button">Заповнити порожні</button>
+      <button id="cab-match-cancel" class="btn-secondary" type="button">Скасувати</button>
+    </div>
+  </dialog>
+
   <dialog id="cab-settings" class="dialog dialog-wide" aria-labelledby="cab-set-title">
     <h2 id="cab-set-title">Поля справи</h2>
     <p class="muted">Змінюйте назви, тип, варіанти списку й правила нагадувань. Новий етап — в останньому рядку. Вимкнений етап зникає з кабінету, але його дані зберігаються.</p>
@@ -1095,25 +1152,25 @@
   <p id="loading" class="loading">Завантаження…</p>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="config.js?v=202610081127"></script>
+  <script src="config.js?v=202610081159"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="options.js?v=202610081127"></script>
-  <script src="ui.js?v=202610081127"></script>
-  <script src="validation.js?v=202610081127"></script>
-  <script src="filters.js?v=202610081127"></script>
-  <script src="segments.js?v=202610081127"></script>
-  <script src="picker.js?v=202610081127"></script>
-  <script src="merge.js?v=202610081127"></script>
-  <script src="persons.js?v=202610081127"></script>
-  <script src="export.js?v=202610081127"></script>
-  <script src="import.js?v=202610081127"></script>
-  <script src="mfa.js?v=202610081127"></script>
-  <script src="staff.js?v=202610081127"></script>
-  <script src="ua-map.js?v=202610081127"></script>
-  <script src="dashboard.js?v=202610081127"></script>
-  <script src="journal.js?v=202610081127"></script>
-  <script src="cabinet.js?v=202610081127"></script>
-  <script src="nav.js?v=202610081127"></script>
-  <script src="app.js?v=202610081127"></script>
+  <script src="options.js?v=202610081159"></script>
+  <script src="ui.js?v=202610081159"></script>
+  <script src="validation.js?v=202610081159"></script>
+  <script src="filters.js?v=202610081159"></script>
+  <script src="segments.js?v=202610081159"></script>
+  <script src="picker.js?v=202610081159"></script>
+  <script src="merge.js?v=202610081159"></script>
+  <script src="persons.js?v=202610081159"></script>
+  <script src="export.js?v=202610081159"></script>
+  <script src="import.js?v=202610081159"></script>
+  <script src="mfa.js?v=202610081159"></script>
+  <script src="staff.js?v=202610081159"></script>
+  <script src="ua-map.js?v=202610081159"></script>
+  <script src="dashboard.js?v=202610081159"></script>
+  <script src="journal.js?v=202610081159"></script>
+  <script src="cabinet.js?v=202610081159"></script>
+  <script src="nav.js?v=202610081159"></script>
+  <script src="app.js?v=202610081159"></script>
 </body>
 </html>

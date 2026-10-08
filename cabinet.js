@@ -33,7 +33,7 @@ window.Cabinet = (() => {
 
   function init(client, userId, admin) {
     db = client; me = userId; isAdmin = admin;
-    document.querySelectorAll('.cab-mod').forEach((b) => b.addEventListener('click', () => { module = b.dataset.m; quick = ''; preset = null; load(); }));
+    document.querySelectorAll('.cab-mod').forEach((b) => b.addEventListener('click', () => { module = b.dataset.m; quick = ''; preset = null; picked.clear(); load(); }));
     $('cab-preset-clear').addEventListener('click', () => { preset = null; render(); });
     try { $('cab-sort').value = localStorage.getItem('cab_sort') || 'new'; } catch { /* без сховища — типовий порядок */ }
     if (!$('cab-sort').value) $('cab-sort').value = 'new';
@@ -44,9 +44,10 @@ window.Cabinet = (() => {
     $('cab-date-clear').addEventListener('click', () => { $('cab-from').value = ''; $('cab-to').value = ''; render(); });
     document.querySelectorAll('.cab-quick').forEach((b) => b.addEventListener('click', () => { quick = quick === b.dataset.q ? '' : b.dataset.q; render(); }));
     $('cab-back').addEventListener('click', closeCase);
+    $('cab-back2').addEventListener('click', closeCase);   // унизу довгої справи (зручно на телефоні)
     $('cab-pager').addEventListener('click', (e) => { const b = e.target.closest('.pg-btn'); if (!b || b.disabled) return; page = Number(b.dataset.page); render(); $('cab-table').scrollIntoView({ block: 'start' }); });
     $('cab-settings-btn').hidden = !isAdmin;
-    if (isAdmin) mirrorStatus();
+    if (isAdmin) { mirrorStatus(); initBulk(); }
     $('cab-settings-btn').addEventListener('click', openSettings);
     $('cab-new-btn').addEventListener('click', openNew);
     $('cab-new-form').addEventListener('submit', submitNew);
@@ -200,6 +201,170 @@ window.Cabinet = (() => {
     fill('cab-exec', [['none', '— без виконавця —'], ...[...staff].map(([id, n]) => [id, n])], 'Усі виконавці');
     const { cells } = Persons.ctx();
     fill('cab-cell', [['none', '— без осередку —'], ...[...cells].map(([id, n]) => [String(id), n])], 'Усі осередки');
+    if (isAdmin) {
+      const people = [...staff].sort((a, b) => a[1].localeCompare(b[1], 'uk'));
+      fill('bk-exec', [['none', '— прибрати виконавця —'], ...people], 'Виконавець: не змінювати');
+      fill('bk-resp', [['none', '— прибрати відповідального —'], ...people], 'Відповідальний: не змінювати');
+      fill('bk-cell', [['none', '— без осередку —'], ...[...cells].map(([id, n]) => [String(id), n])], 'Осередок: не змінювати');
+      fill('bk-status', statuses.map((x) => [x.name, x.name]), 'Статус: не змінювати');
+    }
+  }
+
+  // ---------- Масові дії (адміністратор): кілька справ одразу ----------
+  let bulkMode = false, lastList = [];
+  const picked = new Set();
+  function initBulk() {
+    $('cab-bulk-btn').hidden = false; $('cab-match-btn').hidden = false;
+    $('cab-bulk-btn').addEventListener('click', () => {
+      bulkMode = !bulkMode; picked.clear();
+      $('cab-bulk-btn').setAttribute('aria-pressed', String(bulkMode));
+      render();
+    });
+    $('cab-sel-page').addEventListener('change', (e) => {
+      pageItems().forEach((c) => (e.target.checked ? picked.add(c.id) : picked.delete(c.id))); render();
+    });
+    $('cab-bulk-page').addEventListener('click', () => { pageItems().forEach((c) => picked.add(c.id)); render(); });
+    $('cab-bulk-all').addEventListener('click', () => { lastList.forEach((c) => picked.add(c.id)); render(); });
+    $('cab-bulk-none').addEventListener('click', () => { picked.clear(); render(); });
+    $('bk-apply').addEventListener('click', applyBulk);
+    $('cab-match-btn').addEventListener('click', openMatch);
+    $('cab-load-btn').hidden = false;
+    $('cab-load-btn').addEventListener('click', openLoad);
+    $('cab-load-close').addEventListener('click', () => $('cab-load').close());
+    $('cab-match-cancel').addEventListener('click', () => $('cab-match').close());
+    $('cab-match-apply').addEventListener('click', applyMatch);
+  }
+  const pageItems = () => lastList.slice((page - 1) * PAGE, page * PAGE);
+  function renderBulkBar() {
+    $('cab-bulk').hidden = !bulkMode;
+    document.querySelector('#cab-table th.cab-sel').hidden = !bulkMode;
+    if (!bulkMode) return;
+    $('cab-bulk-n').textContent = picked.size;
+    $('cab-bulk-total').textContent = lastList.length;
+    const pi = pageItems();
+    $('cab-sel-page').checked = pi.length > 0 && pi.every((c) => picked.has(c.id));
+    $('bk-apply').disabled = !picked.size;
+  }
+  // оновлення порціями; кожна зміна потрапляє в історію справи (тригер у базі)
+  async function updateCases(ids, patch) {
+    for (let i = 0; i < ids.length; i += 100) {
+      const { error } = await db.from('cases').update(patch).in('id', ids.slice(i, i + 100));
+      if (error) throw error;
+    }
+  }
+  async function applyBulk() {
+    const v = (id) => $(id).value;
+    const patch = {};
+    if (v('bk-exec')) patch.executor_id = v('bk-exec') === 'none' ? null : v('bk-exec');
+    if (v('bk-resp')) patch.responsible_id = v('bk-resp') === 'none' ? null : v('bk-resp');
+    if (v('bk-cell')) patch.cell_id = v('bk-cell') === 'none' ? null : Number(v('bk-cell'));
+    if (v('bk-status')) patch.status = v('bk-status');
+    if (!Object.keys(patch).length) { Persons.toast('Оберіть, що змінити: виконавця, відповідального, осередок чи статус'); return; }
+    const what = [patch.executor_id !== undefined && 'виконавця', patch.responsible_id !== undefined && 'відповідального', patch.cell_id !== undefined && 'осередок', patch.status && 'статус'].filter(Boolean).join(', ');
+    if (!confirm(`Змінити ${what} у ${picked.size} справах?`)) return;
+    const btn = $('bk-apply'); btn.disabled = true; btn.textContent = 'Зберігаємо…';
+    try {
+      await updateCases([...picked], patch);
+      Persons.toast(`Оновлено справ: ${picked.size}`);
+      picked.clear(); ['bk-exec', 'bk-resp', 'bk-cell', 'bk-status'].forEach((id) => { $(id).value = ''; });
+      await load();
+    } catch (e) { console.error(e); Persons.toast('Не вдалося оновити справи'); }
+    finally { btn.textContent = 'Застосувати'; btn.disabled = false; }
+  }
+
+  // ---------- Навантаження (адміністратор): хто скільки веде, де просідає ----------
+  function openLoad() {
+    const open = cases.filter((c) => !isClosed(c));
+    const { cells } = Persons.ctx();
+    const stat = (keyOf) => {
+      const m = new Map();
+      open.forEach((c) => {
+        const k = keyOf(c); const r = m.get(k) || { all: 0, over: 0, noContact: 0, problem: 0, noExec: 0 };
+        r.all++; if (c.next && c.next.overdue) r.over++; if (!contactOf(c)) r.noContact++;
+        if (c.status === 'Проблема') r.problem++; if (!c.executor_id) r.noExec++;
+        m.set(k, r);
+      });
+      return [...m].sort((a, b) => b[1].over - a[1].over || b[1].all - a[1].all);
+    };
+    const table = (el, rows, nameOf, onPick, withNoExec) => {
+      const t = $(el);
+      t.innerHTML = `<thead><tr><th></th><th>Відкритих</th><th>Прострочено</th><th>«Проблема»</th><th>Без контактної особи</th>${withNoExec ? '<th>Без виконавця</th>' : ''}</tr></thead><tbody></tbody>`;
+      rows.forEach(([k, r]) => {
+        const tr = document.createElement('tr'); tr.className = 'is-click';
+        tr.innerHTML = `<td></td><td>${r.all}</td><td class="${r.over ? 'n-bad' : ''}">${r.over}</td><td>${r.problem}</td><td class="${r.noContact ? 'n-warn' : ''}">${r.noContact}</td>${withNoExec ? `<td class="${r.noExec ? 'n-warn' : ''}">${r.noExec}</td>` : ''}`;
+        tr.children[0].textContent = nameOf(k);
+        tr.addEventListener('click', () => { onPick(k); $('cab-load').close(); });
+        t.tBodies[0].appendChild(tr);
+      });
+    };
+    const reset = () => { quick = ''; preset = null; ['cab-search', 'cab-status', 'cab-exec', 'cab-cell', 'cab-from', 'cab-to'].forEach((id) => { $(id).value = ''; }); };
+    table('cab-load-exec', stat((c) => c.executor_id || ''), (k) => (k ? staff.get(k) || '(невідомий)' : '— без виконавця —'),
+      (k) => { reset(); $('cab-exec').value = k || 'none'; render(); }, false);
+    table('cab-load-cell', stat((c) => c.cell_id || 0), (k) => (k ? cells.get(k) || '—' : '— без осередку —'),
+      (k) => { reset(); $('cab-cell').value = k ? String(k) : 'none'; render(); }, true);
+    $('cab-load').showModal();
+  }
+
+  // ---------- «Виконавці з журналу»: прізвища зі старих журналів → співробітники ----------
+  const surnames = (t) => String(t || '').split(/[,;/\n]|\s+(?:і|та|и)\s+/).map((x) => x.trim().split(/\s+/)[0]).filter((x) => x && /[a-zа-яіїєґ]/i.test(x));
+  const sk = (x) => x.toLowerCase().replace(/[’'ʼ`]/g, '');
+  function guessStaff(sur) {
+    const k = sk(sur);
+    const hit = [...staff].find(([, n]) => sk(n).split(/\s+/).includes(k)) || [...staff].find(([, n]) => sk(n).startsWith(k));
+    return hit ? hit[0] : '';
+  }
+  function openMatch() {
+    const counts = new Map();
+    cases.forEach((c) => [...surnames(c.vals.executor_legacy), ...surnames(c.vals.responsible)].forEach((x) => counts.set(x, (counts.get(x) || 0) + 1)));
+    const tb = $('cab-match-body'); tb.innerHTML = '';
+    if (!counts.size) tb.innerHTML = '<tr><td colspan="3" class="muted">У справах цього модуля немає виконавців зі старого журналу.</td></tr>';
+    [...counts].sort((a, b) => b[1] - a[1]).forEach(([sur, n]) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td></td><td></td><td><select class="match-sel"></select></td>';
+      tr.children[0].textContent = sur; tr.children[1].textContent = n;
+      const sel = tr.querySelector('select'); sel.dataset.sur = sur;
+      sel.add(new Option('— не зіставляти —', ''));
+      [...staff].sort((a, b) => a[1].localeCompare(b[1], 'uk')).forEach(([id, nm]) => sel.add(new Option(nm, id)));
+      sel.value = guessStaff(sur);
+      sel.addEventListener('change', matchSummary);
+      tb.appendChild(tr);
+    });
+    matchSummary();
+    $('cab-match').showModal();
+  }
+  function matchPlan() {
+    const map = new Map([...document.querySelectorAll('#cab-match-body .match-sel')].filter((x) => x.value).map((x) => [x.dataset.sur, x.value]));
+    const groups = new Map();
+    cases.forEach((c) => {
+      const patch = {};
+      const ex = surnames(c.vals.executor_legacy).map((x) => map.get(x)).filter(Boolean);
+      if (!c.executor_id && ex[0]) patch.executor_id = ex[0];
+      const help = [...new Set(ex.slice(1))].filter((u) => u !== (patch.executor_id || c.executor_id));
+      if (!(c.helper_ids || []).length && help.length) patch.helper_ids = help;
+      const rs = surnames(c.vals.responsible).map((x) => map.get(x)).filter(Boolean);
+      if (!c.responsible_id && rs[0]) patch.responsible_id = rs[0];
+      if (!Object.keys(patch).length) return;
+      const key = JSON.stringify(patch);
+      groups.set(key, [...(groups.get(key) || []), c.id]);
+    });
+    return groups;
+  }
+  function matchSummary() {
+    const n = [...matchPlan().values()].reduce((a, ids) => a + ids.length, 0);
+    $('cab-match-sum').textContent = n ? `Буде заповнено справ: ${n}.` : 'Нічого заповнювати: оберіть співробітників або всі поля вже заповнені.';
+    $('cab-match-apply').disabled = !n;
+  }
+  async function applyMatch() {
+    const groups = matchPlan();
+    const btn = $('cab-match-apply'); btn.disabled = true; btn.textContent = 'Заповнюємо…';
+    try {
+      let n = 0;
+      for (const [key, ids] of groups) { await updateCases(ids, JSON.parse(key)); n += ids.length; }
+      $('cab-match').close();
+      Persons.toast(`Заповнено справ: ${n}`);
+      await load();
+    } catch (e) { console.error(e); Persons.toast('Не вдалося заповнити — спробуйте ще раз'); }
+    finally { btn.textContent = 'Заповнити порожні'; btn.disabled = false; }
   }
 
   // ---------- Список ----------
@@ -281,6 +446,7 @@ window.Cabinet = (() => {
 
   function render() {
     const list = sorted(filtered());
+    lastList = list;
     const sig = [module, quick, ...['cab-search', 'cab-status', 'cab-exec', 'cab-cell', 'cab-from', 'cab-to', 'cab-sort'].map((id) => $(id).value), $('cab-pin').checked, preset ? preset.label : ''].join('|');
     if (sig !== lastSig) { page = 1; lastSig = sig; }
     const pages = Math.max(1, Math.ceil(list.length / PAGE)); if (page > pages) page = pages;
@@ -342,9 +508,19 @@ window.Cabinet = (() => {
         tr.children[6].lastChild.textContent = dueText(c.next); tr.children[6].lastChild.classList.add('due-' + c.next.level);
         tr.classList.add('row-' + c.next.level);
       } else tr.children[6].textContent = '—';
+      if (bulkMode) {
+        const td = document.createElement('td'); td.className = 'cab-sel';
+        const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = picked.has(c.id);
+        cb.setAttribute('aria-label', 'Вибрати справу ' + c.journal_id);
+        td.addEventListener('click', (e) => e.stopPropagation());
+        cb.addEventListener('change', () => { cb.checked ? picked.add(c.id) : picked.delete(c.id); renderBulkBar(); });
+        td.appendChild(cb); tr.prepend(td);
+        if (picked.has(c.id)) tr.classList.add('is-picked');
+      }
       tr.addEventListener('click', () => openCase(c.id));
       tb.appendChild(tr);
     });
+    renderBulkBar();
     // сторінки по 100
     const pg = $('cab-pager'); pg.hidden = pages <= 1; pg.innerHTML = '';
     if (pages > 1) {
@@ -867,7 +1043,13 @@ window.Cabinet = (() => {
       const a = document.createElement('a');
       a.href = `https://docs.google.com/spreadsheets/d/${encodeURIComponent(id)}/edit`; a.target = '_blank'; a.rel = 'noopener'; a.textContent = label;
       el.append(a);
-    }); el.title = data.last_status || ''; el.classList.toggle('is-bad', bad); el.hidden = false;
+    });
+    // резервна копія бази
+    const bkBad = /^помилка/.test(data.backup_status || '');
+    const bk = data.backup_last ? new Date(data.backup_last).toLocaleString('uk-UA', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : null;
+    el.append(bk && !bkBad ? ` · копія бази: ${bk}` : ' · копія бази: ⚠ не налаштована');
+    el.title = [data.last_status, data.backup_status].filter(Boolean).join('\n');
+    el.classList.toggle('is-bad', bad); el.hidden = false;
   }
 
   let creating = false;
@@ -1012,6 +1194,10 @@ window.Cabinet = (() => {
     const { data, error } = await db.rpc('my_notifications');
     if (error) { console.error(error); return; }
     notes = data || [];
+    if (isAdmin) {                                   // адміністратору — ще й збій робота-дзеркала
+      const r = await db.rpc('robot_alert');
+      if (r.data) notes = [{ kind: 'robot', label: r.data }, ...notes];
+    }
     const cnt = (k) => notes.filter((x) => x.kind === k).length;
     tabEl.textContent = 'Кабінет';
     const pill = (n, cls, title) => { if (!n) return; const b = document.createElement('span'); b.className = 'tab-badge ' + cls; b.textContent = n; b.title = title; tabEl.append(' ', b); };
@@ -1020,7 +1206,7 @@ window.Cabinet = (() => {
     const bell = $('bell-btn'); if (!bell) return;
     bell.hidden = false;
     const nb = $('bell-count'); nb.textContent = notes.length > 99 ? '99+' : notes.length; nb.hidden = !notes.length;
-    bell.classList.toggle('has-over', cnt('overdue') > 0);
+    bell.classList.toggle('has-over', cnt('overdue') + cnt('robot') > 0);
     bell.title = notes.length ? `Сповіщень: ${notes.length}` : 'Сповіщень немає';
     if (!bellWired) {
       bellWired = true;
@@ -1035,6 +1221,10 @@ window.Cabinet = (() => {
   function renderBell() {
     const p = $('bell-panel'); p.innerHTML = '<h2>Сповіщення</h2>';
     if (!notes.length) { p.insertAdjacentHTML('beforeend', '<p class="muted">Нічого нового: прострочених дій і нових справ немає.</p>'); return; }
+    notes.filter((x) => x.kind === 'robot').forEach((x) => {
+      const h = document.createElement('h3'); h.className = 'n-over'; h.textContent = '⚠ Робот-дзеркало'; p.appendChild(h);
+      const m = document.createElement('p'); m.className = 'bell-robot'; m.textContent = x.label + '. Дані в базі в порядку; не оновлюється лише Google-таблиця. Напишіть розробнику.'; p.appendChild(m);
+    });
     ['overdue', 'today', 'new', 'assigned'].forEach((k) => {
       const list = notes.filter((x) => x.kind === k); if (!list.length) return;
       const h = document.createElement('h3'); h.className = NOTE[k][1]; h.textContent = `${NOTE[k][0]} — ${list.length}`; p.appendChild(h);

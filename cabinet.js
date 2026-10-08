@@ -236,6 +236,7 @@ window.Cabinet = (() => {
     $('cab-load-close').addEventListener('click', () => $('cab-load').close());
     $('cab-match-cancel').addEventListener('click', () => $('cab-match').close());
     $('cab-match-apply').addEventListener('click', applyMatch);
+    $('cab-match-auto').addEventListener('click', runAutoMatch);
   }
   const pageItems = () => lastList.slice((page - 1) * PAGE, page * PAGE);
   function renderBulkBar() {
@@ -378,6 +379,7 @@ window.Cabinet = (() => {
       tb.appendChild(tr);
     });
     matchSummary();
+    $('cab-match-report').innerHTML = '';
     $('cab-match').showModal();
   }
   function matchPlan() {
@@ -402,14 +404,51 @@ window.Cabinet = (() => {
     $('cab-match-sum').textContent = n ? `Буде заповнено справ: ${n}.` : 'Нічого заповнювати: оберіть співробітників або всі поля вже заповнені.';
     $('cab-match-apply').disabled = !n;
   }
+  // Правила підстановки виконуються в базі (auto_match_executors) — ті самі після кожного імпорту
+  const cap = (k) => k.replace(/(^|-)(.)/g, (m, a, b) => a + b.toUpperCase());
+  async function runAutoMatch() {
+    const btn = $('cab-match-auto'); btn.disabled = true; btn.textContent = 'Підставляємо…';
+    const box = $('cab-match-report');
+    try {
+      const { data, error } = await withTimeout(db.rpc('auto_match_executors'));
+      if (error) throw error;
+      box.innerHTML = '';
+      const p = (html) => { const el = document.createElement('p'); el.innerHTML = html; box.appendChild(el); return el; };
+      p(`✓ Заповнено справ: <b>${data.filled}</b>.`);
+      if (data.empty_n) {
+        const el = p(`Без виконавця і відповідального: <b>${data.empty_n}</b> — <span class="muted"></span> `);
+        el.querySelector('span').textContent = data.empty.join(', ') + (data.empty_n > data.empty.length ? ' …' : '');
+        const show = document.createElement('button'); show.type = 'button'; show.className = 'btn-link'; show.textContent = 'показати ці справи';
+        show.onclick = () => {
+          $('cab-match').close();
+          ['cab-search', 'cab-status', 'cab-exec', 'cab-resp', 'cab-cell', 'cab-from', 'cab-to'].forEach((id) => { $(id).value = ''; });
+          quick = ''; preset = null; $('cab-exec').value = 'none'; $('cab-resp').value = 'none'; render();
+        };
+        el.appendChild(show);
+      } else p('Справ без виконавця і відповідального немає.');
+      const how = document.createElement('ul'); how.className = 'muted';
+      const li = (html) => { const x = document.createElement('li'); x.innerHTML = html; how.appendChild(x); return x; };
+      if (data.unmatched.length) {
+        const x = li('Прізвища з журналу, яких немає серед співробітників: <b></b>. Додайте їх у «Співробітники» → «Додати виконавців без входу» (або допишіть написання кнопкою «Написання в журналах») і натисніть «Підставити автоматично» ще раз.');
+        x.querySelector('b').textContent = data.unmatched.map((u) => `${cap(u.k)} (${u.n})`).join(', ');
+      }
+      if (data.empty_n) li('Якщо в журналі для справи нікого не записано — відкрийте її й оберіть «Виконавець» (або «☑ Кілька справ» → виконавець для кількох одразу).');
+      if (how.children.length) box.appendChild(how);
+      if (data.filled) await load();
+    } catch (e) {
+      console.error(e);
+      box.textContent = e.message === 'timeout' ? 'Сервер не відповів — оновіть сторінку (F5) і спробуйте ще раз.' : 'Не вдалося підставити: ' + (e.message || 'помилка');
+    } finally { btn.disabled = false; btn.textContent = 'Підставити автоматично'; }
+  }
+
   async function applyMatch() {
     const groups = matchPlan();
     const btn = $('cab-match-apply'); btn.disabled = true; btn.textContent = 'Заповнюємо…';
     try {
       let n = 0;
       for (const [key, ids] of groups) { await updateCases(ids, JSON.parse(key)); n += ids.length; }
-      $('cab-match').close();
       Persons.toast(`Заповнено справ: ${n}`);
+      await runAutoMatch();      // далі ті самі правила: виконавець ↔ відповідальний, звіт «немає нікого»
       await load();
     } catch (e) { console.error(e); Persons.toast(e.message === 'timeout' ? 'Сервер не відповів — оновіть сторінку (F5) і спробуйте ще раз' : 'Не вдалося заповнити — спробуйте ще раз'); }
     finally { btn.textContent = 'Заповнити порожні'; btn.disabled = false; }

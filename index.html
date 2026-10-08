@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Unbounded:wght@600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=202610081317">
+  <link rel="stylesheet" href="style.css?v=202610081336">
 </head>
 <body>
 
@@ -906,7 +906,7 @@
           <li>Забув пароль — «Скинути пароль»: новий тимчасовий пароль, старий перестає діяти.</li>
           <li>Людина пішла з ГО — «Деактивувати»: доступ зникає одразу, історія її дій зберігається. Повернути можна однією кнопкою.</li>
           <li><b>Виконавці без входу</b> — коли пошти ще немає: «Додати виконавців без входу», кожне ПІБ з нового рядка. Людина з’являється у списках виконавців і відповідальних, але увійти не може (стан «Без входу»). Коли буде пошта — «Надати вхід»: система видасть тимчасовий пароль, усі справи лишаються за людиною.</li>
-          <li><b>Автозаміна з журналу.</b> Справи, де у старому журналі стоїть прізвище співробітника («Фаріонова», «ФАРІОНОВА», частина подвійного прізвища), заповнюються самі: при додаванні співробітника, при зміні «Написання в журналах» і після кожного імпорту 200/300. Заповнюються лише <b>порожні</b> поля (виконавець, помічники, відповідальний) — виставлене вручну не змінюється. Якщо прізвище в журналі записано інакше (дівоче, з помилкою) — додайте це написання кнопкою «Написання в журналах». Якщо одне прізвище підходить двом співробітникам — система його пропускає, оберіть вручну у «Виконавці з журналу».</li>
+          <li><b>Автозаміна з журналу.</b> Справи, де у старому журналі стоїть прізвище співробітника («Фаріонова», «ФАРІОНОВА», частина подвійного прізвища), заповнюються самі: при додаванні співробітника, при зміні «Написання в журналах» і після кожного імпорту 200/300. Правила: кілька виконавців — перший виконавець, інші «Допомагають»; є відповідальний, а виконавця немає — виконавцем стає відповідальний; є виконавець, а відповідального немає — відповідальним стає виконавець. Заповнюються лише <b>порожні</b> поля — виставлене вручну не змінюється. Справи, де нікого немає, і прізвища без співробітника видно у звіті: Кабінет → «Виконавці з журналу» → «Підставити автоматично». Якщо прізвище в журналі записано інакше (дівоче, з помилкою) — додайте це написання кнопкою «Написання в журналах». Якщо одне прізвище підходить двом співробітникам — система його пропускає, оберіть вручну у «Виконавці з журналу».</li>
         </ul>
       </section>
 
@@ -1176,7 +1176,18 @@
 
   <dialog id="cab-match" class="dialog dialog-wide" aria-labelledby="cab-match-title">
     <h2 id="cab-match-title">Виконавці з журналу → співробітники</h2>
-    <p class="muted">У старих журналах виконавці записані прізвищами («Парм», «Парм, Маштакова»). Оберіть, хто з співробітників відповідає кожному прізвищу. Заповнюються лише <b>порожні</b> поля справ поточного модуля: перше прізвище — виконавець, інші — «Допомагають»; прізвище з колонки «Відповідальний (по осередкам)» — відповідальний. Уже призначене не змінюється.</p>
+    <div class="match-auto">
+      <p><b>Автоматично за правилами</b> (усі справи 200 і 300, лише порожні поля):</p>
+      <ul class="muted">
+        <li>кілька виконавців у журналі — перший виконавець, інші «Допомагають»;</li>
+        <li>є відповідальний, немає виконавця — виконавцем стає відповідальний;</li>
+        <li>є виконавець, немає відповідального — відповідальним стає виконавець;</li>
+        <li>немає нікого — справа потрапляє у звіт нижче.</li>
+      </ul>
+      <button id="cab-match-auto" class="btn-primary" type="button">Підставити автоматично</button>
+      <div id="cab-match-report" class="match-report" role="status"></div>
+    </div>
+    <p class="muted">Вручну — якщо прізвище записано інакше чи підходить двом людям: оберіть співробітника для кожного прізвища й натисніть «Заповнити порожні» (далі ті самі правила).</p>
     <div class="table-wrap"><table class="cab-match-table">
       <thead><tr><th>Прізвище в журналі</th><th>Справ</th><th>Співробітник</th></tr></thead>
       <tbody id="cab-match-body"></tbody>
@@ -1206,25 +1217,25 @@
   <p id="loading" class="loading">Завантаження…</p>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="config.js?v=202610081317"></script>
+  <script src="config.js?v=202610081336"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="options.js?v=202610081317"></script>
-  <script src="ui.js?v=202610081317"></script>
-  <script src="validation.js?v=202610081317"></script>
-  <script src="filters.js?v=202610081317"></script>
-  <script src="segments.js?v=202610081317"></script>
-  <script src="picker.js?v=202610081317"></script>
-  <script src="merge.js?v=202610081317"></script>
-  <script src="persons.js?v=202610081317"></script>
-  <script src="export.js?v=202610081317"></script>
-  <script src="import.js?v=202610081317"></script>
-  <script src="mfa.js?v=202610081317"></script>
-  <script src="staff.js?v=202610081317"></script>
-  <script src="ua-map.js?v=202610081317"></script>
-  <script src="dashboard.js?v=202610081317"></script>
-  <script src="journal.js?v=202610081317"></script>
-  <script src="cabinet.js?v=202610081317"></script>
-  <script src="nav.js?v=202610081317"></script>
-  <script src="app.js?v=202610081317"></script>
+  <script src="options.js?v=202610081336"></script>
+  <script src="ui.js?v=202610081336"></script>
+  <script src="validation.js?v=202610081336"></script>
+  <script src="filters.js?v=202610081336"></script>
+  <script src="segments.js?v=202610081336"></script>
+  <script src="picker.js?v=202610081336"></script>
+  <script src="merge.js?v=202610081336"></script>
+  <script src="persons.js?v=202610081336"></script>
+  <script src="export.js?v=202610081336"></script>
+  <script src="import.js?v=202610081336"></script>
+  <script src="mfa.js?v=202610081336"></script>
+  <script src="staff.js?v=202610081336"></script>
+  <script src="ua-map.js?v=202610081336"></script>
+  <script src="dashboard.js?v=202610081336"></script>
+  <script src="journal.js?v=202610081336"></script>
+  <script src="cabinet.js?v=202610081336"></script>
+  <script src="nav.js?v=202610081336"></script>
+  <script src="app.js?v=202610081336"></script>
 </body>
 </html>

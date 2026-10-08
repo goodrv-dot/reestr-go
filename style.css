@@ -1050,3 +1050,7 @@ button.today-n[aria-pressed="true"] { border-color: var(--ink); box-shadow: 0 0 
 
 .case-foot { margin: 1rem 0 0.5rem; }
 .cab-resp-line { font-size: 0.85rem; }
+.match-auto { border: 1px solid var(--line); border-radius: 10px; padding: 0.75rem 1rem; margin-bottom: 1rem; }
+.match-auto ul { margin: 0.25rem 0 0.6rem; padding-left: 1.2rem; }
+.match-report { margin-top: 0.6rem; }
+.match-report p { margin: 0.3rem 0; }

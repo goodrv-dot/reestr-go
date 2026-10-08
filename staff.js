@@ -280,7 +280,7 @@ window.Staff = (() => {
     }
     $('nl-progress').textContent = 'Підставляємо у справи…';
     const r = await autoMatch();
-    const left = (r?.unmatched || []).slice(0, 12).map((x) => `${x.k} (${x.n})`).join(', ');
+    const left = (r?.unmatched || []).slice(0, 12).map((x) => `${x.k.replace(/(^|-)(.)/g, (m, a, b) => a + b.toUpperCase())} (${x.n})`).join(', ');
     $('nl-progress').textContent = `Додано: ${names.length - failed.length}. Підставлено у справах: ${r?.filled ?? 0}.` +
       (left ? ` Ще без співробітника в журналах: ${left}.` : '');
     if (failed.length) { $('nl-error').textContent = 'Не додано: ' + failed.join('; '); $('nl-error').hidden = false; }

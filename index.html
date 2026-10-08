@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Unbounded:wght@600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=202610081251">
+  <link rel="stylesheet" href="style.css?v=202610081301">
 </head>
 <body>
 
@@ -544,7 +544,10 @@
     <main id="staff-view" class="app-main" hidden>
       <div class="list-head">
         <h1>Співробітники</h1>
-        <button id="staff-add-btn" class="btn-primary" type="button">Додати співробітника</button>
+        <span class="staff-head-btns">
+          <button id="staff-nologin-btn" class="btn-secondary" type="button">Додати виконавців без входу</button>
+          <button id="staff-add-btn" class="btn-primary" type="button">Додати співробітника</button>
+        </span>
       </div>
       <section class="mfa-setting" aria-labelledby="mfa-set-title">
         <h2 id="mfa-set-title">Двофакторний вхід (2FA)</h2>
@@ -901,6 +904,8 @@
           <li>При першому вході співробітник <b>обов’язково змінює пароль</b> на власний (щонайменше 10 символів).</li>
           <li>Забув пароль — «Скинути пароль»: новий тимчасовий пароль, старий перестає діяти.</li>
           <li>Людина пішла з ГО — «Деактивувати»: доступ зникає одразу, історія її дій зберігається. Повернути можна однією кнопкою.</li>
+          <li><b>Виконавці без входу</b> — коли пошти ще немає: «Додати виконавців без входу», кожне ПІБ з нового рядка. Людина з’являється у списках виконавців і відповідальних, але увійти не може (стан «Без входу»). Коли буде пошта — «Надати вхід»: система видасть тимчасовий пароль, усі справи лишаються за людиною.</li>
+          <li><b>Автозаміна з журналу.</b> Справи, де у старому журналі стоїть прізвище співробітника («Фаріонова», «ФАРІОНОВА», частина подвійного прізвища), заповнюються самі: при додаванні співробітника, при зміні «Написання в журналах» і після кожного імпорту 200/300. Заповнюються лише <b>порожні</b> поля (виконавець, помічники, відповідальний) — виставлене вручну не змінюється. Якщо прізвище в журналі записано інакше (дівоче, з помилкою) — додайте це написання кнопкою «Написання в журналах». Якщо одне прізвище підходить двом співробітникам — система його пропускає, оберіть вручну у «Виконавці з журналу».</li>
         </ul>
       </section>
 
@@ -981,6 +986,7 @@
     <form id="staff-form" novalidate>
       <div class="field"><label for="st-email">Електронна пошта</label><input id="st-email" name="email" type="email" required></div>
       <div class="field"><label for="st-name">ПІБ</label><input id="st-name" name="full_name" required></div>
+      <div class="field"><label for="st-aliases">Як записано в журналах <span class="muted">(необов’язково, через кому)</span></label><input id="st-aliases" name="aliases" placeholder="напр. Петренко, ПЕТРЕНКО О."></div>
       <div class="field"><label for="st-role">Роль</label>
         <select id="st-role" name="role"><option value="operator">Оператор</option><option value="admin">Адміністратор</option></select></div>
       <label class="check"><input type="checkbox" name="can_export"> Може вивантажувати списки (Excel, CSV)</label>
@@ -988,6 +994,37 @@
       <div class="form-actions">
         <button id="staff-save" class="btn-primary" type="submit">Створити</button>
         <button id="staff-cancel" class="btn-secondary" type="button">Скасувати</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Виконавці без входу (пошти ще немає) -->
+  <dialog id="nl-dialog" class="dialog" aria-labelledby="nl-title">
+    <h2 id="nl-title">Виконавці без входу</h2>
+    <form id="nl-form" novalidate>
+      <p class="muted">Людина з’явиться у списках виконавців і відповідальних, але увійти не зможе. Коли буде пошта — «Надати вхід». Справи, де її прізвище стоїть у старому журналі, заповняться самі.</p>
+      <div class="field"><label for="nl-names">ПІБ — кожен з нового рядка</label>
+        <textarea id="nl-names" rows="8" placeholder="Лілія Фаріонова&#10;Валентина Ніколаєнко"></textarea></div>
+      <p id="nl-error" class="form-error" role="alert" hidden></p>
+      <p id="nl-progress" class="muted" role="status"></p>
+      <div class="form-actions">
+        <button id="nl-save" class="btn-primary" type="submit">Додати</button>
+        <button id="nl-cancel" class="btn-secondary" type="button">Закрити</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Надати вхід / написання в журналах -->
+  <dialog id="se-dialog" class="dialog" aria-labelledby="se-title">
+    <h2 id="se-title"></h2>
+    <form id="se-form" novalidate>
+      <p class="muted" id="se-who"></p>
+      <div class="field" id="se-email-wrap"><label for="se-email">Електронна пошта</label><input id="se-email" type="email"></div>
+      <div class="field" id="se-aliases-wrap"><label for="se-aliases">Як записано в журналах <span class="muted">(через кому)</span></label><input id="se-aliases"></div>
+      <p id="se-error" class="form-error" role="alert" hidden></p>
+      <div class="form-actions">
+        <button id="se-save" class="btn-primary" type="submit">Зберегти</button>
+        <button id="se-cancel" class="btn-secondary" type="button">Скасувати</button>
       </div>
     </form>
   </dialog>
@@ -1168,25 +1205,25 @@
   <p id="loading" class="loading">Завантаження…</p>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="config.js?v=202610081251"></script>
+  <script src="config.js?v=202610081301"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="options.js?v=202610081251"></script>
-  <script src="ui.js?v=202610081251"></script>
-  <script src="validation.js?v=202610081251"></script>
-  <script src="filters.js?v=202610081251"></script>
-  <script src="segments.js?v=202610081251"></script>
-  <script src="picker.js?v=202610081251"></script>
-  <script src="merge.js?v=202610081251"></script>
-  <script src="persons.js?v=202610081251"></script>
-  <script src="export.js?v=202610081251"></script>
-  <script src="import.js?v=202610081251"></script>
-  <script src="mfa.js?v=202610081251"></script>
-  <script src="staff.js?v=202610081251"></script>
-  <script src="ua-map.js?v=202610081251"></script>
-  <script src="dashboard.js?v=202610081251"></script>
-  <script src="journal.js?v=202610081251"></script>
-  <script src="cabinet.js?v=202610081251"></script>
-  <script src="nav.js?v=202610081251"></script>
-  <script src="app.js?v=202610081251"></script>
+  <script src="options.js?v=202610081301"></script>
+  <script src="ui.js?v=202610081301"></script>
+  <script src="validation.js?v=202610081301"></script>
+  <script src="filters.js?v=202610081301"></script>
+  <script src="segments.js?v=202610081301"></script>
+  <script src="picker.js?v=202610081301"></script>
+  <script src="merge.js?v=202610081301"></script>
+  <script src="persons.js?v=202610081301"></script>
+  <script src="export.js?v=202610081301"></script>
+  <script src="import.js?v=202610081301"></script>
+  <script src="mfa.js?v=202610081301"></script>
+  <script src="staff.js?v=202610081301"></script>
+  <script src="ua-map.js?v=202610081301"></script>
+  <script src="dashboard.js?v=202610081301"></script>
+  <script src="journal.js?v=202610081301"></script>
+  <script src="cabinet.js?v=202610081301"></script>
+  <script src="nav.js?v=202610081301"></script>
+  <script src="app.js?v=202610081301"></script>
 </body>
 </html>

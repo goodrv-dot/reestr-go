@@ -18,6 +18,13 @@ window.Staff = (() => {
       $('st-email').focus();
     });
     $('staff-cancel').addEventListener('click', () => $('staff-dialog').close());
+    $('staff-nologin-btn').addEventListener('click', () => {
+      $('nl-names').value = ''; $('nl-error').hidden = true; $('nl-progress').textContent = '';
+      $('nl-dialog').showModal(); $('nl-names').focus();
+    });
+    $('nl-cancel').addEventListener('click', () => $('nl-dialog').close());
+    $('nl-form').addEventListener('submit', createNoLogin);
+    $('se-cancel').addEventListener('click', () => $('se-dialog').close());
     $('staff-form').addEventListener('submit', create);
     $('pw-close').addEventListener('click', () => $('pw-dialog').close());
     $('pw-copy').addEventListener('click', async () => {
@@ -68,7 +75,7 @@ window.Staff = (() => {
 
   async function load() {
     const { data, error } = await db.from('operators')
-      .select('user_id, full_name, email, role, can_export, can_registry, can_import, can_cab200, can_cab300, cell_ids, active, must_change_password, created_at')
+      .select('user_id, full_name, email, role, can_export, can_registry, can_import, can_cab200, can_cab300, cell_ids, active, must_change_password, created_at, no_login, aliases')
       .order('active', { ascending: false }).order('full_name');
     const tbody = $('staff-table').tBodies[0];
     tbody.innerHTML = '';
@@ -85,7 +92,12 @@ window.Staff = (() => {
     const name = document.createElement('td');
     name.innerHTML = '<b></b><br><span class="muted"></span>';
     name.querySelector('b').textContent = o.full_name + (self ? ' (ви)' : '');
-    name.querySelector('span').textContent = o.email || '';
+    name.querySelector('span').textContent = o.no_login ? 'без входу — лише виконавець у справах' : (o.email || '');
+    if ((o.aliases || []).length) {
+      const al = document.createElement('div'); al.className = 'muted staff-aliases';
+      al.textContent = 'у журналах: ' + o.aliases.join(', ');
+      name.appendChild(al);
+    }
     tr.appendChild(name);
 
     // Роль
@@ -94,14 +106,15 @@ window.Staff = (() => {
     sel.setAttribute('aria-label', 'Роль ' + o.full_name);
     [['operator', 'Оператор'], ['admin', 'Адміністратор']].forEach(([v, t]) => sel.add(new Option(t, v)));
     sel.value = o.role;
-    sel.disabled = self || !o.active;
+    sel.disabled = self || !o.active || o.no_login;
     sel.addEventListener('change', () => act({ action: 'update', user_id: o.user_id, role: sel.value }, 'Роль змінено'));
     tdRole.appendChild(sel);
     tr.appendChild(tdRole);
 
     // Експорт
     const tdExp = document.createElement('td');
-    if (o.role === 'admin') tdExp.innerHTML = '<span class="muted">усе (адміністратор)</span>';
+    if (o.no_login) tdExp.innerHTML = '<span class="muted">немає (лише виконавець)</span>';
+    else if (o.role === 'admin') tdExp.innerHTML = '<span class="muted">усе (адміністратор)</span>';
     else {
       const cells = Persons.ctx().cells;
       const parts = [o.can_registry && 'Реєстр', o.can_registry && o.can_export && 'Експорт', o.can_registry && o.can_import && 'Імпорт', o.can_cab200 && 'Кабінет 200', o.can_cab300 && 'Кабінет 300'].filter(Boolean);
@@ -118,19 +131,23 @@ window.Staff = (() => {
     // 2FA
     const tdMfa = document.createElement('td');
     const on = mfaStatus[o.user_id];
-    tdMfa.innerHTML = `<span class="mfa-state ${on ? 'is-on' : 'is-off'}">${on ? 'Увімкнено' : 'Вимкнено'}</span>`;
+    tdMfa.innerHTML = o.no_login ? '<span class="muted">—</span>' : `<span class="mfa-state ${on ? 'is-on' : 'is-off'}">${on ? 'Увімкнено' : 'Вимкнено'}</span>`;
     tr.appendChild(tdMfa);
 
     // Стан
     const tdState = document.createElement('td');
-    tdState.textContent = !o.active ? 'Деактивовано' : o.must_change_password ? 'Очікує зміни пароля' : 'Активний';
+    tdState.textContent = !o.active ? 'Деактивовано' : o.no_login ? 'Без входу' : o.must_change_password ? 'Очікує зміни пароля' : 'Активний';
     tr.appendChild(tdState);
 
     // Дії
     const tdAct = document.createElement('td');
     tdAct.className = 'staff-actions';
     if (!self) {
-      if (o.active) {
+      if (o.active && o.no_login) {
+        tdAct.appendChild(btn('Надати вхід', () => openEdit(o, 'login')));
+      }
+      tdAct.appendChild(btn('Написання в журналах', () => openEdit(o, 'aliases')));
+      if (o.active && !o.no_login) {
         tdAct.appendChild(btn('Скинути пароль', async () => {
           if (!confirm(`Видати ${o.full_name} новий тимчасовий пароль? Старий перестане діяти.`)) return;
           const r = await act({ action: 'reset_password', user_id: o.user_id });
@@ -142,8 +159,10 @@ window.Staff = (() => {
             act({ action: 'reset_mfa', user_id: o.user_id }, '2FA скинуто');
           }));
         }
+      }
+      if (o.active) {
         tdAct.appendChild(btn('Деактивувати', async () => {
-          if (!confirm(`Деактивувати ${o.full_name}? Доступ до реєстру зникне одразу.`)) return;
+          if (!confirm(`Деактивувати ${o.full_name}? ${o.no_login ? 'Більше не підставлятиметься у справи автоматично.' : 'Доступ до реєстру зникне одразу.'}`)) return;
           act({ action: 'deactivate', user_id: o.user_id }, 'Деактивовано');
         }, 'btn-link-danger'));
       } else {
@@ -209,6 +228,67 @@ window.Staff = (() => {
     }
   }
 
+  // ---------- Надати вхід / написання в журналах ----------
+  function openEdit(o, mode) {
+    const login = mode === 'login';
+    $('se-title').textContent = login ? 'Надати вхід' : 'Написання в журналах';
+    $('se-who').textContent = login
+      ? `${o.full_name}: вкажіть робочу пошту — система видасть тимчасовий пароль. Справи, де людина вже виконавець, лишаються за нею.`
+      : `${o.full_name}: як прізвище записано в старих журналах (наприклад, з іншою літерою чи дівоче). За цими написаннями справи заповнюються самі.`;
+    $('se-email-wrap').hidden = !login; $('se-aliases-wrap').hidden = login;
+    $('se-email').value = ''; $('se-aliases').value = (o.aliases || []).join(', ');
+    $('se-error').hidden = true;
+    $('se-form').onsubmit = async (e) => {
+      e.preventDefault();
+      $('se-save').disabled = true;
+      try {
+        if (login) {
+          const email = $('se-email').value.trim();
+          const r = await call({ action: 'grant_login', user_id: o.user_id, email });
+          $('se-dialog').close();
+          showPassword(o.full_name, email, r.password);
+        } else {
+          await call({ action: 'update', user_id: o.user_id, aliases: $('se-aliases').value });
+          $('se-dialog').close();
+          await autoMatch();
+        }
+        load();
+      } catch (err) { $('se-error').textContent = err.message; $('se-error').hidden = false; }
+      finally { $('se-save').disabled = false; }
+    };
+    $('se-dialog').showModal();
+  }
+
+  // Автозаміна: прізвища зі старого журналу → співробітники (лише порожні поля справ)
+  async function autoMatch() {
+    const { data, error } = await db.rpc('auto_match_executors');
+    if (error) { console.error(error); Persons.toast('Не вдалося підставити виконавців у справи'); return null; }
+    Persons.toast(data.filled ? `Підставлено у справах: ${data.filled}` : 'Нових збігів у справах немає');
+    return data;
+  }
+
+  async function createNoLogin(e) {
+    e.preventDefault();
+    const names = $('nl-names').value.split('\n').map((x) => x.replace(/\s+/g, ' ').trim()).filter(Boolean);
+    if (!names.length) { $('nl-error').textContent = 'Впишіть хоча б одне ПІБ'; $('nl-error').hidden = false; return; }
+    $('nl-save').disabled = true; $('nl-error').hidden = true;
+    const failed = [];
+    for (let i = 0; i < names.length; i++) {
+      $('nl-progress').textContent = `Додаємо ${i + 1} з ${names.length}…`;
+      try { await call({ action: 'create', no_login: true, full_name: names[i] }); }
+      catch (err) { failed.push(`${names[i]} — ${err.message}`); }
+    }
+    $('nl-progress').textContent = 'Підставляємо у справи…';
+    const r = await autoMatch();
+    const left = (r?.unmatched || []).slice(0, 12).map((x) => `${x.k} (${x.n})`).join(', ');
+    $('nl-progress').textContent = `Додано: ${names.length - failed.length}. Підставлено у справах: ${r?.filled ?? 0}.` +
+      (left ? ` Ще без співробітника в журналах: ${left}.` : '');
+    if (failed.length) { $('nl-error').textContent = 'Не додано: ' + failed.join('; '); $('nl-error').hidden = false; }
+    else $('nl-names').value = '';
+    $('nl-save').disabled = false;
+    load();
+  }
+
   async function create(e) {
     e.preventDefault();
     const f = $('staff-form');
@@ -217,7 +297,8 @@ window.Staff = (() => {
       email: f.email.value.trim(),
       full_name: f.full_name.value.trim(),
       role: f.role.value,
-      can_export: f.can_export.checked
+      can_export: f.can_export.checked,
+      aliases: f.aliases.value
     };
     $('staff-save').disabled = true;
     try {
@@ -225,6 +306,7 @@ window.Staff = (() => {
       $('staff-dialog').close();
       showPassword(payload.full_name, payload.email, r.password);
       load();
+      autoMatch();
     } catch (err) {
       $('staff-form-error').textContent = err.message;
       $('staff-form-error').hidden = false;

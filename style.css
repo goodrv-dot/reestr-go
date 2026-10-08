@@ -416,8 +416,11 @@ tr.st-warn { background: #fffbf1; }
 
 /* ============ Співробітники ============ */
 tr.is-inactive td { color: var(--muted); }
-.staff-actions { white-space: nowrap; }
+.staff-actions { min-width: 14rem; }
 .staff-actions .btn-link { margin: 0 0.9rem 0 0; }
+.staff-head-btns { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.staff-aliases { font-size: 0.85rem; margin-top: 0.15rem; }
+#nl-names { width: 100%; font: inherit; }
 .btn-link-danger { color: var(--err); }
 #staff-table select { font: inherit; padding: 0.35rem 0.5rem; border: 1px solid var(--line); border-radius: var(--radius-field); }
 #staff-dialog .field { margin-bottom: 0.75rem; }

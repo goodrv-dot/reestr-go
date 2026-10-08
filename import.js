@@ -1309,6 +1309,9 @@ window.Importer = (() => {
     if (/\((200|300)\)/.test(template.program)) {
       const { data: sc, error: se } = await db.rpc('sync_cases_from_registry');
       if (se) console.error(se); else if (sc && (sc.new200 || sc.new300)) Persons.toast(`Кабінет: нових справ ${sc.new200 + sc.new300}`);
+      // виконавці / відповідальні зі старого журналу → співробітники реєстру (лише порожні поля)
+      const { data: am, error: ae } = await db.rpc('auto_match_executors');
+      if (ae) console.error(ae); else if (am && am.filled) Persons.toast(`Виконавців підставлено у справах: ${am.filled}`);
     }
 
     $('imp-status').textContent = `Готово: імпортовано ${done}` + (failed ? `, не вдалося ${failed} (див. позначки нижче)` : '') + '.';

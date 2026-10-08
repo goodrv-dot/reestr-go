@@ -93,6 +93,15 @@ window.Journal = (() => {
       const wb = new ExcelJS.Workbook();
       await wb.xlsx.load(buf);
       const ws = wb.getWorksheet(`Журнал ${kind}`);
+      // «Довідники» → «Осередки»: повний живий список із бази (усі області, зокрема Донеччина, Луганщина, Крим)
+      const dov = wb.getWorksheet('Довідники');
+      if (dov) {
+        const hc = dov.getRow(1).values.findIndex((h) => String(h || '').trim() === 'Осередки');
+        if (hc > 0) {
+          const names = [...new Set(cells.values())].sort((a, b) => a.localeCompare(b, 'uk'));
+          for (let r = 2; r <= Math.max(dov.rowCount, names.length + 1); r++) dov.getCell(r, hc).value = names[r - 2] ?? null;
+        }
+      }
       // ExcelJS розбиває перевірки на окремі клітинки й дублює діапазони — збираємо назад по колонках
       const byCol = {};
       Object.entries(ws.dataValidations.model).forEach(([addr, rule]) => {

@@ -188,6 +188,7 @@ window.Journal = (() => {
       // вкладки по осередках: ті самі рядки, шапка й ширина колонок як у журналі (списки — лише на головній вкладці)
       const lastCol = hdr.length - 1;
       const groups = new Map();
+      [...cells.values()].forEach((n) => groups.set(n, []));   // вкладка на кожен осередок довідника — навіть порожня, на майбутнє
       rowsOut.forEach((ro) => groups.set(ro.cell, [...(groups.get(ro.cell) || []), ro]));
       const used = new Set(wb.worksheets.map((w) => w.name.toLowerCase()));
       [...groups].sort((a, b) => (a[0] === 'Без осередку') - (b[0] === 'Без осередку') || a[0].localeCompare(b[0], 'uk')).forEach(([name, list]) => {

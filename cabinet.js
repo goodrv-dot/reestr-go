@@ -805,14 +805,19 @@ window.Cabinet = (() => {
   async function mirrorStatus() {
     const el = $('cab-mirror'); if (!el) return;
     const { data } = await db.rpc('mirror_status');
-    if (!data || !data.sheet_id) return;
+    if (!data || !(data.sheet_200 || data.sheet_300)) return;
     const t = data.last_write ? new Date(data.last_write).toLocaleString('uk-UA', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
     const bad = /^помилка/.test(data.last_status || '');
     el.innerHTML = '';
     el.append(bad ? '⚠ Google-дзеркало: помилка · ' : `Google-дзеркало: оновлено ${t} · `);
-    const a = document.createElement('a');
-    a.href = `https://docs.google.com/spreadsheets/d/${encodeURIComponent(data.sheet_id)}/edit`; a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'відкрити';
-    el.append(a); el.title = data.last_status || ''; el.classList.toggle('is-bad', bad); el.hidden = false;
+    // кожен модуль — своя таблиця; якщо таблиця спільна — одне посилання
+    const links = data.sheet_200 === data.sheet_300 ? [['відкрити', data.sheet_200]] : [['200', data.sheet_200], ['300', data.sheet_300]].filter(([, id]) => id);
+    links.forEach(([label, id], i) => {
+      if (i) el.append(' · ');
+      const a = document.createElement('a');
+      a.href = `https://docs.google.com/spreadsheets/d/${encodeURIComponent(id)}/edit`; a.target = '_blank'; a.rel = 'noopener'; a.textContent = label;
+      el.append(a);
+    }); el.title = data.last_status || ''; el.classList.toggle('is-bad', bad); el.hidden = false;
   }
 
   let creating = false;

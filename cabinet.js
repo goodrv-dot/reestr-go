@@ -65,7 +65,7 @@ window.Cabinet = (() => {
     const A = acc();
     if (!A['cab' + module]) module = A.cab200 ? '200' : '300';
     document.querySelectorAll('.cab-mod').forEach((b) => { b.hidden = !A['cab' + b.dataset.m]; });
-    $('cq-nocell-btn').hidden = !isAdmin;
+    $('cq-nocell-btn').hidden = !isAdmin && !A.readOnly;   // керівник (лише перегляд) теж бачить нерозподілені
     keep('cab_module', module);
     document.querySelectorAll('.cab-mod').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.m === module)));
     $('cab-title').textContent = module === '200' ? 'Кабінет 200 — супровід родин загиблих' : 'Кабінет 300 — супровід поранених';

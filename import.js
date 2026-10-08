@@ -1073,6 +1073,7 @@ window.Importer = (() => {
     TEMPLATES.forEach((t) => sel.add(new Option(t.label, t.id)));
 
     $('imp-file').addEventListener('change', onFile);
+    $('imp-form-btn').addEventListener('click', onForm);
     $('imp-run').addEventListener('click', runImport);
     $('imp-errors-btn').addEventListener('click', downloadErrors);
     $('imp-reset').addEventListener('click', resetView);
@@ -1084,16 +1085,51 @@ window.Importer = (() => {
   }
 
   function resetView() {
-    records = []; rawRows = []; header = [];
+    records = []; rawRows = []; header = []; fromForm = null;
     $('imp-file').value = '';
     $('imp-result').hidden = true;
     $('imp-status').textContent = '';
+  }
+
+  // ---------- Анкети з Google Форми (читає робот, далі — той самий перегляд) ----------
+  let fromForm = null;      // { maxRow } — якщо поточний перегляд узято з форми
+  async function onForm() {
+    const btn = $('imp-form-btn');
+    const showAll = $('imp-form-all').checked;
+    btn.disabled = true;
+    $('imp-status').textContent = 'Робот читає таблицю анкет…';
+    $('imp-result').hidden = true;
+    try {
+      const { db } = Persons.ctx();
+      const { data, error } = await db.functions.invoke('kids-form', { body: { action: 'read' } });
+      if (error || !data?.ok) {
+        let msg = data?.error;
+        if (!msg && error?.context?.json) msg = (await error.context.json().catch(() => ({}))).error;
+        throw new Error(msg || 'Не вдалося прочитати таблицю анкет.');
+      }
+      const total = data.rows.length;
+      const from = showAll ? 0 : data.seen;
+      if (total + 1 <= from) {
+        $('imp-status').textContent = `Нових анкет немає (у таблиці ${total}, усі вже розібрано). Щоб переглянути старі — позначте «показати й раніше розібрані».`;
+        return;
+      }
+      template = TEMPLATES.find((t) => t.id === 'kids_mp_v2');
+      $('imp-template').value = template.id;
+      fileName = 'Google Форма: ' + (data.title || 'анкети');
+      fromForm = { maxRow: total + 1 };
+      await processTable([data.header, ...data.rows], (r) => r.rows[0] > from,
+        showAll ? `Усі анкети з таблиці (${total}). ` : `Нові анкети: рядки ${from + 1}–${total + 1} таблиці. `);
+    } catch (err) {
+      console.error(err);
+      $('imp-status').textContent = err.message || 'Не вдалося прочитати таблицю анкет.';
+    } finally { btn.disabled = false; }
   }
 
   async function onFile(e) {
     const file = e.target.files[0];
     if (!file) return;
     fileName = file.name;
+    fromForm = null;
     template = TEMPLATES.find((t) => t.id === $('imp-template').value);
     $('imp-status').textContent = 'Читаємо файл…';
     $('imp-result').hidden = true;
@@ -1110,41 +1146,46 @@ window.Importer = (() => {
         return XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: null, range: rg })[0] || [];
       };
       const dataSheet = wb.SheetNames.find((n) => TEMPLATES.some((t) => t.detect(firstRow(n)))) || wb.SheetNames[0];
-      const all = sheetRows(dataSheet);
-      header = all[0] || [];
-      rawRows = all.slice(1);
-      let autoNote = '';
-      if (!template.detect(header)) {
-        const other = TEMPLATES.find((t) => t.detect(header));
-        if (!other) {
-          $('imp-status').textContent = 'Файл не схожий на жоден шаблон (Діти МП, 200, 300). Перевірте, що це потрібна таблиця.';
-          return;
-        }
-        template = other;
-        $('imp-template').value = other.id;
-        autoNote = `Шаблон визначено автоматично: «${other.label}». `;
-      }
-      const ctx = Persons.ctx();
-      const progId = (name) => [...ctx.programs].find(([, n]) => n === name)?.[0];
-      badDates.clear(); curRow = null;
-      let list = template.parse(rawRows, header, { ...ctx, programByName: progId });
-      list.forEach((r) => {
-        if (r.isRelative) return;
-        const bad = badDates.get(r.rows[0]);
-        if (bad) r.warnings.push(`Дати ${bad.join(', ')} не існує (у місяці менше днів) — не записано, внесіть правильну в картці`);
-      });
-      captureJournal(list, template);
-      list = mergeByPhone(list);
-      $('imp-status').textContent = 'Звіряємо з реєстром…';
-      await matchExisting(list);
-      records = list;
-      renderPreview();
-      $('imp-status').textContent = autoNote;
+      await processTable(sheetRows(dataSheet));
     } catch (err) {
       console.error(err);
       $('imp-status').textContent = err.message && !/fetch|network/i.test(err.message)
         ? err.message : 'Не вдалося прочитати файл. Перевірте, що це Excel (.xlsx).';
     }
+  }
+
+  // Спільний розбір: таблиця (рядки з заголовком) → записи → звірка з реєстром → перегляд
+  async function processTable(all, keep = null, note = '') {
+    header = all[0] || [];
+    rawRows = all.slice(1);
+    let autoNote = '';
+    if (!template.detect(header)) {
+      const other = TEMPLATES.find((t) => t.detect(header));
+      if (!other) {
+        $('imp-status').textContent = 'Файл не схожий на жоден шаблон (Діти МП, 200, 300). Перевірте, що це потрібна таблиця.';
+        return;
+      }
+      template = other;
+      $('imp-template').value = other.id;
+      autoNote = `Шаблон визначено автоматично: «${other.label}». `;
+    }
+    const ctx = Persons.ctx();
+    const progId = (name) => [...ctx.programs].find(([, n]) => n === name)?.[0];
+    badDates.clear(); curRow = null;
+    let list = template.parse(rawRows, header, { ...ctx, programByName: progId });
+    list.forEach((r) => {
+      if (r.isRelative) return;
+      const bad = badDates.get(r.rows[0]);
+      if (bad) r.warnings.push(`Дати ${bad.join(', ')} не існує (у місяці менше днів) — не записано, внесіть правильну в картці`);
+    });
+    captureJournal(list, template);
+    if (keep) list = list.filter(keep);
+    list = mergeByPhone(list);
+    $('imp-status').textContent = 'Звіряємо з реєстром…';
+    await matchExisting(list);
+    records = list;
+    renderPreview();
+    $('imp-status').textContent = note + autoNote;
   }
 
   const STATE = {
@@ -1259,6 +1300,11 @@ window.Importer = (() => {
       $('imp-status').textContent = `Імпортуємо… ${done + failed} з ${todo.length}`;
     }
     await db.from('import_batches').update({ rows_imported: done, rows_skipped: records.length - done }).eq('id', batch.id);
+    // анкети з форми: запам’ятовуємо, до якого рядка таблиці вже розібрано (наступного разу — лише нові)
+    if (fromForm) {
+      const { error: me } = await db.functions.invoke('kids-form', { body: { action: 'mark', row: fromForm.maxRow } });
+      if (me) console.error(me);
+    }
     // кабінет 200 / 300: нові справи й етапи з журналу
     if (/\((200|300)\)/.test(template.program)) {
       const { data: sc, error: se } = await db.rpc('sync_cases_from_registry');
@@ -1297,7 +1343,7 @@ window.Importer = (() => {
   }
 
   async function createNew(db, r, batchId) {
-    const p = { ...r.person, source: 'Excel', source_ref: fileName, import_batch_id: batchId };
+    const p = { ...r.person, source: fromForm ? 'Анкета' : 'Excel', source_ref: fileName, import_batch_id: batchId };
     const { data, error } = await db.from('persons').insert(p).select('id').single();
     if (error) throw error;
     await insertChildren(db, data.id, r.relations, r.children,

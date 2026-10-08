@@ -385,6 +385,10 @@ legend { font-weight: 600; font-size: 1.1rem; padding: 0 0.6rem 0 0; color: var(
 .imp-lead { max-width: 65ch; margin: 0 0 1.25rem; }
 .imp-steps { max-width: 48rem; }
 .imp-steps input[type="file"] { padding: 0.45rem; background: var(--white); }
+.imp-form { max-width: 48rem; margin: 0 0 1rem; padding: 0.9rem 1rem; border: 1px solid var(--line, #dde3e8); border-radius: 10px; }
+.imp-form .muted { margin: 0.5rem 0 0; }
+.imp-form-all { display: inline-flex; gap: 0.4rem; align-items: center; margin-left: 0.75rem; font-weight: 400; }
+.imp-or { margin: 0 0 0.5rem; }
 .imp-status { min-height: 1.5rem; font-weight: 500; }
 .imp-summary { display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 0.5rem 0 0.75rem; }
 .imp-chip { padding: 0.25rem 0.7rem; border-radius: 999px; font-size: 0.9rem; font-weight: 600; }

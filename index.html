@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Unbounded:wght@600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=202610081209">
+  <link rel="stylesheet" href="style.css?v=202610081229">
 </head>
 <body>
 
@@ -500,6 +500,12 @@
     <main id="import-view" class="app-main" hidden>
       <h1>Імпорт з Excel</h1>
       <p class="muted imp-lead">Оберіть шаблон і файл. До запису в реєстр ви побачите попередній перегляд: хто новий, кого буде доповнено, що перевірити і де помилки.</p>
+      <div class="imp-form">
+        <button id="imp-form-btn" class="btn-primary" type="button">📥 Нові анкети з Google Форми «Діти»</button>
+        <label class="imp-form-all"><input id="imp-form-all" type="checkbox"> показати й раніше розібрані</label>
+        <p class="muted">Робот сам читає таблицю відповідей форми — файл завантажувати не треба. Показуються лише анкети, що надійшли після попереднього імпорту.</p>
+      </div>
+      <p class="muted imp-or">або з файлу:</p>
       <div class="grid imp-steps">
         <div class="field"><label for="imp-template">1. Шаблон файлу</label><select id="imp-template"></select></div>
         <div class="field"><label for="imp-file">2. Файл Excel (.xlsx)</label><input id="imp-file" type="file" accept=".xlsx,.xls"></div>
@@ -789,6 +795,14 @@
           <li>Натисніть «Імпортувати». Кілька анкет з одним телефоном стануть однією особою з кількома дітьми.</li>
         </ol>
         <p>Невдалий імпорт адміністратор може <b>відкотити</b> в «Історії імпорту»: видаляться особи, створені цим імпортом.</p>
+        <h3>Анкети з Google Форми «Діти» — без файлу</h3>
+        <ol>
+          <li>Вкладка «Імпорт» → кнопка <b>«📥 Нові анкети з Google Форми «Діти»»</b>. Робот читає таблицю відповідей (лише читає, нічого в ній не змінює) і показує той самий перегляд: зелені, сині, жовті, червоні.</li>
+          <li>Показуються лише <b>нові</b> анкети — ті, що надійшли після попереднього імпорту з форми. Після «Імпортувати» система запам’ятовує, до якого рядка таблиці вже розібрано.</li>
+          <li>Рядки, з яких ви зняли галочку, і червоні наступного разу не покажуться. Щоб повернутися до них (наприклад, виправили помилку в таблиці відповідей), позначте <b>«показати й раніше розібрані»</b> — тоді видно всі анкети; ті, хто вже є в реєстрі, будуть сині (доповнення, без дублів).</li>
+          <li>Імпорт з форми видно в «Історії імпорту» як «Google Форма: …», а в картці джерело — «Анкета».</li>
+          <li>Права: адміністратор або співробітник із правом «Імпорт». Таблиця відповідей має бути відкрита роботові <code>reestr-robot@reestr-go-robot.iam.gserviceaccount.com</code> як «Читач».</li>
+        </ol>
         <h3>Особливості шаблонів</h3>
         <ul>
           <li><b>«Діти МП» — дві форми.</b> Нова форма (ПІБ трьома полями, другий телефон, дата народження і стать представника, до п’яти дітей в одній анкеті) розпізнається сама як шаблон «нова форма»; відповіді старої форми теж завантажуються. Питання <b>7.3 «Дата народження морського піхотинця»</b> записується до військового в картці, <b>7.4 «Ким ви доводитеся військовому?»</b> — у спорідненість (без нього імпорт попросить уточнити). Відповідь «Я сам(а) військовослужбовець / ветеран» при категорії «Діючі» чи «Ветерани» робить представника самого військовим; при іншій категорії чи чужому ПІБ військового — жовте попередження «перевірте». Номери питань 8, 9, 10.11… у формі не змінюйте — імпорт знаходить їх за номером. Якщо у файлі кілька аркушів, береться перший, що підходить під шаблон, — тримайте аркуш із потрібними відповідями першим.</li>
@@ -1152,25 +1166,25 @@
   <p id="loading" class="loading">Завантаження…</p>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="config.js?v=202610081209"></script>
+  <script src="config.js?v=202610081229"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="options.js?v=202610081209"></script>
-  <script src="ui.js?v=202610081209"></script>
-  <script src="validation.js?v=202610081209"></script>
-  <script src="filters.js?v=202610081209"></script>
-  <script src="segments.js?v=202610081209"></script>
-  <script src="picker.js?v=202610081209"></script>
-  <script src="merge.js?v=202610081209"></script>
-  <script src="persons.js?v=202610081209"></script>
-  <script src="export.js?v=202610081209"></script>
-  <script src="import.js?v=202610081209"></script>
-  <script src="mfa.js?v=202610081209"></script>
-  <script src="staff.js?v=202610081209"></script>
-  <script src="ua-map.js?v=202610081209"></script>
-  <script src="dashboard.js?v=202610081209"></script>
-  <script src="journal.js?v=202610081209"></script>
-  <script src="cabinet.js?v=202610081209"></script>
-  <script src="nav.js?v=202610081209"></script>
-  <script src="app.js?v=202610081209"></script>
+  <script src="options.js?v=202610081229"></script>
+  <script src="ui.js?v=202610081229"></script>
+  <script src="validation.js?v=202610081229"></script>
+  <script src="filters.js?v=202610081229"></script>
+  <script src="segments.js?v=202610081229"></script>
+  <script src="picker.js?v=202610081229"></script>
+  <script src="merge.js?v=202610081229"></script>
+  <script src="persons.js?v=202610081229"></script>
+  <script src="export.js?v=202610081229"></script>
+  <script src="import.js?v=202610081229"></script>
+  <script src="mfa.js?v=202610081229"></script>
+  <script src="staff.js?v=202610081229"></script>
+  <script src="ua-map.js?v=202610081229"></script>
+  <script src="dashboard.js?v=202610081229"></script>
+  <script src="journal.js?v=202610081229"></script>
+  <script src="cabinet.js?v=202610081229"></script>
+  <script src="nav.js?v=202610081229"></script>
+  <script src="app.js?v=202610081229"></script>
 </body>
 </html>

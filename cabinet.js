@@ -44,6 +44,7 @@ window.Cabinet = (() => {
     $('cab-back').addEventListener('click', closeCase);
     $('cab-pager').addEventListener('click', (e) => { const b = e.target.closest('.pg-btn'); if (!b || b.disabled) return; page = Number(b.dataset.page); render(); $('cab-table').scrollIntoView({ block: 'start' }); });
     $('cab-settings-btn').hidden = !isAdmin;
+    if (isAdmin) mirrorStatus();
     $('cab-settings-btn').addEventListener('click', openSettings);
     $('cab-new-btn').addEventListener('click', openNew);
     $('cab-new-form').addEventListener('submit', submitNew);
@@ -800,6 +801,20 @@ window.Cabinet = (() => {
     if (!isAdmin && !sel.options.length) { Persons.toast('Вам не призначено жодного осередку — зверніться до адміністратора'); return; }
     d.showModal();
   }
+  // адміністратору: коли Google-дзеркало оновлювалось і чи без помилок
+  async function mirrorStatus() {
+    const el = $('cab-mirror'); if (!el) return;
+    const { data } = await db.rpc('mirror_status');
+    if (!data || !data.sheet_id) return;
+    const t = data.last_write ? new Date(data.last_write).toLocaleString('uk-UA', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
+    const bad = /^помилка/.test(data.last_status || '');
+    el.innerHTML = '';
+    el.append(bad ? '⚠ Google-дзеркало: помилка · ' : `Google-дзеркало: оновлено ${t} · `);
+    const a = document.createElement('a');
+    a.href = `https://docs.google.com/spreadsheets/d/${encodeURIComponent(data.sheet_id)}/edit`; a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'відкрити';
+    el.append(a); el.title = data.last_status || ''; el.classList.toggle('is-bad', bad); el.hidden = false;
+  }
+
   let creating = false;
   async function submitNew(e) {
     e.preventDefault(); const f = e.target; const g = (n) => f.elements[n].value.trim();

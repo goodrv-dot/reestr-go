@@ -1007,3 +1007,7 @@ button.today-n[aria-pressed="true"] { border-color: var(--ink); box-shadow: 0 0 
 .bell-item span { color: var(--muted); font-size: 0.78rem; }
 @media (max-width: 760px) { .bell-panel { position: fixed; right: 4vw; left: 4vw; top: 3.5rem; width: auto; } }
 .cab-preset { margin: 0 0 0.6rem; padding: 0.4rem 0.7rem; background: #e7f0f7; border-left: 4px solid var(--sea); border-radius: 4px; font-size: 0.92rem; }
+
+/* Google-дзеркало: статус для адміністратора */
+.cab-mirror { font-size: 0.85rem; color: var(--muted, #5b6875); margin-left: 0.5rem; }
+.cab-mirror.is-bad { color: #9b2c2c; font-weight: 600; }

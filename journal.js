@@ -70,7 +70,7 @@ window.Journal = (() => {
       // справи кабінету: стабільний ID, статус, виконавець, етапи (мають пріоритет над «Даними з журналу»)
       const caseOf = new Map();
       const [defsRes, opsRes] = await Promise.all([
-        db.from('case_stage_defs').select('key, sheet_column, label').eq('module', kind),
+        db.from('case_stage_defs').select('key, sheet_column, label, active, sort').eq('module', kind).order('sort'),
         db.from('operators').select('user_id, full_name')
       ]);
       const colOfKey = new Map((defsRes.data || []).map((d) => [d.key, d.sheet_column || d.label]));
@@ -107,6 +107,13 @@ window.Journal = (() => {
         if (hdr.some((h) => String(h || '').trim() === name)) return;
         const c = hdr.length; const src = ws.getCell(1, c - 1); const cell = ws.getCell(1, c);
         cell.value = name; cell.style = { ...src.style }; ws.getColumn(c).width = 26; hdr[c] = name;
+      });
+      // нові поля з «Налаштування полів», яких немає в шаблоні, — теж колонками в кінці (як у Google-дзеркалі)
+      (defsRes.data || []).filter((d) => d.active && d.key !== 'executor_legacy').forEach((d) => {
+        const name = String(d.sheet_column || d.label || '').trim();
+        if (!name || hdr.some((h) => normH(h) === normH(name))) return;
+        const c = hdr.length; const src = ws.getCell(1, c - 1); const cell = ws.getCell(1, c);
+        cell.value = name; cell.style = { ...src.style }; ws.getColumn(c).width = 20; hdr[c] = name;
       });
       const rowsOut = [];                                    // [{cell, vals: Map(col → value)}] — для вкладок по осередках
       const colOf = (name) => hdr.findIndex((h) => String(h || '').trim() === name);

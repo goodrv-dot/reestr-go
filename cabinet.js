@@ -203,6 +203,19 @@ window.Cabinet = (() => {
   }
 
   // ---------- Список ----------
+  // Пошук за кількома словами: «Дудчук Юрій Яремович», «Дудчук 067…» — кожне слово має знайтися
+  // у ПІБ військового, ID справи, ПІБ чи телефоні когось із рідних (порядок слів не важливий)
+  const norm = (t) => String(t || '').toLowerCase().replace(/[’'ʼ`]/g, '').replace(/\s+/g, ' ');
+  function matchSearch(c, q) {
+    const words = norm(q).split(' ').filter(Boolean);
+    const text = norm([fio(c.person), c.journal_id, ...c.kin.map((k) => fio(k.person))].join(' '));
+    const phones = [c.person.phone, ...c.kin.map((k) => k.person.phone)].filter(Boolean).join(' ');
+    return words.every((w) => {
+      const d = w.replace(/\D/g, '');
+      if (d.length >= 3 && d.length === w.replace(/[\s()+-]/g, '').length) return phones.includes(d) || text.includes(w);
+      return text.includes(w);
+    });
+  }
   function filtered() {
     const q = $('cab-search').value.trim().toLowerCase();
     const st = $('cab-status').value, ex = $('cab-exec').value, ce = $('cab-cell').value;
@@ -214,8 +227,7 @@ window.Cabinet = (() => {
       if (!showClosed && isClosed(c)) return false;
       if (quick === 'closed' && !isClosed(c)) return false;
       if (from || to) { const d = c.person[dk]; if (!d || (from && d < from) || (to && d > to)) return false; }
-      if (q && !(fio(c.person).toLowerCase().includes(q) || c.journal_id.toLowerCase().includes(q) ||
-        c.kin.some((k) => fio(k.person).toLowerCase().includes(q) || (k.person.phone || '').includes(q.replace(/\D/g, '') || '§')))) return false;
+      if (q && !matchSearch(c, q)) return false;
       if (st && c.status !== st) return false;
       if (ex === 'none' ? c.executor_id : ex && c.executor_id !== ex) return false;
       if (ce === 'none' ? c.cell_id : ce && String(c.cell_id) !== ce) return false;
@@ -520,7 +532,16 @@ window.Cabinet = (() => {
     if (f.kind === 'link') { const a = wrap.querySelector('.link-open'); if (safeUrl(v)) { a.href = v; a.hidden = false; } }
     if (f.hint) { wrap.querySelector('.stage-hint').textContent = f.hint; wrap.classList.add(f.state || 'is-due'); }
     if (v !== '' && v != null) wrap.classList.add('is-done');
-    el.addEventListener('change', () => f.onSave(el.value.trim(), el));
+    if (f.kind === 'date') {
+      // поки рік набирається («2» → 0002, «20» → 0020) браузер уже вважає дату повною — не зберігаємо, чекаємо 4 цифри
+      const okYear = () => !el.value || Number(el.value.slice(0, 4)) >= 1900;
+      el.addEventListener('change', () => { if (okYear()) f.onSave(el.value.trim(), el); });
+      el.addEventListener('blur', () => {
+        if (okYear()) return;
+        Persons.toast('Рік має бути з чотирьох цифр, наприклад 2026');
+        el.value = /^\d{4}-\d{2}-\d{2}/.test(v) ? String(v).slice(0, 10) : '';
+      });
+    } else el.addEventListener('change', () => f.onSave(el.value.trim(), el));
     if (el.tagName === 'TEXTAREA') {
       const grow = () => { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; };
       el.addEventListener('input', grow); setTimeout(grow);

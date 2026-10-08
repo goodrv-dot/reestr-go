@@ -463,12 +463,18 @@ window.Persons = (() => {
     let query = db.from('persons_view').select(columns, opts);
     const q = currentSearch();
     if (q) {
-      const parts = [`last_name.ilike.%${q}%`, `first_name.ilike.%${q}%`, `patronymic.ilike.%${q}%`];
-      const digits = q.replace(/\D/g, '');
-      if (digits.length >= 3) parts.push(`phone.ilike.%${digits}%`);
-      const full = digits.length >= 9 ? V.normalizePhone(digits).value : null;
-      if (full) parts.push(`extra_phones.cs.{${full}}`);   // повний номер шукаємо й серед додаткових
-      query = query.or(parts.join(','));
+      // кілька слів («Дудчук Юрій Яремович») — кожне має знайтися в прізвищі, імені, по батькові чи телефоні
+      const digitsAll = q.replace(/\D/g, '');
+      const isPhone = digitsAll.length >= 9 && !/[a-zа-яіїєґ]/i.test(q);
+      const words = isPhone ? [q] : q.split(/\s+/).filter(Boolean);
+      words.forEach((w) => {
+        const parts = [`last_name.ilike.%${w}%`, `first_name.ilike.%${w}%`, `patronymic.ilike.%${w}%`];
+        const digits = w.replace(/\D/g, '');
+        if (digits.length >= 3) parts.push(`phone.ilike.%${digits}%`);
+        const full = digits.length >= 9 ? V.normalizePhone(digits).value : null;
+        if (full) parts.push(`extra_phones.cs.{${full}}`);   // повний номер шукаємо й серед додаткових
+        query = query.or(parts.join(','));
+      });
     }
     if (level !== 'all' && !(skip || []).includes('level')) query = applyLevel(query, level === 'main');
     return Filters.apply(query, db, skip);

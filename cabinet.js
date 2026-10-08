@@ -40,7 +40,7 @@ window.Cabinet = (() => {
     try { $('cab-pin').checked = localStorage.getItem('cab_pin') !== '0'; } catch { /* ок */ }
     $('cab-pin').addEventListener('change', () => { try { localStorage.setItem('cab_pin', $('cab-pin').checked ? '1' : '0'); } catch { /* ок */ } render(); });
     $('cab-sort').addEventListener('change', () => { try { localStorage.setItem('cab_sort', $('cab-sort').value); } catch { /* ок */ } render(); });
-    ['cab-search', 'cab-status', 'cab-exec', 'cab-cell', 'cab-from', 'cab-to'].forEach((id) => $(id).addEventListener('input', render));
+    ['cab-search', 'cab-status', 'cab-exec', 'cab-resp', 'cab-cell', 'cab-from', 'cab-to'].forEach((id) => $(id).addEventListener('input', render));
     $('cab-date-clear').addEventListener('click', () => { $('cab-from').value = ''; $('cab-to').value = ''; render(); });
     document.querySelectorAll('.cab-quick').forEach((b) => b.addEventListener('click', () => { quick = quick === b.dataset.q ? '' : b.dataset.q; render(); }));
     $('cab-back').addEventListener('click', closeCase);
@@ -199,6 +199,7 @@ window.Cabinet = (() => {
     };
     fill('cab-status', statuses.map((s) => [s.name, s.name]), 'Усі статуси');
     fill('cab-exec', [['none', '— без виконавця —'], ...[...staff].map(([id, n]) => [id, n])], 'Усі виконавці');
+    fill('cab-resp', [['none', '— без відповідального —'], ...[...staff].map(([id, n]) => [id, n])], 'Усі відповідальні');
     const { cells } = Persons.ctx();
     fill('cab-cell', [['none', '— без осередку —'], ...[...cells].map(([id, n]) => [String(id), n])], 'Усі осередки');
     if (isAdmin) {
@@ -331,7 +332,7 @@ window.Cabinet = (() => {
         t.tBodies[0].appendChild(tr);
       });
     };
-    const reset = () => { quick = ''; preset = null; ['cab-search', 'cab-status', 'cab-exec', 'cab-cell', 'cab-from', 'cab-to'].forEach((id) => { $(id).value = ''; }); };
+    const reset = () => { quick = ''; preset = null; ['cab-search', 'cab-status', 'cab-exec', 'cab-resp', 'cab-cell', 'cab-from', 'cab-to'].forEach((id) => { $(id).value = ''; }); };
     table('cab-load-exec', stat((c) => c.executor_id || ''), (k) => (k ? staff.get(k) || '(невідомий)' : '— без виконавця —'),
       (k) => { reset(); $('cab-exec').value = k || 'none'; render(); }, false);
     table('cab-load-cell', stat((c) => c.cell_id || 0), (k) => (k ? cells.get(k) || '—' : '— без осередку —'),
@@ -430,7 +431,7 @@ window.Cabinet = (() => {
   }
   function filtered() {
     const q = $('cab-search').value.trim().toLowerCase();
-    const st = $('cab-status').value, ex = $('cab-exec').value, ce = $('cab-cell').value;
+    const st = $('cab-status').value, ex = $('cab-exec').value, rs = $('cab-resp').value, ce = $('cab-cell').value;
     const from = $('cab-from').value, to = $('cab-to').value, dk = dateKey();
     const stSel = $('cab-status').value;
     const showClosed = !!preset || quick === 'closed' || !!q || statuses.some((s) => s.name === stSel && s.closed);
@@ -442,6 +443,7 @@ window.Cabinet = (() => {
       if (q && !matchSearch(c, q)) return false;
       if (st && c.status !== st) return false;
       if (ex === 'none' ? c.executor_id : ex && c.executor_id !== ex) return false;
+      if (rs === 'none' ? c.responsible_id : rs && c.responsible_id !== rs) return false;
       if (ce === 'none' ? c.cell_id : ce && String(c.cell_id) !== ce) return false;
       if (quick === 'mine' && c.executor_id !== me) return false;
       if (quick === 'overdue' && !(c.next && c.next.overdue)) return false;
@@ -494,7 +496,7 @@ window.Cabinet = (() => {
   function render() {
     const list = sorted(filtered());
     lastList = list;
-    const sig = [module, quick, ...['cab-search', 'cab-status', 'cab-exec', 'cab-cell', 'cab-from', 'cab-to', 'cab-sort'].map((id) => $(id).value), $('cab-pin').checked, preset ? preset.label : ''].join('|');
+    const sig = [module, quick, ...['cab-search', 'cab-status', 'cab-exec', 'cab-resp', 'cab-cell', 'cab-from', 'cab-to', 'cab-sort'].map((id) => $(id).value), $('cab-pin').checked, preset ? preset.label : ''].join('|');
     if (sig !== lastSig) { page = 1; lastSig = sig; }
     const pages = Math.max(1, Math.ceil(list.length / PAGE)); if (page > pages) page = pages;
     const cnt = (f) => cases.filter((c) => !isClosed(c)).filter(f).length;
@@ -549,6 +551,8 @@ window.Cabinet = (() => {
       const col = statusColor(c.status, color.get(c.status));
       sp.style.setProperty('--st', col); sp.style.color = inkFor(col);
       tr.children[5].textContent = staff.get(c.executor_id) || (c.vals.executor_legacy ? `(${c.vals.executor_legacy})` : '—');
+      { const r = staff.get(c.responsible_id) || (c.vals.responsible ? `(${c.vals.responsible})` : '');
+        if (r) { const m = document.createElement('span'); m.className = 'muted cab-resp-line'; m.textContent = 'відп.: ' + r; tr.children[5].append(document.createElement('br'), m); } }
       if (c.next) {
         tr.children[6].innerHTML = '<span></span><br><span class="due-tag"></span>';
         tr.children[6].firstChild.textContent = c.next.label;
@@ -1292,7 +1296,7 @@ window.Cabinet = (() => {
   // Відкрити кабінет із готовою вибіркою справ (з дашборда)
   function openPreset(mod, ids, label) {
     module = mod; quick = ''; preset = { ids: new Set(ids), label };
-    ['cab-search', 'cab-status', 'cab-exec', 'cab-cell', 'cab-from', 'cab-to'].forEach((id) => { $(id).value = ''; });
+    ['cab-search', 'cab-status', 'cab-exec', 'cab-resp', 'cab-cell', 'cab-from', 'cab-to'].forEach((id) => { $(id).value = ''; });
     if (!$('cab-case').hidden) { $('cab-case').hidden = true; $('cab-list').hidden = false; current = null; }
     document.querySelector('.tab[data-tab="cabinet"]').click();
   }

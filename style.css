@@ -1049,3 +1049,4 @@ button.today-n[aria-pressed="true"] { border-color: var(--ink); box-shadow: 0 0 
 .bell-robot { margin: 0.2rem 0 0.6rem; font-size: 0.9rem; color: #9b2c2c; }
 
 .case-foot { margin: 1rem 0 0.5rem; }
+.cab-resp-line { font-size: 0.85rem; }

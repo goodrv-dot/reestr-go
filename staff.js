@@ -75,7 +75,7 @@ window.Staff = (() => {
 
   async function load() {
     const { data, error } = await db.from('operators')
-      .select('user_id, full_name, email, role, can_export, can_registry, can_import, can_cab200, can_cab300, cell_ids, active, must_change_password, created_at, no_login, aliases')
+      .select('user_id, full_name, email, role, can_export, can_registry, can_import, can_cab200, can_cab300, cell_ids, active, must_change_password, created_at, no_login, aliases, read_only')
       .order('active', { ascending: false }).order('full_name');
     const tbody = $('staff-table').tBodies[0];
     tbody.innerHTML = '';
@@ -117,7 +117,7 @@ window.Staff = (() => {
     else if (o.role === 'admin') tdExp.innerHTML = '<span class="muted">усе (адміністратор)</span>';
     else {
       const cells = Persons.ctx().cells;
-      const parts = [o.can_registry && 'Реєстр', o.can_registry && o.can_export && 'Експорт', o.can_registry && o.can_import && 'Імпорт', o.can_cab200 && 'Кабінет 200', o.can_cab300 && 'Кабінет 300'].filter(Boolean);
+      const parts = [o.read_only && '👁 Лише перегляд', o.can_registry && 'Реєстр', o.can_registry && o.can_export && 'Експорт', o.can_registry && o.can_import && 'Імпорт', o.can_cab200 && 'Кабінет 200', o.can_cab300 && 'Кабінет 300'].filter(Boolean);
       const cn = (o.cell_ids || []).map((id) => cells.get(id)).filter(Boolean);
       const sum = document.createElement('div'); sum.className = 'acc-sum';
       sum.innerHTML = '<span></span><br><span class="muted"></span>';
@@ -178,7 +178,7 @@ window.Staff = (() => {
     const d = $('acc-dialog'); const f = $('acc-form');
     $('acc-who').textContent = o.full_name;
     f.registry.checked = o.can_registry; f.export.checked = o.can_export; f.import.checked = o.can_import;
-    f.cab200.checked = o.can_cab200; f.cab300.checked = o.can_cab300;
+    f.cab200.checked = o.can_cab200; f.cab300.checked = o.can_cab300; f.readonly.checked = !!o.read_only;
     const box = $('acc-cells'); box.innerHTML = '';
     [...Persons.ctx().cells].forEach(([id, n]) => {
       const l = document.createElement('label'); l.className = 'check';
@@ -187,20 +187,28 @@ window.Staff = (() => {
       box.appendChild(l);
     });
     const sync = () => {
-      f.export.disabled = f.import.disabled = !f.registry.checked;
+      f.export.disabled = !f.registry.checked;
+      f.import.disabled = !f.registry.checked || f.readonly.checked;
+      if (f.readonly.checked) f.import.checked = false;
       $('acc-cells-wrap').hidden = !(f.cab200.checked || f.cab300.checked);
     };
     f.oninput = sync; sync();
     $('acc-all').onclick = () => { const all = [...box.querySelectorAll('input')]; const on = all.some((i) => !i.checked); all.forEach((i) => { i.checked = on; }); };
     $('acc-cancel').onclick = () => d.close();
+    $('acc-ro-preset').onclick = () => {
+      f.readonly.checked = true; f.registry.checked = true; f.export.checked = true; f.import.checked = false;
+      f.cab200.checked = true; f.cab300.checked = true; box.querySelectorAll('input').forEach((i) => { i.checked = true; }); sync();
+    };
     f.onsubmit = async (e) => {
       e.preventDefault();
       const cab = f.cab200.checked || f.cab300.checked;
       const cells = cab ? [...box.querySelectorAll('input:checked')].map((i) => Number(i.value)) : [];
       if (cab && !cells.length && !confirm('Осередки не вибрано: співробітник не побачить жодної справи. Зберегти так?')) return;
       const { error } = await db.rpc('set_operator_access', { p_user: o.user_id, p_registry: f.registry.checked, p_export: f.registry.checked && f.export.checked,
-        p_import: f.registry.checked && f.import.checked, p_cab200: f.cab200.checked, p_cab300: f.cab300.checked, p_cells: cells });
+        p_import: f.registry.checked && f.import.checked && !f.readonly.checked, p_cab200: f.cab200.checked, p_cab300: f.cab300.checked, p_cells: cells });
       if (error) { console.error(error); Persons.toast('Не вдалося зберегти доступи'); return; }
+      const ro = await db.rpc('set_operator_readonly', { p_user: o.user_id, p_ro: f.readonly.checked });
+      if (ro.error) { console.error(ro.error); Persons.toast('Не вдалося зберегти режим «Лише перегляд»'); return; }
       d.close(); Persons.toast('Доступи збережено. Співробітник побачить зміни після наступного входу.'); load();
     };
     d.showModal();

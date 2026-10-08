@@ -33,7 +33,7 @@ function showApp(operator, userId) {
   currentUserId = userId;
   show('app-screen');
   $('user-name').textContent = operator.full_name;
-  $('user-role').textContent = ROLE_LABELS[operator.role] || operator.role;
+  $('user-role').textContent = window.ACCESS && window.ACCESS.readOnly ? 'Керівник · лише перегляд' : (ROLE_LABELS[operator.role] || operator.role);
   startIdleTimer();
   $('staff-tab').hidden = operator.role !== 'admin';
   const A = window.ACCESS, hasCab = A.cab200 || A.cab300;
@@ -66,6 +66,26 @@ function showApp(operator, userId) {
     console.error(e);
     alert('Не вдалося завантажити довідники. Оновіть сторінку.');
   });
+}
+
+// ---------- «Лише перегляд» (керівник) ----------
+// Захист — у базі (запис заборонено політиками); тут лише ховаємо кнопки змін і вимикаємо поля,
+// щоб людина не натискала те, що однаково не збережеться.
+function lockReadOnly() {
+  document.body.classList.add('read-only');
+  const KEEP = new Set(['back-btn', 'cancel-btn', 'person-link', 'cab-back', 'cab-back2', 'case-open-person', 'case-link']);
+  const lock = (root) => {
+    root.querySelectorAll('input, select, textarea').forEach((el) => { el.disabled = true; });
+    root.querySelectorAll('button.btn-primary, button.btn-secondary, button.btn-danger, button[data-save]').forEach((b) => {
+      if (!KEEP.has(b.id)) b.hidden = true;
+    });
+  };
+  const roots = ['person-form', 'cab-case', 'cab-today'];
+  const run = () => roots.forEach((id) => { const r = document.getElementById(id); if (r) lock(r); });
+  let t = null;
+  new MutationObserver(() => { clearTimeout(t); t = setTimeout(run, 30); })
+    .observe(document.body, { childList: true, subtree: true });
+  run();
 }
 
 function setError(text) {
@@ -120,7 +140,9 @@ async function enterWithSession(session) {
     }
     const adm = operator.role === 'admin';
     window.ACCESS = { admin: adm, registry: adm || !!acc.can_registry, import: adm || !!acc.can_import,
-      cab200: adm || !!acc.can_cab200, cab300: adm || !!acc.can_cab300, cells: acc.cell_ids || [] };
+      cab200: adm || !!acc.can_cab200, cab300: adm || !!acc.can_cab300, cells: acc.cell_ids || [],
+      readOnly: !adm && !!acc.read_only };
+    if (window.ACCESS.readOnly) lockReadOnly();
     showApp(operator, userId);
   } catch (e) {
     console.error(e);

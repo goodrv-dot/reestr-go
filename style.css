@@ -1054,3 +1054,8 @@ button.today-n[aria-pressed="true"] { border-color: var(--ink); box-shadow: 0 0 
 .match-auto ul { margin: 0.25rem 0 0.6rem; padding-left: 1.2rem; }
 .match-report { margin-top: 0.6rem; }
 .match-report p { margin: 0.3rem 0; }
+/* «Лише перегляд» (керівник): кнопки змін сховані, поля лише для читання */
+body.read-only #add-btn, body.read-only #cab-new-btn, body.read-only #case-take, body.read-only .fam-add,
+body.read-only #dup-box, body.read-only .today-act, body.read-only #kin-add { display: none !important; }
+body.read-only .sum-cell.is-ro { cursor: default; }
+.acc-ro { background: color-mix(in srgb, var(--accent, #14425f) 6%, transparent); }

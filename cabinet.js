@@ -759,7 +759,7 @@ window.Cabinet = (() => {
     if (badName(g('ln'), g('fn'), g('pn'))) return;
     const phv = phoneOf(form.elements.phone); if (phv === undefined) return;
     const ph = { value: phv };
-    const btn = form.querySelector('button'); btn.disabled = true;
+    const btn = form.querySelector('button'); if (btn.disabled) return; btn.disabled = true;
     try {
       const kinRec = { last_name: nm(g('ln')), first_name: nm(g('fn')), patronymic: g('pn') ? nm(g('pn')) : null, phone: ph.value, settlement: g('st') || null };
       const { data: res, error } = await db.rpc('add_case_kin', { p_case: c.id, p_last: kinRec.last_name, p_first: kinRec.first_name, p_patr: kinRec.patronymic || '',
@@ -769,6 +769,7 @@ window.Cabinet = (() => {
       const r2 = { data: { id: res.relation_id, related_person_id: p.id, relation_degree: g('deg') } };
       c.kin.push({ ...r2.data, person: np });
       if (module === '200' && c.status === 'Родину не встановлено' && statuses.some((s) => s.name === 'В роботі')) { await saveCase({ status: 'В роботі' }); $('case-status').value = 'В роботі'; }
+      form.reset();    // щоб повторне «Додати» не створило того самого родича ще раз
       Persons.toast('Родича додано');
       renderHead(); renderStages();
     } finally { btn.disabled = false; }
@@ -799,6 +800,7 @@ window.Cabinet = (() => {
     if (!isAdmin && !sel.options.length) { Persons.toast('Вам не призначено жодного осередку — зверніться до адміністратора'); return; }
     d.showModal();
   }
+  let creating = false;
   async function submitNew(e) {
     e.preventDefault(); const f = e.target; const g = (n) => f.elements[n].value.trim();
     if (!g('ln') || !g('fn')) { Persons.toast('Вкажіть прізвище та ім’я'); return; }
@@ -806,8 +808,16 @@ window.Cabinet = (() => {
     const full = [g('ln'), g('fn')].join(' ').toLowerCase();
     const dup = cases.find((c) => fio(c.person).toLowerCase().startsWith(full));
     if (dup && !confirm(`У кабінеті вже є справа ${dup.journal_id}: ${fio(dup.person)}. Усе одно створити нову?`)) return;
-    const { data, error } = await db.rpc('create_case', { p_module: module, p_last: nm(g('ln')), p_first: nm(g('fn')),
-      p_patr: g('pn') ? nm(g('pn')) : '', p_cell: g('cell') ? Number(g('cell')) : null });
+    // одне натискання — одна справа: кнопка блокується до відповіді сервера
+    if (creating) return;
+    creating = true;
+    const btn = f.querySelector('button[type="submit"]'); const label = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Створюємо…';
+    let data, error;
+    try {
+      ({ data, error } = await db.rpc('create_case', { p_module: module, p_last: nm(g('ln')), p_first: nm(g('fn')),
+        p_patr: g('pn') ? nm(g('pn')) : '', p_cell: g('cell') ? Number(g('cell')) : null }));
+    } finally { creating = false; btn.disabled = false; btn.textContent = label; }
     if (error) { console.error(error); Persons.toast(/Немає доступу/.test(error.message || '') ? 'Немає доступу до цього осередку' : 'Не вдалося створити справу'); return; }
     $('cab-new').close();
     await load();

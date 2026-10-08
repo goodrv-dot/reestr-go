@@ -266,10 +266,14 @@ window.Persons = (() => {
       const name = row.querySelector('[data-k="related_full_name"]').value.trim();
       const box = row.querySelector('.row-kin');
       box.hidden = true; box.innerHTML = '';
-      if (!name) continue;
-      const { data } = await db.from('military_relations')
+      const soldier = row.dataset.personId;
+      if (!name && !soldier) continue;
+      // якщо картка військового є — шукаємо за зв’язком із нею (надійно), інакше — за ПІБ військового
+      let q = db.from('military_relations')
         .select('relation_degree, person:persons!military_relations_person_id_fkey(id, last_name, first_name, patronymic, phone)')
-        .eq('related_full_name', name).neq('person_id', id).limit(20);
+        .neq('person_id', id).limit(20);
+      q = soldier ? q.or(`related_person_id.eq.${soldier},related_full_name.eq."${name.replace(/"/g, '')}"`) : q.eq('related_full_name', name);
+      const { data } = await q;
       if (!data || !data.length) continue;
       box.innerHTML = '<span class="muted">Інші рідні цього військового в реєстрі:</span> ';
       data.forEach((r, k) => {

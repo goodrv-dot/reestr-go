@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Unbounded:wght@600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=202610081233">
+  <link rel="stylesheet" href="style.css?v=202610081251">
 </head>
 <body>
 
@@ -385,7 +385,9 @@
             <select id="bk-cell" aria-label="Осередок для вибраних"></select>
             <select id="bk-status" aria-label="Статус для вибраних"></select>
             <button id="bk-apply" type="button" class="btn-primary btn-small">Застосувати</button>
+            <button id="bk-cancel" type="button" class="btn-secondary btn-small" hidden>Скасувати</button>
           </span>
+          <span id="bk-msg" class="bk-msg" role="status" aria-live="polite"></span>
         </div>
         <p id="cab-status-line" class="muted" role="status"></p>
         <div class="table-wrap">
@@ -729,7 +731,7 @@
           <li><b>Зведення справи — компактний варіант</b> внизу — те саме, що у справі вгорі, але дрібно й на одному екрані, як рядок журналу: шапка, усі розділи, родина й примітки. Жовте — незаповнене, червоне — незаповнене важливе чи прострочене. Натисніть на будь-яке поле — і правте просто там. Обидва подання працюють з одними даними: змінили в одному — оновилось в іншому.</li>
           <li><b>+ Нова справа</b> — завести загиблого чи пораненого прямо в кабінеті, без таблиці: досить прізвища та імені. Натискайте «Створити справу» один раз: поки справа зберігається, кнопка неактивна, а повторне створення тієї самої справи система не допустить.</li>
           <li>Адміністратор у «Налаштування полів» змінює назви, розділ і порядок полів, варіанти списків і правила нагадувань, додає нові поля — докладно в розділі <a href="#m-fields">«Налаштування полів»</a>.</li>
-          <li><b>Кілька справ одразу</b> (адміністратор): кнопка «☑ Кілька справ» додає галочки в список. Відмітьте справи (або «усі на сторінці» / «усі за фільтром»), оберіть виконавця, відповідального, осередок чи статус і натисніть «Застосувати». Кожна зміна потрапляє в історію справи.</li>
+          <li><b>Кілька справ одразу</b> (адміністратор): кнопка «☑ Кілька справ» додає галочки в список. Відмітьте справи (або «усі на сторінці» / «усі за фільтром»), оберіть виконавця, відповідального, осередок чи статус і натисніть «Застосувати», потім «Так, змінити (N)» — підтвердження прямо на панелі. Під панеллю видно, що відбувається: «Збережено … з …», «✓ Оновлено справ» або причину помилки. Кожна зміна потрапляє в історію справи.</li>
           <li><b>Виконавці з журналу</b> (адміністратор): прізвища зі старих журналів («Парм», «Парм, Маштакова») зіставляються зі співробітниками — система сама пропонує відповідність, ви перевіряєте. Заповнюються лише порожні поля: перше прізвище — виконавець, інші — «Допомагають», колонка «Відповідальний (по осередкам)» — відповідальний.</li>
           <li><b>Навантаження</b> (адміністратор): скільки відкритих справ у кожного виконавця й осередку, скільки прострочено, зі статусом «Проблема», без контактної особи, без виконавця. Клік по рядку — ці справи в списку.</li>
           <li>Унизу довгої справи теж є «Назад до справ» — не треба гортати вгору (зручно на телефоні).</li>
@@ -1166,25 +1168,25 @@
   <p id="loading" class="loading">Завантаження…</p>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="config.js?v=202610081233"></script>
+  <script src="config.js?v=202610081251"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="options.js?v=202610081233"></script>
-  <script src="ui.js?v=202610081233"></script>
-  <script src="validation.js?v=202610081233"></script>
-  <script src="filters.js?v=202610081233"></script>
-  <script src="segments.js?v=202610081233"></script>
-  <script src="picker.js?v=202610081233"></script>
-  <script src="merge.js?v=202610081233"></script>
-  <script src="persons.js?v=202610081233"></script>
-  <script src="export.js?v=202610081233"></script>
-  <script src="import.js?v=202610081233"></script>
-  <script src="mfa.js?v=202610081233"></script>
-  <script src="staff.js?v=202610081233"></script>
-  <script src="ua-map.js?v=202610081233"></script>
-  <script src="dashboard.js?v=202610081233"></script>
-  <script src="journal.js?v=202610081233"></script>
-  <script src="cabinet.js?v=202610081233"></script>
-  <script src="nav.js?v=202610081233"></script>
-  <script src="app.js?v=202610081233"></script>
+  <script src="options.js?v=202610081251"></script>
+  <script src="ui.js?v=202610081251"></script>
+  <script src="validation.js?v=202610081251"></script>
+  <script src="filters.js?v=202610081251"></script>
+  <script src="segments.js?v=202610081251"></script>
+  <script src="picker.js?v=202610081251"></script>
+  <script src="merge.js?v=202610081251"></script>
+  <script src="persons.js?v=202610081251"></script>
+  <script src="export.js?v=202610081251"></script>
+  <script src="import.js?v=202610081251"></script>
+  <script src="mfa.js?v=202610081251"></script>
+  <script src="staff.js?v=202610081251"></script>
+  <script src="ua-map.js?v=202610081251"></script>
+  <script src="dashboard.js?v=202610081251"></script>
+  <script src="journal.js?v=202610081251"></script>
+  <script src="cabinet.js?v=202610081251"></script>
+  <script src="nav.js?v=202610081251"></script>
+  <script src="app.js?v=202610081251"></script>
 </body>
 </html>

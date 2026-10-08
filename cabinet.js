@@ -216,7 +216,7 @@ window.Cabinet = (() => {
   function initBulk() {
     $('cab-bulk-btn').hidden = false; $('cab-match-btn').hidden = false;
     $('cab-bulk-btn').addEventListener('click', () => {
-      bulkMode = !bulkMode; picked.clear();
+      bulkMode = !bulkMode; picked.clear(); bulkDisarm(); bkMsg('');
       $('cab-bulk-btn').setAttribute('aria-pressed', String(bulkMode));
       render();
     });
@@ -227,6 +227,8 @@ window.Cabinet = (() => {
     $('cab-bulk-all').addEventListener('click', () => { lastList.forEach((c) => picked.add(c.id)); render(); });
     $('cab-bulk-none').addEventListener('click', () => { picked.clear(); render(); });
     $('bk-apply').addEventListener('click', applyBulk);
+    $('bk-cancel').addEventListener('click', () => { bulkDisarm(); bkMsg(''); });
+    ['bk-exec', 'bk-resp', 'bk-cell', 'bk-status'].forEach((id) => $(id).addEventListener('change', () => { bulkDisarm(); bkMsg(''); }));
     $('cab-match-btn').addEventListener('click', openMatch);
     $('cab-load-btn').hidden = false;
     $('cab-load-btn').addEventListener('click', openLoad);
@@ -243,7 +245,7 @@ window.Cabinet = (() => {
     $('cab-bulk-total').textContent = lastList.length;
     const pi = pageItems();
     $('cab-sel-page').checked = pi.length > 0 && pi.every((c) => picked.has(c.id));
-    $('bk-apply').disabled = !picked.size;
+    if (bulkArmed && !bulkArmed.endsWith('|' + [...picked].sort().join(','))) { bulkDisarm(); bkMsg(''); }
   }
   // оновлення порціями; кожна зміна потрапляє в історію справи (тригер у базі)
   // не чекаємо вічно: якщо сервер не відповів за 30 с — показуємо помилку, а не нескінченне «Зберігаємо…»
@@ -255,24 +257,53 @@ window.Cabinet = (() => {
       if (onStep) onStep(Math.min(i + 100, ids.length), ids.length);
     }
   }
-  async function applyBulk() {
+  // Підтвердження — прямо на панелі (без вікна браузера: Chrome інколи тихо блокує такі вікна,
+  // і тоді здається, що кнопка «залипла»). Кожен крок пише, що відбувається.
+  let bulkArmed = null;
+  const bkMsg = (t, bad) => { const m = $('bk-msg'); m.textContent = t || ''; m.classList.toggle('bad', !!bad); };
+  function bulkPatch() {
     const v = (id) => $(id).value;
     const patch = {};
     if (v('bk-exec')) patch.executor_id = v('bk-exec') === 'none' ? null : v('bk-exec');
     if (v('bk-resp')) patch.responsible_id = v('bk-resp') === 'none' ? null : v('bk-resp');
     if (v('bk-cell')) patch.cell_id = v('bk-cell') === 'none' ? null : Number(v('bk-cell'));
     if (v('bk-status')) patch.status = v('bk-status');
-    if (!Object.keys(patch).length) { Persons.toast('Оберіть, що змінити: виконавця, відповідального, осередок чи статус'); return; }
-    const what = [patch.executor_id !== undefined && 'виконавця', patch.responsible_id !== undefined && 'відповідального', patch.cell_id !== undefined && 'осередок', patch.status && 'статус'].filter(Boolean).join(', ');
-    if (!confirm(`Змінити ${what} у ${picked.size} справах?`)) return;
-    const btn = $('bk-apply'); btn.disabled = true; btn.textContent = 'Зберігаємо…';
+    return patch;
+  }
+  function bulkDisarm() {
+    bulkArmed = null;
+    $('bk-apply').textContent = 'Застосувати'; $('bk-cancel').hidden = true;
+  }
+  async function applyBulk() {
+    const btn = $('bk-apply');
+    if (!picked.size) { bkMsg('Спершу позначте справи галочками зліва (або «усі на сторінці»).', true); return; }
+    const patch = bulkPatch();
+    if (!Object.keys(patch).length) { bkMsg('Оберіть, що змінити: виконавця, відповідального, осередок чи статус.', true); return; }
+    const key = JSON.stringify(patch) + '|' + [...picked].sort().join(',');
+    if (bulkArmed !== key) {
+      const what = [patch.executor_id !== undefined && 'виконавця', patch.responsible_id !== undefined && 'відповідального', patch.cell_id !== undefined && 'осередок', patch.status && 'статус'].filter(Boolean).join(', ');
+      bulkArmed = key;
+      btn.textContent = `Так, змінити (${picked.size})`; $('bk-cancel').hidden = false;
+      bkMsg(`Змінити ${what} у ${picked.size} справах? Натисніть «Так, змінити» ще раз.`);
+      return;
+    }
+    bulkDisarm();
+    btn.disabled = true; btn.textContent = 'Зберігаємо…';
+    const n = picked.size;
+    bkMsg(`Надсилаємо зміни: 0 з ${n}…`);
     try {
-      await updateCases([...picked], patch, (d, t) => { btn.textContent = `Зберігаємо… ${d} з ${t}`; });
-      Persons.toast(`Оновлено справ: ${picked.size}`);
+      await updateCases([...picked], patch, (d, t) => { bkMsg(`Збережено ${d} з ${t}…`); });
       picked.clear(); ['bk-exec', 'bk-resp', 'bk-cell', 'bk-status'].forEach((id) => { $(id).value = ''; });
+      bkMsg(`✓ Оновлено справ: ${n}. Оновлюємо список…`);
+      Persons.toast(`Оновлено справ: ${n}`);
       await load();
-    } catch (e) { console.error(e); Persons.toast(e.message === 'timeout' ? 'Сервер не відповів — оновіть сторінку (F5) і спробуйте ще раз' : 'Не вдалося оновити справи'); }
-    finally { btn.textContent = 'Застосувати'; btn.disabled = false; }
+      bkMsg(`✓ Оновлено справ: ${n}.`);
+    } catch (e) {
+      console.error(e);
+      bkMsg(e.message === 'timeout'
+        ? 'Сервер не відповів за 30 с — нічого не змінено або змінено частково. Оновіть сторінку (F5) і перевірте.'
+        : 'Не вдалося оновити: ' + (e.message || e.code || 'помилка') , true);
+    } finally { btn.textContent = 'Застосувати'; btn.disabled = false; }
   }
 
   // ---------- Навантаження (адміністратор): хто скільки веде, де просідає ----------

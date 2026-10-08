@@ -1026,6 +1026,8 @@ button.today-n[aria-pressed="true"] { border-color: var(--ink); box-shadow: 0 0 
 .cab-bulk { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.9rem; padding: 0.6rem 0.8rem; margin: 0.4rem 0 0.6rem; background: #eef4fb; border: 1px solid #c9dbee; border-radius: 10px; }
 .cab-bulk .btn-link { margin: 0; }
 .cab-bulk-set { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; margin-left: auto; }
+.bk-msg { flex-basis: 100%; font-size: 0.92rem; color: var(--muted, #5b6875); min-height: 1.2em; }
+.bk-msg.bad { color: #9b2c2c; font-weight: 600; }
 .cab-bulk select { font: inherit; padding: 0.3rem 0.4rem; max-width: 15rem; }
 .cab-table th.cab-sel, .cab-table td.cab-sel { width: 2.2rem; text-align: center; }
 .cab-table td.cab-sel input, .cab-table th.cab-sel input { width: 1.1rem; height: 1.1rem; }

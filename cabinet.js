@@ -56,7 +56,11 @@ window.Cabinet = (() => {
   }
 
   // ---------- Завантаження ----------
+  // Кілька завантажень можуть стартувати майже одночасно (вкладка + відновлення після F5) —
+  // рахується лише найсвіжіше, старіші відкидаються, щоб список не задвоювався.
+  let loadSeq = 0;
   async function load() {
+    const my = ++loadSeq;
     const A = acc();
     if (!A['cab' + module]) module = A.cab200 ? '200' : '300';
     document.querySelectorAll('.cab-mod').forEach((b) => { b.hidden = !A['cab' + b.dataset.m]; });
@@ -72,20 +76,22 @@ window.Cabinet = (() => {
       db.from('case_statuses').select('*').eq('module', module).order('sort'),
       db.from('operators').select('user_id, full_name, active').order('full_name')
     ]);
+    if (my !== loadSeq) return;
     defs = d.data || []; statuses = st.data || [];
     staff = new Map((ops.data || []).map((o) => [o.user_id, o.full_name]));
 
-    cases = [];
+    const list = [];
     for (let from = 0; ; from += 1000) {
       const { data, error } = await db.from('cases')
         .select('*, person:persons!cases_person_id_fkey(id, last_name, first_name, patronymic, military_status, death_date, burial_date, wounded, wound_date, birth_date, callsign, burial_place, military_unit_code, mp_unit_id, region_id, settlement, phone, comment), case_values(stage_key, value)')
         .eq('module', module).order('journal_id').range(from, from + 999);
       if (error) { console.error(error); $('cab-status-line').textContent = 'Не вдалося завантажити справи.'; return; }
-      cases.push(...data);
+      if (my !== loadSeq) return;
+      list.push(...data);
       if (data.length < 1000) break;
     }
     // родина: перший пов’язаний родич (отримувач)
-    const ids = cases.map((c) => c.person_id);
+    const ids = list.map((c) => c.person_id);
     const kin = new Map();
     for (let i = 0; i < ids.length; i += 150) {
       const { data } = await db.from('military_relations')
@@ -94,6 +100,8 @@ window.Cabinet = (() => {
       (data || []).forEach((r) => { if (r.person) kin.set(r.related_person_id, [...(kin.get(r.related_person_id) || []), r]); });
     }
     const sn = await db.from('case_seen').select('case_id, seen_at');
+    if (my !== loadSeq) return;
+    cases = list;
     seen = new Map((sn.data || []).map((r) => [r.case_id, r.seen_at]));
     cases.forEach((c) => {
       c.vals = Object.fromEntries((c.case_values || []).map((v) => [v.stage_key, v.value]));

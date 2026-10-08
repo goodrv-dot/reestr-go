@@ -12,7 +12,8 @@ window.Persons = (() => {
   let extraKeep = [];
   let programRoles = new Map();   // ролі в модулях відкритої картки (зберігаємо при редагуванні)
   const PAGE_SIZE = 100;
-  let level = 'main';       // main — основні картки, extra — зв’язані, all — усі
+  let level = 'main';
+  let levelBeforeSearch = null, levelPickedInSearch = false;   // під час пошуку показуємо «Усі»       // main — основні картки, extra — зв’язані, all — усі
   let page = 1;
   let listScrollY = 0;      // де був список, коли відкрили картку
   let searchTimer = null;
@@ -415,7 +416,9 @@ window.Persons = (() => {
     }));
     $('reset-all').addEventListener('click', resetAll);
     document.querySelectorAll('.lvchip').forEach((b) => b.addEventListener('click', () => {
-      level = b.dataset.level; page = 1; loadList();
+      level = b.dataset.level; page = 1;
+      if (currentSearch()) levelPickedInSearch = true;   // обрали вручну під час пошуку — поважаємо вибір
+      loadList();
     }));
     $('preset-clear').addEventListener('click', () => Filters.clearPreset());
     $('search').addEventListener('input', () => {
@@ -568,7 +571,18 @@ window.Persons = (() => {
     document.querySelectorAll('.qchips .qchip').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.q === cur)));
   }
 
+  // Шукають конкретну людину — її роль (основна чи зв’язана) наперед невідома, тож під час пошуку
+  // показуємо всі картки; коли пошук очищено — повертаємо попередній вибір
+  function syncSearchLevel() {
+    if (currentSearch()) {
+      if (!levelPickedInSearch && levelBeforeSearch === null && level !== 'all') { levelBeforeSearch = level; level = 'all'; }
+    } else {
+      if (levelBeforeSearch !== null) level = levelBeforeSearch;
+      levelBeforeSearch = null; levelPickedInSearch = false;
+    }
+  }
   async function loadList() {
+    syncSearchLevel();
     $('reset-all').hidden = !hasSelection();
     loadQualityCounts().catch((e) => console.error(e));
     loadLevelCounts().catch((e) => console.error(e));

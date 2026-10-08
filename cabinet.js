@@ -6,6 +6,8 @@ window.Cabinet = (() => {
   const $ = (id) => document.getElementById(id);
   let db = null, me = null, isAdmin = false;
   let module = '200';
+  const keep = (k, v) => { try { if (v) sessionStorage.setItem(k, v); else sessionStorage.removeItem(k); } catch { /* ок */ } };
+  try { module = sessionStorage.getItem('cab_module') || module; } catch { /* ок */ }
   let defs = [], statuses = [], staff = new Map(), cases = [];
   let current = null;           // відкрита справа
   let preset = null;            // вибірка з дашборда: {ids:Set, label}
@@ -59,6 +61,7 @@ window.Cabinet = (() => {
     if (!A['cab' + module]) module = A.cab200 ? '200' : '300';
     document.querySelectorAll('.cab-mod').forEach((b) => { b.hidden = !A['cab' + b.dataset.m]; });
     $('cq-nocell-btn').hidden = !isAdmin;
+    keep('cab_module', module);
     document.querySelectorAll('.cab-mod').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.m === module)));
     $('cab-title').textContent = module === '200' ? 'Кабінет 200 — супровід родин загиблих' : 'Кабінет 300 — супровід поранених';
     $('cab-status-line').textContent = 'Завантажуємо…';
@@ -396,6 +399,7 @@ window.Cabinet = (() => {
     window.scrollTo(0, 0);
     tab = 'all';
     const c = current, p = c.person;
+    keep('cab_case', c.journal_id);           // після F5 відкриємо цю ж справу
     if (isNew(c) || !seen.has(c.id)) { const at = new Date().toISOString(); seen.set(c.id, at); db.from('case_seen').upsert({ case_id: c.id, user_id: me, seen_at: at }, { onConflict: 'user_id,case_id' }).then(() => badge()); }
     $('case-link').onclick = () => copyLink(`?case=${encodeURIComponent(c.journal_id)}`, `Посилання на справу ${c.journal_id} скопійовано`);
     $('case-open-person').onclick = () => openPerson(p.id);
@@ -469,7 +473,7 @@ window.Cabinet = (() => {
 
   function closeCase(fromPop) {
     $('cab-case').hidden = true; $('cab-list').hidden = false;
-    current = null;
+    current = null; keep('cab_case', null);
     if (!fromPop && history.state && history.state.view === 'case') history.back();
     render();
   }

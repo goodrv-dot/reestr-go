@@ -46,7 +46,16 @@ function showApp(operator, userId) {
       Cabinet.init(db, userId, operator.role === 'admin');
       window.__exp = true;
     }
-    if (!A.registry && !new URLSearchParams(location.search).get('case')) tabBtn(hasCab ? 'cabinet' : 'manual').click();
+    const prm = new URLSearchParams(location.search);
+    // після F5 повертаємось на ту саму вкладку (і в ту саму справу кабінету), якщо до неї є доступ
+    let last = null, lastCase = null;
+    try { last = sessionStorage.getItem('last_tab'); lastCase = sessionStorage.getItem('cab_case'); } catch { /* ок */ }
+    const back = !prm.get('case') && !prm.get('person') && last && tabBtn(last) && !tabBtn(last).hidden ? last : null;
+    if (back) {
+      tabBtn(back).click();
+      if (back === 'cabinet' && lastCase) Cabinet.openByJournal(lastCase);
+      if (hasCab && back !== 'cabinet') Cabinet.badge();
+    } else if (!A.registry && !prm.get('case')) tabBtn(hasCab ? 'cabinet' : 'manual').click();
     else if (hasCab) Cabinet.badge();
     openDeepLink();
   }).catch((e) => {

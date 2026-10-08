@@ -9,6 +9,7 @@ function showTab(tab) {
     if (on) b.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   });
   Object.entries(VIEWS).forEach(([k, id]) => { document.getElementById(id).hidden = k !== tab; });
+  try { sessionStorage.setItem('last_tab', tab); } catch { /* без сховища — після F5 відкриється типова вкладка */ }
   if (tab === 'dashboard') Dashboard.refresh();
   if (tab === 'cabinet') Cabinet.load();
 }

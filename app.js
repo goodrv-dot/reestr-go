@@ -4,7 +4,11 @@
 // зміна тимчасового пароля → обов'язкове підключення 2FA (якщо вимагається) → кабінет
 // ============================================================
 const { SUPABASE_URL, SUPABASE_KEY, IDLE_MINUTES } = window.APP_CONFIG;
-const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+// lock без очікування: стандартне блокування сесії між вкладками інколи «зависає» (особливо після
+// тривалої паузи у фоновій вкладці) — і тоді жоден запит не відправляється, кнопки крутяться без кінця
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: { lock: async (_name, _timeout, fn) => fn() }
+});
 
 const $ = (id) => document.getElementById(id);
 const ROLE_LABELS = { admin: 'Адміністратор', operator: 'Оператор' };

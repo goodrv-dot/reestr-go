@@ -246,10 +246,13 @@ window.Cabinet = (() => {
     $('bk-apply').disabled = !picked.size;
   }
   // оновлення порціями; кожна зміна потрапляє в історію справи (тригер у базі)
-  async function updateCases(ids, patch) {
+  // не чекаємо вічно: якщо сервер не відповів за 30 с — показуємо помилку, а не нескінченне «Зберігаємо…»
+  const withTimeout = (p, ms = 30000) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]);
+  async function updateCases(ids, patch, onStep) {
     for (let i = 0; i < ids.length; i += 100) {
-      const { error } = await db.from('cases').update(patch).in('id', ids.slice(i, i + 100));
+      const { error } = await withTimeout(db.from('cases').update(patch).in('id', ids.slice(i, i + 100)));
       if (error) throw error;
+      if (onStep) onStep(Math.min(i + 100, ids.length), ids.length);
     }
   }
   async function applyBulk() {
@@ -264,11 +267,11 @@ window.Cabinet = (() => {
     if (!confirm(`Змінити ${what} у ${picked.size} справах?`)) return;
     const btn = $('bk-apply'); btn.disabled = true; btn.textContent = 'Зберігаємо…';
     try {
-      await updateCases([...picked], patch);
+      await updateCases([...picked], patch, (d, t) => { btn.textContent = `Зберігаємо… ${d} з ${t}`; });
       Persons.toast(`Оновлено справ: ${picked.size}`);
       picked.clear(); ['bk-exec', 'bk-resp', 'bk-cell', 'bk-status'].forEach((id) => { $(id).value = ''; });
       await load();
-    } catch (e) { console.error(e); Persons.toast('Не вдалося оновити справи'); }
+    } catch (e) { console.error(e); Persons.toast(e.message === 'timeout' ? 'Сервер не відповів — оновіть сторінку (F5) і спробуйте ще раз' : 'Не вдалося оновити справи'); }
     finally { btn.textContent = 'Застосувати'; btn.disabled = false; }
   }
 
@@ -363,7 +366,7 @@ window.Cabinet = (() => {
       $('cab-match').close();
       Persons.toast(`Заповнено справ: ${n}`);
       await load();
-    } catch (e) { console.error(e); Persons.toast('Не вдалося заповнити — спробуйте ще раз'); }
+    } catch (e) { console.error(e); Persons.toast(e.message === 'timeout' ? 'Сервер не відповів — оновіть сторінку (F5) і спробуйте ще раз' : 'Не вдалося заповнити — спробуйте ще раз'); }
     finally { btn.textContent = 'Заповнити порожні'; btn.disabled = false; }
   }
 

@@ -415,14 +415,12 @@ window.Persons = (() => {
       Filters.setQuality(Filters.getQuality() === b.dataset.q ? '' : b.dataset.q);
     }));
     $('reset-all').addEventListener('click', resetAll);
-    // Модуль: 200 / 300 / Діти МП — швидкий перемикач фільтра «Програми ГО» (можна кілька; «Усі» — зняти)
+    // Модуль: 200 / 300 / Діти МП — швидкий фільтр, лише ОДИН модуль (кілька — через «Фільтри» → «Програми ГО»)
     document.querySelectorAll('.modchip').forEach((b) => b.addEventListener('click', () => {
       const id = modId(b.dataset.mod);
-      if (!b.dataset.mod) { Filters.setPrograms([]); return; }
-      if (!id) return;
-      const cur = new Set(Filters.getPrograms());
-      cur.has(id) ? cur.delete(id) : cur.add(id);
-      Filters.setPrograms([...cur]);
+      const cur = Filters.getPrograms();
+      if (!b.dataset.mod || !id || (cur.length === 1 && cur[0] === id)) { Filters.setPrograms([]); return; }
+      Filters.setPrograms([id]);
     }));
     document.addEventListener('filters-changed', syncModChips);
     document.querySelectorAll('.lvchip').forEach((b) => b.addEventListener('click', () => {
@@ -556,7 +554,8 @@ window.Persons = (() => {
     const sel = new Set(Filters.getPrograms());
     document.querySelectorAll('.modchip').forEach((b) => {
       const id = modId(b.dataset.mod);
-      b.setAttribute('aria-pressed', String(b.dataset.mod ? sel.has(id) : !sel.size));
+      // кілька модулів (обрано у «Фільтрах») — жодна швидка кнопка не підсвічена
+      b.setAttribute('aria-pressed', String(b.dataset.mod ? sel.size === 1 && sel.has(id) : !sel.size));
     });
   }
   async function loadModuleCounts() {

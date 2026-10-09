@@ -523,7 +523,9 @@ select.paint[data-v="Viber"]    { background: #eee6f6; }
   padding: 0.35rem 0.8rem; border-radius: 999px; font-weight: 500;
   background: var(--white); border: 1px solid var(--line); color: var(--ink);
 }
-.qchip b { font-weight: 700; font-variant-numeric: tabular-nums; }
+.qchip b { font-weight: 700; font-variant-numeric: tabular-nums; margin-left: 0.2rem; padding: 0.05rem 0.45rem; border-radius: 999px;
+  background: #f3ead6; color: #7a5a1c; font-size: 0.88em; }   /* число — окремою «пігулкою», щоб не зливалось з назвою */
+.qchip[aria-pressed="true"] b { background: var(--brass); color: #fff; }
 .qchip:hover { border-color: var(--sea); }
 .qchip[aria-pressed="true"] { background: var(--sea); border-color: var(--sea); color: var(--white); }
 .qchip-crit[aria-pressed="true"] { background: var(--err); border-color: var(--err); }

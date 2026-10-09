@@ -1284,13 +1284,28 @@ window.Importer = (() => {
       .select('id').single();
     if (be) { console.error(be); $('imp-status').textContent = 'Не вдалося створити пакет імпорту.'; return; }
 
-    let done = 0, failed = 0;
+    // Довгий імпорт (десятки хвилин) переживає оновлення ключа входу: якщо база відхилила запис через
+    // прострочений ключ — оновлюємо сесію й повторюємо цей самий запис (а не позначаємо його помилкою)
+    const isAuthErr = (e) => e && (e.code === '42501' || e.code === 'PGRST301' || e.code === 'PGRST303' || e.status === 401 ||
+      /JWT|row-level security/i.test(`${e.message || ''}`));
+    const saveOne = async (r) => {
+      if (r.existing) { await addToExisting(db, r); return r.existing.id; }
+      return createNew(db, r, batch.id);
+    };
+    let done = 0, failed = 0, n = 0;
     for (const r of todo) {
+      // раз на 25 записів перевіряємо ключ входу: якщо скоро спливе — оновлюємо заздалегідь, до запису
+      if (++n % 25 === 0) await db.auth.getSession().catch(() => {});
       try {
         // Родич → посилання на картку свого бійця (бійця записано раніше в цьому ж імпорті)
         if (r.linkTo && r.linkTo.savedId) r.relations.forEach((rel) => { rel.related_person_id = r.linkTo.savedId; });
-        if (r.existing) { await addToExisting(db, r); r.savedId = r.existing.id; }
-        else r.savedId = await createNew(db, r, batch.id);
+        try { r.savedId = await saveOne(r); }
+        catch (e) {
+          if (!isAuthErr(e)) throw e;
+          await db.auth.refreshSession().catch(() => {});
+          await new Promise((ok) => setTimeout(ok, 800));
+          r.savedId = await saveOne(r);
+        }
         done++;
       } catch (e) {
         console.error(e);
@@ -1347,12 +1362,16 @@ window.Importer = (() => {
   }
 
   async function createNew(db, r, batchId) {
-    const p = { ...r.person, source: fromForm ? 'Анкета' : 'Excel', source_ref: fileName, import_batch_id: batchId };
-    const { data, error } = await db.from('persons').insert(p).select('id').single();
-    if (error) throw error;
-    await insertChildren(db, data.id, r.relations, r.children,
+    // картку створюємо лише раз: якщо повторюємо запис після оновлення ключа — не дублюємо особу
+    if (!r._pid) {
+      const p = { ...r.person, source: fromForm ? 'Анкета' : 'Excel', source_ref: fileName, import_batch_id: batchId };
+      const { data, error } = await db.from('persons').insert(p).select('id').single();
+      if (error) throw error;
+      r._pid = data.id;
+    }
+    await insertChildren(db, r._pid, r.relations, r.children,
       r.programs.filter(Boolean).map((pid) => ({ program_id: pid, role: roleFor(r, pid) })), r.vets);
-    return data.id;
+    return r._pid;
   }
 
   async function addToExisting(db, r) {
@@ -1433,14 +1452,15 @@ window.Importer = (() => {
         .upsert(vets.map((status) => ({ person_id: personId, status })), { onConflict: 'person_id,status', ignoreDuplicates: true });
       if (error) throw error;
     }
-    if (rels.length) {
+    if (rels.length && !rels.some((x) => x.id)) {   // при повторі після оновлення ключа — не дублюємо
       const { data, error } = await db.from('military_relations').insert(rels.map((x) => ({ ...x, person_id: personId }))).select('id');
       if (error) throw error;
       (data || []).forEach((row, k) => { if (rels[k]) rels[k].id = row.id; });   // id потрібен для подальших доповнень
     }
-    if (kids.length) {
+    if (kids.length && !kids._saved) {
       const { error } = await db.from('children').insert(kids.map((x) => ({ ...x, person_id: personId })));
       if (error) throw error;
+      kids._saved = true;
     }
     if (progs.length) {
       const { error } = await db.from('person_programs')

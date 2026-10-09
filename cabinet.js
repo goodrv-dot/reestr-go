@@ -229,7 +229,7 @@ window.Cabinet = (() => {
   let bulkMode = false, lastList = [];
   const picked = new Set();
   function initBulk() {
-    $('cab-bulk-btn').hidden = false; $('cab-mark').hidden = false;
+    $('cab-bulk-btn').hidden = false; $('cab-mark-ui').hidden = false; initMarkFilter();
     $('cab-bulk-btn').addEventListener('click', () => {
       bulkMode = !bulkMode; picked.clear(); bulkDisarm(); bkMsg('');
       $('cab-bulk-btn').setAttribute('aria-pressed', String(bulkMode));
@@ -367,6 +367,41 @@ window.Cabinet = (() => {
     });
     return box;
   }
+  // Фільтр за мітками: кілька кольорів і «без міток» (АБО); значення — у прихованому полі cab-mark («1,3,none»)
+  function initMarkFilter() {
+    const list = document.querySelector('#cab-mark-ui .mark-ms-list'); list.innerHTML = '';
+    const opt = (val, label, col) => {
+      const l = document.createElement('label'); l.className = 'check';
+      l.innerHTML = '<input type="checkbox"> <span class="mark-dot"></span> <span></span>';
+      l.firstChild.value = val; l.lastChild.textContent = label;
+      const dot = l.querySelector('.mark-dot');
+      if (col) { dot.style.setProperty('--mk', col); dot.classList.add('is-on'); } else dot.classList.add('is-empty');
+      list.appendChild(l);
+    };
+    MARK_COLORS.forEach((col, i) => opt(String(i + 1), MARK_NAMES[i], col));
+    opt('none', 'без міток', null);
+    list.addEventListener('change', () => {
+      $('cab-mark').value = [...list.querySelectorAll('input:checked')].map((i) => i.value).join(',');
+      render();
+    });
+    document.addEventListener('click', (e) => { const d = $('cab-mark-ui'); if (d.open && !d.contains(e.target)) d.open = false; });
+    syncMarkFilter();
+  }
+  function syncMarkFilter() {
+    const ui = $('cab-mark-ui'); if (!ui || ui.hidden) return;
+    const sel = new Set($('cab-mark').value.split(',').filter(Boolean));
+    ui.querySelectorAll('.mark-ms-list input').forEach((i) => { i.checked = sel.has(i.value); });
+    ui.querySelector('.mark-ms-label').textContent = sel.size ? 'Мітки:' : 'Усі мітки';
+    const dots = ui.querySelector('.mark-ms-dots'); dots.innerHTML = '';
+    // для наочності: без вибору — усі 5 кольорів блідо; з вибором — лише обрані
+    MARK_COLORS.forEach((col, i) => {
+      if (sel.size && !sel.has(String(i + 1))) return;
+      const d = document.createElement('span'); d.className = 'mark-dot' + (sel.size ? ' is-on' : ''); d.style.setProperty('--mk', col); dots.appendChild(d);
+    });
+    if (sel.has('none')) { const d = document.createElement('span'); d.className = 'mark-dot is-empty'; d.title = 'без міток'; dots.appendChild(d); }
+    ui.classList.toggle('is-active', sel.size > 0);
+  }
+
   async function toggleMark(c, n, btn) {
     const cur = new Set(marks.get(c.id) || []);
     cur.has(n) ? cur.delete(n) : cur.add(n);
@@ -397,7 +432,7 @@ window.Cabinet = (() => {
   function filtered() {
     const q = $('cab-search').value.trim().toLowerCase();
     const st = $('cab-status').value, ex = $('cab-exec').value, rs = $('cab-resp').value, ce = $('cab-cell').value;
-    const mkf = isAdmin ? $('cab-mark').value : '';
+    const mkf = new Set(isAdmin ? $('cab-mark').value.split(',').filter(Boolean) : []);
     const from = $('cab-from').value, to = $('cab-to').value, dk = dateKey();
     const stSel = $('cab-status').value;
     const showClosed = !!preset || quick === 'closed' || !!q || statuses.some((s) => s.name === stSel && s.closed);
@@ -410,7 +445,7 @@ window.Cabinet = (() => {
       if (st && c.status !== st) return false;
       if (ex === 'none' ? c.executor_id : ex && c.executor_id !== ex) return false;
       if (rs === 'none' ? c.responsible_id : rs && c.responsible_id !== rs) return false;
-      if (mkf) { const m = marks.get(c.id) || []; if (mkf === 'none' ? m.length : mkf === 'any' ? !m.length : !m.includes(Number(mkf))) return false; }
+      if (mkf.size) { const m = marks.get(c.id) || []; if (!((mkf.has('none') && !m.length) || m.some((x) => mkf.has(String(x))))) return false; }
       if (ce === 'none' ? c.cell_id : ce && String(c.cell_id) !== ce) return false;
       if (quick === 'mine' && c.executor_id !== me) return false;
       if (quick === 'overdue' && !(c.next && c.next.overdue)) return false;
@@ -461,6 +496,7 @@ window.Cabinet = (() => {
   }
 
   function render() {
+    syncMarkFilter();
     const list = sorted(filtered());
     lastList = list;
     const sig = [module, quick, ...['cab-search', 'cab-status', 'cab-exec', 'cab-resp', 'cab-mark', 'cab-cell', 'cab-from', 'cab-to', 'cab-sort'].map((id) => $(id).value), $('cab-pin').checked, preset ? preset.label : ''].join('|');

@@ -1067,3 +1067,16 @@ body.read-only .sum-cell.is-ro { cursor: default; }
 .mark-dot:hover { opacity: 0.9; }
 .mark-dot.is-on { background: var(--mk); opacity: 1; }
 .mark-dot:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.mark-ms { position: relative; }
+.mark-ms summary { list-style: none; cursor: pointer; font: inherit; padding: 0.4rem 0.6rem; border: 1px solid var(--line); border-radius: var(--radius-field); background: var(--white); display: inline-flex; align-items: center; gap: 0.35rem; white-space: nowrap; }
+.mark-ms summary::-webkit-details-marker { display: none; }
+.mark-ms.is-active summary { border-color: var(--sea); }
+.mark-ms-dots { display: inline-flex; gap: 0.2rem; }
+.mark-ms-dots .mark-dot, .mark-ms-list .mark-dot { width: 0.8rem; height: 0.8rem; cursor: inherit; display: inline-block; }
+.mark-dot.is-empty { border: 2px solid #b5bec7; background: transparent; opacity: 1; }
+.mark-ms-list { position: absolute; z-index: 30; top: calc(100% + 4px); left: 0; background: var(--white); border: 1px solid var(--line); border-radius: 8px; padding: 0.5rem 0.75rem; box-shadow: 0 6px 20px rgba(0,0,0,0.12); min-width: 12rem; }
+.mark-ms-list .check { display: flex; align-items: center; gap: 0.4rem; padding: 0.2rem 0; }
+.mark-dot { flex: 0 0 auto; box-sizing: border-box; }
+.mark-ms { flex: none; min-width: max-content; }
+.mark-ms summary { min-height: 100%; }
+.cab-filters .mark-ms input { flex: none; padding: 0; width: auto; }

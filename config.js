@@ -9,5 +9,5 @@ window.APP_CONFIG = {
   ADD_PERSON: false,
   IDLE_MINUTES: 30, // автовихід після бездіяльності
   // Кнопка переходу в ERP (видно лише тим, хто має доступ «Реєстр», і адміністраторам). Порожньо — кнопки немає.
-  ERP_URL: ''
+  ERP_URL: 'https://script.google.com/a/macros/marinecorps.com.ua/s/AKfycbxhCWr-6kq4aayAglGip5lpKf0VAZBxD-QY3CWQipCEtjQY4ren0uzc7zRCETj-3Aa9/exec'
 };

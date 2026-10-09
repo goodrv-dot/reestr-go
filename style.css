@@ -1059,3 +1059,4 @@ body.read-only .sum-cell.is-ro { cursor: default; }
 /* Особи: швидкий вибір модуля і період */
 .quick-date .filter-daterange { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
 .quick-date .filter-daterange select, .quick-date .filter-daterange input { font: inherit; font-size: 0.9rem; padding: 0.25rem 0.4rem; border: 1px solid var(--line); border-radius: 8px; background: var(--white, #fff); color: inherit; }
+.tab-ext { text-decoration: none; display: inline-flex; align-items: center; }

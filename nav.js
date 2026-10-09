@@ -2,7 +2,7 @@
 const VIEWS = { registry: 'registry-view', cabinet: 'cabinet-view', dashboard: 'dashboard-view', import: 'import-view', staff: 'staff-view', manual: 'manual-view' };
 
 function showTab(tab) {
-  document.querySelectorAll('.tab').forEach((b) => {
+  document.querySelectorAll('.tab[data-tab]').forEach((b) => {
     const on = b.dataset.tab === tab;
     b.classList.toggle('is-active', on);
     b.setAttribute('aria-current', on ? 'page' : 'false');
@@ -14,7 +14,7 @@ function showTab(tab) {
   if (tab === 'cabinet') Cabinet.load();
 }
 
-document.querySelectorAll('.tab').forEach((btn) => {
+document.querySelectorAll('.tab[data-tab]').forEach((btn) => {
   btn.addEventListener('click', () => {
     const tab = btn.dataset.tab;
     const cur = history.state && history.state.tab;

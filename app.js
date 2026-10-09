@@ -40,6 +40,10 @@ function showApp(operator, userId) {
   const tabBtn = (t) => document.querySelector(`.tab[data-tab="${t}"]`);
   tabBtn('registry').hidden = !A.registry; tabBtn('dashboard').hidden = !A.registry;
   tabBtn('import').hidden = !A.import; tabBtn('cabinet').hidden = !hasCab;
+  // перехід в ERP — лише для тих, хто має доступ «Реєстр» (і адміністраторів)
+  const erp = $('erp-link'), erpUrl = window.APP_CONFIG.ERP_URL;
+  erp.hidden = !(erpUrl && A.registry);
+  if (!erp.hidden) erp.href = erpUrl;
   Persons.init(db, operator).then(() => {
     if (!window.__exp) {
       Exporter.init();

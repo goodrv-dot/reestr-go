@@ -215,7 +215,7 @@ window.Cabinet = (() => {
   let bulkMode = false, lastList = [];
   const picked = new Set();
   function initBulk() {
-    $('cab-bulk-btn').hidden = false; $('cab-match-btn').hidden = false;
+    $('cab-bulk-btn').hidden = false;
     $('cab-bulk-btn').addEventListener('click', () => {
       bulkMode = !bulkMode; picked.clear(); bulkDisarm(); bkMsg('');
       $('cab-bulk-btn').setAttribute('aria-pressed', String(bulkMode));
@@ -230,13 +230,9 @@ window.Cabinet = (() => {
     $('bk-apply').addEventListener('click', applyBulk);
     $('bk-cancel').addEventListener('click', () => { bulkDisarm(); bkMsg(''); });
     ['bk-exec', 'bk-resp', 'bk-cell', 'bk-status'].forEach((id) => $(id).addEventListener('change', () => { bulkDisarm(); bkMsg(''); }));
-    $('cab-match-btn').addEventListener('click', openMatch);
     $('cab-load-btn').hidden = false;
     $('cab-load-btn').addEventListener('click', openLoad);
     $('cab-load-close').addEventListener('click', () => $('cab-load').close());
-    $('cab-match-cancel').addEventListener('click', () => $('cab-match').close());
-    $('cab-match-apply').addEventListener('click', applyMatch);
-    $('cab-match-auto').addEventListener('click', runAutoMatch);
   }
   const pageItems = () => lastList.slice((page - 1) * PAGE, page * PAGE);
   function renderBulkBar() {
@@ -339,119 +335,6 @@ window.Cabinet = (() => {
     table('cab-load-cell', stat((c) => c.cell_id || 0), (k) => (k ? cells.get(k) || '—' : '— без осередку —'),
       (k) => { reset(); $('cab-cell').value = k ? String(k) : 'none'; render(); }, true);
     $('cab-load').showModal();
-  }
-
-  // ---------- «Виконавці з журналу»: прізвища зі старих журналів → співробітники ----------
-  const surnames = (t) => String(t || '').split(/[,;/\n]|\s+(?:і|та|и)\s+/).map((x) => x.trim().split(/\s+/)[0]).filter((x) => x && /[a-zа-яіїєґ]/i.test(x));
-  const sk = (x) => x.toLowerCase().replace(/[’'ʼ`]/g, '');
-  function guessStaff(sur) {
-    const k = sk(sur);
-    const hit = [...staff].find(([, n]) => sk(n).split(/\s+/).includes(k)) || [...staff].find(([, n]) => sk(n).startsWith(k));
-    return hit ? hit[0] : '';
-  }
-  // «ВАРЖЕЛЬ», «Варжель», «варжель.» — одне прізвище (ключ без регістру й розділових знаків)
-  const surKey = (x) => sk(x).replace(/[^a-zа-яіїєґ-]/gi, '');
-  const titleCase = (x) => x.toLowerCase().replace(/(^|-)([a-zа-яіїєґ])/gi, (m, a, b) => a + b.toUpperCase());
-  function openMatch() {
-    const counts = new Map();      // ключ → { n, spell: Map(написання → скільки) }
-    cases.forEach((c) => [...surnames(c.vals.executor_legacy), ...surnames(c.vals.responsible)].forEach((x) => {
-      const k = surKey(x); if (!k) return;
-      const g = counts.get(k) || { n: 0, spell: new Map() };
-      g.n++; const w = x.replace(/[^a-zа-яіїєґ’'ʼ`-]/gi, ''); g.spell.set(w, (g.spell.get(w) || 0) + 1);
-      counts.set(k, g);
-    }));
-    const tb = $('cab-match-body'); tb.innerHTML = '';
-    if (!counts.size) tb.innerHTML = '<tr><td colspan="3" class="muted">У справах цього модуля немає виконавців зі старого журналу.</td></tr>';
-    [...counts].sort((a, b) => b[1].n - a[1].n).forEach(([key, g]) => {
-      // показуємо звичайне написання («Варжель»), а не ВЕЛИКИМИ
-      const spells = [...g.spell].sort((a, b) => b[1] - a[1]).map(([w]) => w);
-      const sur = spells.find((w) => w !== w.toUpperCase() && w[0] === w[0].toUpperCase()) || titleCase(spells[0]);
-      const n = g.n;
-      const tr = document.createElement('tr');
-      tr.innerHTML = '<td></td><td></td><td><select class="match-sel"></select></td>';
-      tr.children[0].textContent = sur; tr.children[1].textContent = n;
-      if (spells.length > 1) tr.children[0].title = 'Написання в журналі: ' + spells.join(', ');
-      const sel = tr.querySelector('select'); sel.dataset.sur = key;
-      sel.add(new Option('— не зіставляти —', ''));
-      [...staff].sort((a, b) => a[1].localeCompare(b[1], 'uk')).forEach(([id, nm]) => sel.add(new Option(nm, id)));
-      sel.value = guessStaff(sur);
-      sel.addEventListener('change', matchSummary);
-      tb.appendChild(tr);
-    });
-    matchSummary();
-    $('cab-match-report').innerHTML = '';
-    $('cab-match').showModal();
-  }
-  function matchPlan() {
-    const map = new Map([...document.querySelectorAll('#cab-match-body .match-sel')].filter((x) => x.value).map((x) => [x.dataset.sur, x.value]));
-    const groups = new Map();
-    cases.forEach((c) => {
-      const patch = {};
-      const ex = surnames(c.vals.executor_legacy).map((x) => map.get(surKey(x))).filter(Boolean);
-      if (!c.executor_id && ex[0]) patch.executor_id = ex[0];
-      const help = [...new Set(ex.slice(1))].filter((u) => u !== (patch.executor_id || c.executor_id));
-      if (!(c.helper_ids || []).length && help.length) patch.helper_ids = help;
-      const rs = surnames(c.vals.responsible).map((x) => map.get(surKey(x))).filter(Boolean);
-      if (!c.responsible_id && rs[0]) patch.responsible_id = rs[0];
-      if (!Object.keys(patch).length) return;
-      const key = JSON.stringify(patch);
-      groups.set(key, [...(groups.get(key) || []), c.id]);
-    });
-    return groups;
-  }
-  function matchSummary() {
-    const n = [...matchPlan().values()].reduce((a, ids) => a + ids.length, 0);
-    $('cab-match-sum').textContent = n ? `Буде заповнено справ: ${n}.` : 'Нічого заповнювати: оберіть співробітників або всі поля вже заповнені.';
-    $('cab-match-apply').disabled = !n;
-  }
-  // Правила підстановки виконуються в базі (auto_match_executors) — ті самі після кожного імпорту
-  const cap = (k) => k.replace(/(^|-)(.)/g, (m, a, b) => a + b.toUpperCase());
-  async function runAutoMatch() {
-    const btn = $('cab-match-auto'); btn.disabled = true; btn.textContent = 'Підставляємо…';
-    const box = $('cab-match-report');
-    try {
-      const { data, error } = await withTimeout(db.rpc('auto_match_executors'));
-      if (error) throw error;
-      box.innerHTML = '';
-      const p = (html) => { const el = document.createElement('p'); el.innerHTML = html; box.appendChild(el); return el; };
-      p(`✓ Заповнено справ: <b>${data.filled}</b>.`);
-      if (data.empty_n) {
-        const el = p(`Без виконавця і відповідального: <b>${data.empty_n}</b> — <span class="muted"></span> `);
-        el.querySelector('span').textContent = data.empty.join(', ') + (data.empty_n > data.empty.length ? ' …' : '');
-        const show = document.createElement('button'); show.type = 'button'; show.className = 'btn-link'; show.textContent = 'показати ці справи';
-        show.onclick = () => {
-          $('cab-match').close();
-          ['cab-search', 'cab-status', 'cab-exec', 'cab-resp', 'cab-cell', 'cab-from', 'cab-to'].forEach((id) => { $(id).value = ''; });
-          quick = ''; preset = null; $('cab-exec').value = 'none'; $('cab-resp').value = 'none'; render();
-        };
-        el.appendChild(show);
-      } else p('Справ без виконавця і відповідального немає.');
-      const how = document.createElement('ul'); how.className = 'muted';
-      const li = (html) => { const x = document.createElement('li'); x.innerHTML = html; how.appendChild(x); return x; };
-      if (data.unmatched.length) {
-        const x = li('Прізвища з журналу, яких немає серед співробітників: <b></b>. Додайте їх у «Співробітники» → «Додати виконавців без входу» (або допишіть написання кнопкою «Написання в журналах») і натисніть «Підставити автоматично» ще раз.');
-        x.querySelector('b').textContent = data.unmatched.map((u) => `${cap(u.k)} (${u.n})`).join(', ');
-      }
-      if (data.empty_n) li('Якщо в журналі для справи нікого не записано — відкрийте її й оберіть «Виконавець» (або «☑ Кілька справ» → виконавець для кількох одразу).');
-      if (how.children.length) box.appendChild(how);
-      if (data.filled) await load();
-    } catch (e) {
-      console.error(e);
-      box.textContent = e.message === 'timeout' ? 'Сервер не відповів — оновіть сторінку (F5) і спробуйте ще раз.' : 'Не вдалося підставити: ' + (e.message || 'помилка');
-    } finally { btn.disabled = false; btn.textContent = 'Підставити автоматично'; }
-  }
-
-  async function applyMatch() {
-    const groups = matchPlan();
-    const btn = $('cab-match-apply'); btn.disabled = true; btn.textContent = 'Заповнюємо…';
-    try {
-      let n = 0;
-      for (const [key, ids] of groups) { await updateCases(ids, JSON.parse(key)); n += ids.length; }
-      Persons.toast(`Заповнено справ: ${n}`);
-      await runAutoMatch();      // далі ті самі правила: виконавець ↔ відповідальний, звіт «немає нікого»
-      await load();
-    } catch (e) { console.error(e); Persons.toast(e.message === 'timeout' ? 'Сервер не відповів — оновіть сторінку (F5) і спробуйте ще раз' : 'Не вдалося заповнити — спробуйте ще раз'); }
-    finally { btn.textContent = 'Заповнити порожні'; btn.disabled = false; }
   }
 
   // ---------- Список ----------

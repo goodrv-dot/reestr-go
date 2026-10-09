@@ -1035,7 +1035,6 @@ button.today-n[aria-pressed="true"] { border-color: var(--ink); box-shadow: 0 0 
 .cab-table th.cab-sel, .cab-table td.cab-sel { width: 2.2rem; text-align: center; }
 .cab-table td.cab-sel input, .cab-table th.cab-sel input { width: 1.1rem; height: 1.1rem; }
 .cab-table tr.is-picked td { background: #e3eefa; }
-.cab-match-table select { font: inherit; padding: 0.3rem; min-width: 14rem; }
 
 /* навантаження */
 .cab-load-table { width: 100%; border-collapse: collapse; margin-bottom: 0.8rem; }
@@ -1050,10 +1049,6 @@ button.today-n[aria-pressed="true"] { border-color: var(--ink); box-shadow: 0 0 
 
 .case-foot { margin: 1rem 0 0.5rem; }
 .cab-resp-line { font-size: 0.85rem; }
-.match-auto { border: 1px solid var(--line); border-radius: 10px; padding: 0.75rem 1rem; margin-bottom: 1rem; }
-.match-auto ul { margin: 0.25rem 0 0.6rem; padding-left: 1.2rem; }
-.match-report { margin-top: 0.6rem; }
-.match-report p { margin: 0.3rem 0; }
 /* «Лише перегляд» (керівник): кнопки змін сховані, поля лише для читання */
 body.read-only #add-btn, body.read-only #cab-new-btn, body.read-only #case-take, body.read-only .fam-add,
 body.read-only #dup-box, body.read-only .today-act, body.read-only #kin-add { display: none !important; }

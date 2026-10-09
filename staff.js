@@ -291,7 +291,7 @@ window.Staff = (() => {
     const left = (r?.unmatched || []).slice(0, 12).map((x) => `${x.k.replace(/(^|-)(.)/g, (m, a, b) => a + b.toUpperCase())} (${x.n})`).join(', ');
     $('nl-progress').textContent = `Додано: ${names.length - failed.length}. Підставлено у справах: ${r?.filled ?? 0}.` +
       (left ? ` Ще без співробітника в журналах: ${left}.` : '') +
-      (r?.empty_n ? ` Справ без виконавця і відповідального: ${r.empty_n} — див. Кабінет → «Виконавці з журналу».` : '');
+      (r?.empty_n ? ` Справ без виконавця і відповідального: ${r.empty_n} — у Кабінеті фільтр «— без виконавця —».` : '');
     if (failed.length) { $('nl-error').textContent = 'Не додано: ' + failed.join('; '); $('nl-error').hidden = false; }
     else $('nl-names').value = '';
     $('nl-save').disabled = false;

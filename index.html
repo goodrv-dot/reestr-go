@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Unbounded:wght@600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=202610091205">
+  <link rel="stylesheet" href="style.css?v=202610091223">
 </head>
 <body>
 
@@ -94,7 +94,7 @@
           </div>
         </div>
         <div class="toolbar">
-          <input id="search" class="search" type="search" placeholder="Пошук за прізвищем, ім’ям або телефоном" aria-label="Пошук">
+          <input id="search" class="search" type="search" placeholder="Пошук: прізвище, ім’я, телефон або ID справи (200-0123)" aria-label="Пошук">
           <button id="filters-toggle" class="btn-secondary" type="button" aria-expanded="false" aria-controls="filters-panel">
             Фільтри <span id="filters-count" class="badge" hidden></span>
           </button>
@@ -605,7 +605,7 @@
       <section id="m-start">
         <h2>Основи</h2>
         <ul>
-          <li><b>Пошук</b> — за прізвищем, ім’ям, по батькові або частиною телефону (від 3 цифр); можна кілька слів одразу («Дудчук Юрій Яремович»). Знаходить і за <b>ім’ям дитини</b> — покаже її представника.</li>
+          <li><b>Пошук</b> — за прізвищем, ім’ям, по батькові або частиною телефону (від 3 цифр); можна кілька слів одразу («Дудчук Юрій Яремович»). Знаходить і за <b>ім’ям дитини</b> — покаже її представника, і за <b>ID справи</b> («200-2773», «300-12») — покаже загиблого чи пораненого разом із рідними.</li>
           <li>Відкрити картку — клік по рядку. <b>Нових людей у реєстрі вручну не заводять:</b> загиблих і поранених — у Кабінеті («+ Нова справа»), їхніх рідних — у справі (розділ «Родина»), «Діти МП» приходять з анкети через Імпорт. Реєстр — для відбору за фільтрами та розсилок.</li>
           <li>Обов’язкові лише <b>прізвище та ім’я</b>. Решту можна доповнити пізніше — система підкаже, чого бракує.</li>
           <li><b>Видаляти</b> особу може лише адміністратор.</li>
@@ -1204,24 +1204,24 @@
   <p id="loading" class="loading">Завантаження…</p>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="config.js?v=202610091205"></script>
+  <script src="config.js?v=202610091223"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="options.js?v=202610091205"></script>
-  <script src="ui.js?v=202610091205"></script>
-  <script src="validation.js?v=202610091205"></script>
-  <script src="filters.js?v=202610091205"></script>
-  <script src="segments.js?v=202610091205"></script>
-  <script src="picker.js?v=202610091205"></script>
-  <script src="merge.js?v=202610091205"></script>
-  <script src="persons.js?v=202610091205"></script>
-  <script src="export.js?v=202610091205"></script>
-  <script src="import.js?v=202610091205"></script>
-  <script src="mfa.js?v=202610091205"></script>
-  <script src="staff.js?v=202610091205"></script>
-  <script src="ua-map.js?v=202610091205"></script>
-  <script src="dashboard.js?v=202610091205"></script>
-  <script src="cabinet.js?v=202610091205"></script>
-  <script src="nav.js?v=202610091205"></script>
-  <script src="app.js?v=202610091205"></script>
+  <script src="options.js?v=202610091223"></script>
+  <script src="ui.js?v=202610091223"></script>
+  <script src="validation.js?v=202610091223"></script>
+  <script src="filters.js?v=202610091223"></script>
+  <script src="segments.js?v=202610091223"></script>
+  <script src="picker.js?v=202610091223"></script>
+  <script src="merge.js?v=202610091223"></script>
+  <script src="persons.js?v=202610091223"></script>
+  <script src="export.js?v=202610091223"></script>
+  <script src="import.js?v=202610091223"></script>
+  <script src="mfa.js?v=202610091223"></script>
+  <script src="staff.js?v=202610091223"></script>
+  <script src="ua-map.js?v=202610091223"></script>
+  <script src="dashboard.js?v=202610091223"></script>
+  <script src="cabinet.js?v=202610091223"></script>
+  <script src="nav.js?v=202610091223"></script>
+  <script src="app.js?v=202610091223"></script>
 </body>
 </html>

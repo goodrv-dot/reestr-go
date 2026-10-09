@@ -478,6 +478,23 @@ window.Persons = (() => {
     childCache.set(k, { t: Date.now(), ids });
     return ids;
   }
+  // ID справи кабінету («200-2773», «300-0012», «200 2773») → загиблий/поранений і його рідні
+  const CASE_ID = /^(200|300)[-\s]?(\d{1,4})$/;
+  async function caseOwners(q) {
+    const m = q.match(CASE_ID); if (!m) return null;
+    const jid = `${m[1]}-${m[2].padStart(4, '0')}`;
+    const hit = childCache.get('case:' + jid);
+    if (hit && Date.now() - hit.t < 15000) return hit.ids;
+    const { data } = await db.from('cases').select('person_id, contact_person_id').eq('journal_id', jid).limit(5);
+    const ids = new Set();
+    (data || []).forEach((c) => { ids.add(c.person_id); if (c.contact_person_id) ids.add(c.contact_person_id); });
+    if (ids.size) {
+      const { data: rel } = await db.from('military_relations').select('person_id').in('related_person_id', [...ids]).limit(50);
+      (rel || []).forEach((r) => ids.add(r.person_id));
+    }
+    childCache.set('case:' + jid, { t: Date.now(), ids: [...ids] });
+    return [...ids];
+  }
   function currentSearch() {
     return $('search').value.trim().replace(/[,()%*\\]/g, ' ').trim();
   }
@@ -487,7 +504,10 @@ window.Persons = (() => {
   async function buildQuery(columns, opts, skip) {
     let query = db.from('persons_view').select(columns, opts);
     const q = currentSearch();
-    if (q) {
+    const caseIds = q ? await caseOwners(q) : null;
+    if (caseIds) {
+      query = query.in('id', caseIds.length ? caseIds : ['00000000-0000-0000-0000-000000000000']);
+    } else if (q) {
       // кілька слів («Дудчук Юрій Яремович») — кожне має знайтися в прізвищі, імені, по батькові чи телефоні
       const digitsAll = q.replace(/\D/g, '');
       const isPhone = digitsAll.length >= 9 && !/[a-zа-яіїєґ]/i.test(q);

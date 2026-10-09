@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Unbounded:wght@600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=202610090615">
+  <link rel="stylesheet" href="style.css?v=202610090619">
 </head>
 <body>
 
@@ -88,8 +88,6 @@
               <span class="muted">Вивантажити список:</span>
               <button id="export-excel-btn" class="btn-secondary btn-small" type="button">Excel</button>
               <button id="export-csv-btn" class="btn-secondary btn-small" type="button">CSV для SendPulse</button>
-              <button id="journal-200" class="btn-secondary btn-small" type="button" title="Основні картки модуля 200 у новий шаблон журналу (з урахуванням фільтрів)">Журнал 200</button>
-              <button id="journal-300" class="btn-secondary btn-small" type="button" title="Основні картки модуля 300 у новий шаблон журналу (з урахуванням фільтрів)">Журнал 300</button>
             </div>
             <button id="add-btn" class="btn-primary" type="button">Додати особу</button>
           </div>
@@ -297,7 +295,7 @@
 
           <fieldset id="journal-fs" hidden>
             <legend>Дані з журналу</legend>
-            <p class="muted">Колонки журналу-джерела, яких немає в картці (звання, посада, етапи супроводу…). Переносяться назад у «Журнал 200 / 300».</p>
+            <p class="muted">Колонки журналу-джерела, яких немає в картці (звання, посада, етапи супроводу…). Потрапляють у Google-дзеркало 200 / 300.</p>
             <div id="journal-box" class="journal-box"></div>
           </fieldset>
 
@@ -739,7 +737,7 @@
           <li>Унизу довгої справи теж є «Назад до справ» — не треба гортати вгору (зручно на телефоні).</li>
           <li><b>Папка з документами.</b> У справі є поле «Папка з документами (Google Диск)» (розділ «Інше» у 200, «Документи» у 300): вставте посилання на папку — у шапці справи з’явиться «📁 Документи», а поруч із полем — «Відкрити». Приймається лише повне посилання, що починається з https://. У журналі й Google-дзеркалі це колонка «Папка з документами».</li>
           <li><b>Google-дзеркало.</b> Робот кожні 3 хвилини перевіряє, чи змінилось щось у справах, і переписує Google-таблиці-дзеркала (окремо для «200» і «300»): аркуш «Журнал», окремий аркуш на кожен осередок (усі області, навіть порожні) і «Довідники» — ті самі переліки, що в журналах 200 / 300, а осередки — повний список із бази; з них у колонках працюють випадні списки. Червоний уголок у клітинці означає лише «значення не зі списку». Уночі — повне оновлення. Дзеркало лише для перегляду: при спробі правити Google попередить, а правку робот перезапише, тож працюйте в кабінеті. Нові поля з «Налаштування полів» з’являються в ньому колонками в кінці. Адміністратор бачить біля «Налаштування полів», коли дзеркало оновлювалось і коли зроблено резервну копію; якщо робот чи копія дали збій — запис у дзвіночку адміністратора.</li>
-          <li>Після імпорту журналів «200» / «300» нові справи з’являються в кабінеті автоматично. «Журнал 200 / 300» вивантажує вже дані кабінету.</li>
+          <li>Після імпорту журналів «200» / «300» нові справи з’являються в кабінеті автоматично. Таблиці 200 / 300 у новому форматі робот оновлює сам (Google-дзеркало).</li>
           <li><b>🔗 Посилання</b> у справі та в картці особи копіює пряме посилання. Його можна надіслати колезі або вставити в задачу (ERP, месенджер): після входу відкриється саме ця справа чи картка. Права доступу зберігаються — без доступу справа не відкриється. Щоб передати справу в роботу, призначте виконавця: вона з’явиться в нього у «Мої».</li>
         </ul>
       </section>
@@ -826,7 +824,6 @@
           <li><b>Excel</b> — для роботи й звітів: аркуші «Особи», «Діти», «Зв’язки».</li>
           <li><b>CSV для SendPulse</b> — оберіть канал (Telegram, WhatsApp, Viber). У файл потрапляють лише люди з мобільним телефоном, згодою на обробку ПД і на повідомлення, які не відписались і обрали цей месенджер.</li>
           <li>Перед завантаженням видно, <b>скільки людей пропущено і чому</b>. Відкрийте їхні картки й доповніть дані.</li>
-          <li><b>«Журнал 200» / «Журнал 300»</b> — основні картки модуля у <b>новий шаблон журналу</b> (зі списками, перевірками телефонів і дат, аркушами «Як заповнювати» і «Довідники»). Родичі розкладаються по блоках «Отримувач» / «Родич 2–3». Враховуються фільтри: напр., оберіть осередок — отримаєте журнал лише цього осередку. Після головного аркуша йде <b>окремий аркуш на кожен осередок із довідника</b> — зокрема Донеччина, Луганщина й Крим, навіть якщо справ там поки немає — і наприкінці «Без осередку». Нові поля з «Налаштування полів» ідуть колонками в кінці; в аркуші «Довідники» — повний список осередків. Файл завантажте на Google Диск і відкрийте як Google Таблицю.</li>
           <li>Вивантажувати можуть лише співробітники з відповідним правом. Кожне вивантаження записується в журнал.</li>
         </ul>
         <h3>Сегменти</h3>
@@ -1195,25 +1192,24 @@
   <p id="loading" class="loading">Завантаження…</p>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="config.js?v=202610090615"></script>
+  <script src="config.js?v=202610090619"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="options.js?v=202610090615"></script>
-  <script src="ui.js?v=202610090615"></script>
-  <script src="validation.js?v=202610090615"></script>
-  <script src="filters.js?v=202610090615"></script>
-  <script src="segments.js?v=202610090615"></script>
-  <script src="picker.js?v=202610090615"></script>
-  <script src="merge.js?v=202610090615"></script>
-  <script src="persons.js?v=202610090615"></script>
-  <script src="export.js?v=202610090615"></script>
-  <script src="import.js?v=202610090615"></script>
-  <script src="mfa.js?v=202610090615"></script>
-  <script src="staff.js?v=202610090615"></script>
-  <script src="ua-map.js?v=202610090615"></script>
-  <script src="dashboard.js?v=202610090615"></script>
-  <script src="journal.js?v=202610090615"></script>
-  <script src="cabinet.js?v=202610090615"></script>
-  <script src="nav.js?v=202610090615"></script>
-  <script src="app.js?v=202610090615"></script>
+  <script src="options.js?v=202610090619"></script>
+  <script src="ui.js?v=202610090619"></script>
+  <script src="validation.js?v=202610090619"></script>
+  <script src="filters.js?v=202610090619"></script>
+  <script src="segments.js?v=202610090619"></script>
+  <script src="picker.js?v=202610090619"></script>
+  <script src="merge.js?v=202610090619"></script>
+  <script src="persons.js?v=202610090619"></script>
+  <script src="export.js?v=202610090619"></script>
+  <script src="import.js?v=202610090619"></script>
+  <script src="mfa.js?v=202610090619"></script>
+  <script src="staff.js?v=202610090619"></script>
+  <script src="ua-map.js?v=202610090619"></script>
+  <script src="dashboard.js?v=202610090619"></script>
+  <script src="cabinet.js?v=202610090619"></script>
+  <script src="nav.js?v=202610090619"></script>
+  <script src="app.js?v=202610090619"></script>
 </body>
 </html>

@@ -411,10 +411,20 @@ window.Persons = (() => {
     });
     ['f-has_disability', 'f-mp_relation', 'f-mp_unit', 'f-military_status', 'f-wounded'].forEach((id) =>
       $(id).addEventListener('change', updateVisibility));
-    document.querySelectorAll('.qchips .qchip').forEach((b) => b.addEventListener('click', () => {
+    document.querySelectorAll('.qchips .qchip[data-q]').forEach((b) => b.addEventListener('click', () => {
       Filters.setQuality(Filters.getQuality() === b.dataset.q ? '' : b.dataset.q);
     }));
     $('reset-all').addEventListener('click', resetAll);
+    // Модуль: 200 / 300 / Діти МП — швидкий перемикач фільтра «Програми ГО» (можна кілька; «Усі» — зняти)
+    document.querySelectorAll('.modchip').forEach((b) => b.addEventListener('click', () => {
+      const id = modId(b.dataset.mod);
+      if (!b.dataset.mod) { Filters.setPrograms([]); return; }
+      if (!id) return;
+      const cur = new Set(Filters.getPrograms());
+      cur.has(id) ? cur.delete(id) : cur.add(id);
+      Filters.setPrograms([...cur]);
+    }));
+    document.addEventListener('filters-changed', syncModChips);
     document.querySelectorAll('.lvchip').forEach((b) => b.addEventListener('click', () => {
       level = b.dataset.level; page = 1;
       if (currentSearch()) levelPickedInSearch = true;   // обрали вручну під час пошуку — поважаємо вибір
@@ -540,6 +550,27 @@ window.Persons = (() => {
     return pick(mainIds) || (pick(programIds) ? 'mlinked' : '');
   }
 
+  // Модулі: кнопки над таблицею і лічильники (з урахуванням інших фільтрів і рівня карток)
+  const modId = (name) => (name ? [...programs].find(([, n]) => n === name)?.[0] ?? null : null);
+  function syncModChips() {
+    const sel = new Set(Filters.getPrograms());
+    document.querySelectorAll('.modchip').forEach((b) => {
+      const id = modId(b.dataset.mod);
+      b.setAttribute('aria-pressed', String(b.dataset.mod ? sel.has(id) : !sel.size));
+    });
+  }
+  async function loadModuleCounts() {
+    syncModChips();
+    const col = level === 'main' ? 'main_program_ids' : level === 'extra' ? 'linked_program_ids' : 'program_ids';
+    await Promise.all([...document.querySelectorAll('.modchip')].filter((b) => b.dataset.mod).map(async (b) => {
+      const id = modId(b.dataset.mod); const out = b.querySelector('b');
+      if (!id) { b.hidden = true; return; }
+      const { query } = await buildQuery('id', { count: 'exact', head: true }, ['level', 'program_ids']);
+      const { count } = await query.overlaps(col, [id]);
+      out.textContent = count ?? 0;
+    }));
+  }
+
   // Рівні карток: лічильники і перемикач
   async function loadLevelCounts() {
     const cnt = async (v) => {
@@ -583,7 +614,7 @@ window.Persons = (() => {
     show('qc-ok', ok);
     show('qc-warn', all !== null && crit !== null && ok !== null ? Math.max(0, all - crit - ok) : null);
     const cur = Filters.getQuality();
-    document.querySelectorAll('.qchips .qchip').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.q === cur)));
+    document.querySelectorAll('.qchips .qchip[data-q]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.q === cur)));
   }
 
   // Шукають конкретну людину — її роль (основна чи зв’язана) наперед невідома, тож під час пошуку
@@ -601,6 +632,7 @@ window.Persons = (() => {
     $('reset-all').hidden = !hasSelection();
     loadQualityCounts().catch((e) => console.error(e));
     loadLevelCounts().catch((e) => console.error(e));
+    loadModuleCounts().catch((e) => console.error(e));
     let query;
     try {
       ({ query } = await buildQuery(

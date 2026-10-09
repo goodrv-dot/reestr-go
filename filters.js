@@ -9,6 +9,16 @@ window.Filters = (() => {
   let preset = null;   // відбір за списком осіб із дашборду: { ids: [...], label: '…' }
   const $ = (id) => document.getElementById(id);
 
+  // Поля для фільтра за датою (швидкий рядок над таблицею)
+  const DATE_FIELDS = [
+    { value: 'created_at', label: 'Додано в реєстр' },
+    { value: 'death_date', label: 'Дата загибелі / смерті' },
+    { value: 'burial_date', label: 'Дата поховання' },
+    { value: 'wound_date', label: 'Дата поранення' },
+    { value: 'birth_date', label: 'Дата народження' }
+  ];
+  const fmtD = (iso) => (iso ? iso.split('-').reverse().join('.') : '');
+
   function buildDefs({ regions, cells, programs }) {
     const toOpts = (m) => [...m].map(([id, name]) => ({ value: String(id), label: name }));
     const regionOpts = toOpts(regions);
@@ -25,6 +35,7 @@ window.Filters = (() => {
         { value: 'main', label: 'Основні картки (з основного списку)' },
         { value: 'extra', label: 'Додаткові картки родичів' }] },
       { key: 'program_ids', label: 'Програми ГО', type: 'multi', op: 'overlaps', options: toOpts(programs) },
+      { key: 'date_range', label: 'Дата', type: 'daterange', quick: true, fields: DATE_FIELDS },
       { key: 'cell_id', label: 'Осередок ГО', type: 'multi', op: 'in', options: toOpts(cells) },
 
       { group: 'Категорії' },
@@ -77,6 +88,7 @@ window.Filters = (() => {
         panel.appendChild(grid);
         return;
       }
+      if (d.quick) { const q = $('quick-date'); if (q) { q.appendChild(buildControl(d)); return; } }
       grid.appendChild(buildControl(d));
     });
 
@@ -146,6 +158,22 @@ window.Filters = (() => {
       sel.addEventListener('change', changed);
     }
 
+    if (d.type === 'daterange') {
+      wrap.classList.add('filter-daterange');
+      wrap.innerHTML = `<span class="muted qchips-label">Період:</span>
+        <select data-r="field" aria-label="Яка дата"></select>
+        <span class="muted">з</span><input type="date" data-r="from" aria-label="Дата з">
+        <span class="muted">по</span><input type="date" data-r="to" aria-label="Дата по">
+        <button type="button" class="btn-link" data-r="clear" hidden>✕ скинути</button>`;
+      const sel = wrap.querySelector('select');
+      d.fields.forEach((f) => sel.add(new Option(f.label, f.value)));
+      const sync = () => { wrap.querySelector('[data-r="clear"]').hidden = !(wrap.querySelector('[data-r="from"]').value || wrap.querySelector('[data-r="to"]').value); };
+      wrap.querySelectorAll('select, input').forEach((i) => i.addEventListener('change', () => { sync(); changed(); }));
+      wrap.querySelector('[data-r="clear"]').addEventListener('click', () => {
+        wrap.querySelector('[data-r="from"]').value = ''; wrap.querySelector('[data-r="to"]').value = ''; sync(); changed();
+      });
+    }
+
     if (d.type === 'range') {
       const id = 'flt-' + d.key;
       wrap.innerHTML = `<span class="filter-label" id="${id}-l"></span>
@@ -185,6 +213,7 @@ window.Filters = (() => {
     const out = {};
     defs.filter((d) => d.key).forEach((d) => {
       const wrap = document.querySelector(`.filter[data-key="${d.key}"]`);
+      if (!wrap) return;
       if (d.type === 'multi') {
         const v = [...wrap.querySelectorAll('.ms-list input:checked')].map((c) => c.value);
         if (v.length) out[d.key] = v;
@@ -198,6 +227,10 @@ window.Filters = (() => {
         const from = wrap.querySelector('[data-r="from"]').value;
         const to = wrap.querySelector('[data-r="to"]').value;
         if (from !== '' || to !== '') out[d.key] = { from: from === '' ? null : Number(from), to: to === '' ? null : Number(to) };
+      } else if (d.type === 'daterange') {
+        const field = wrap.querySelector('[data-r="field"]').value;
+        const from = wrap.querySelector('[data-r="from"]').value, to = wrap.querySelector('[data-r="to"]').value;
+        if (from || to) out[d.key] = { field, from: from || null, to: to || null };
       }
     });
     return out;
@@ -212,6 +245,8 @@ window.Filters = (() => {
     document.querySelectorAll('#filters-panel .filter').forEach((w) => { if (w.querySelector('.ms-value')) updateSummary(w); });
     document.querySelectorAll('#filters-panel select').forEach((s) => { s.value = ''; });
     document.querySelectorAll('#filters-panel .range input').forEach((i) => { i.value = ''; });
+    document.querySelectorAll('.filter-daterange input').forEach((i) => { i.value = ''; });
+    document.querySelectorAll('.filter-daterange [data-r="clear"]').forEach((b) => { b.hidden = true; });
     changed();
   }
 
@@ -245,6 +280,10 @@ window.Filters = (() => {
       } else if (d.key === 'age') {
         if (val.from !== null) query = query.gte('age', val.from);
         if (val.to !== null) query = query.lte('age', val.to);
+      } else if (d.key === 'date_range') {
+        const f = DATE_FIELDS.some((x) => x.value === val.field) ? val.field : 'created_at';
+        if (val.from) query = query.gte(f, val.from);
+        if (val.to) query = f === 'created_at' ? query.lt(f, nextDay(val.to)) : query.lte(f, val.to);
       } else if (d.key === 'child_age') {
         const ids = await personsWithChildAge(db, val.from ?? 0, val.to ?? 17);
         query = query.in('id', ids.length ? ids : [NONE]);
@@ -258,6 +297,8 @@ window.Filters = (() => {
     }
     return { query };
   }
+
+  const nextDay = (iso) => { const t = new Date(iso + 'T00:00:00Z'); t.setUTCDate(t.getUTCDate() + 1); return t.toISOString().slice(0, 10); };
 
   // Діти віком від..до повних років: дата народження у проміжку
   async function personsWithChildAge(db, from, to) {
@@ -286,6 +327,10 @@ window.Filters = (() => {
       else if (d.type === 'select') text = (d.options.find((o) => o.value === val) || {}).label || val;
       else if (d.type === 'range') {
         text = [val.from !== null ? `від ${val.from}` : '', val.to !== null ? `до ${val.to}` : ''].filter(Boolean).join(' ') + ' років';
+      } else if (d.type === 'daterange') {
+        const f = (d.fields.find((x) => x.value === val.field) || {}).label || '';
+        out.push(`${f}: ` + [val.from ? `з ${fmtD(val.from)}` : '', val.to ? `по ${fmtD(val.to)}` : ''].filter(Boolean).join(' '));
+        return;
       }
       out.push(`${d.label}: ${text}`);
     });
@@ -303,6 +348,16 @@ window.Filters = (() => {
     const sel = document.getElementById('flt-quality');
     return sel ? sel.value : '';
   }
+
+  // Швидкий вибір модуля (кнопки 200 / 300 / Діти МП над таблицею) — це той самий фільтр «Програми ГО»
+  function setPrograms(ids) {
+    const wrap = document.querySelector('.filter[data-key="program_ids"]');
+    if (!wrap) return;
+    const set = new Set(ids.map(String));
+    wrap.querySelectorAll('.ms-list input').forEach((c) => { c.checked = set.has(c.value); });
+    updateSummary(wrap); changed();
+  }
+  function getPrograms() { return (values().program_ids || []).map(Number); }
 
   // Поточний стан усіх фільтрів (для сегментів)
   function getState() { return values(); }
@@ -325,6 +380,11 @@ window.Filters = (() => {
       } else if (d.type === 'range') {
         wrap.querySelector('[data-r="from"]').value = v && v.from !== null ? v.from : '';
         wrap.querySelector('[data-r="to"]').value = v && v.to !== null ? v.to : '';
+      } else if (d.type === 'daterange') {
+        if (v && v.field) wrap.querySelector('[data-r="field"]').value = v.field;
+        wrap.querySelector('[data-r="from"]').value = (v && v.from) || '';
+        wrap.querySelector('[data-r="to"]').value = (v && v.to) || '';
+        wrap.querySelector('[data-r="clear"]').hidden = !(v && (v.from || v.to));
       }
     });
     changed();
@@ -348,5 +408,5 @@ window.Filters = (() => {
     if (preset) chip.querySelector('span').textContent = preset.label;
   }
 
-  return { init, apply, activeCount, reset, describe, setQuality, getQuality, getState, setState, setPreset, clearPreset };
+  return { init, apply, activeCount, reset, describe, setQuality, getQuality, getState, setState, setPreset, clearPreset, setPrograms, getPrograms };
 })();

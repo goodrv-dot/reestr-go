@@ -89,23 +89,37 @@ window.Importer = (() => {
   // ============================================================
   const TEMPLATES = [
     {
+      id: 'fallen_200',
+      label: 'Загиблі (200) — журнал',
+      program: 'Супровід родин загиблих (200)',
+      detect: (hdr) => hdr.some((h) => /отримувач сповіщення/i.test(clean(h))) && hdr.some((h) => /дата загибелі/i.test(clean(h))),
+      parse: parse200
+    },
+    {
+      id: 'wounded_300',
+      label: 'Поранені (300) — журнал',
+      program: 'Супровід поранених (300)',
+      detect: (hdr) => hdr.some((h) => /контакти родичів/i.test(clean(h))) && hdr.some((h) => /дата поранення/i.test(clean(h))),
+      parse: parse300
+    },
+    {
       id: 'kids_mp_v2',
-      label: 'Діти Морської піхоти — нова форма (ПІБ трьома полями, до 5 дітей)',
+      label: 'Діти МП — анкети, нова форма',
       program: 'Діти Морської піхоти',
       detect: (hdr) => hdr.some((h) => /^10\.11\s/.test(clean(h))),
       parse: parseKidsV2
     },
     {
       id: 'kids_mp',
-      label: 'Діти Морської піхоти (відповіді Google Форми, стара форма)',
+      label: 'Діти МП — анкети, стара форма',
       program: 'Діти Морської піхоти',
       detect: (hdr) => !hdr.some((h) => /^10\.11\s/.test(clean(h))) && hdr.some((h) => clean(h).startsWith('10.')) && hdr.some((h) => /дитин/i.test(clean(h))),
       parse: parseKids
-    }
-    ,
+    },
     {
       id: 'fallen_200_v2',
       label: 'Загиблі (200) — новий шаблон журналу',
+      hidden: true,   // старий експорт «Журнал 200/300» — у списку не показуємо, але файл розпізнається сам
       program: 'Супровід родин загиблих (200)',
       detect: (hdr) => hdr.some((h) => /^загиблий — прізвище/i.test(clean(h))),
       parse: (rows, hdr, ctx) => { const a = adapt200(rows, hdr); return parse200(a.rows, a.hdr, ctx); }
@@ -113,23 +127,10 @@ window.Importer = (() => {
     {
       id: 'wounded_300_v2',
       label: 'Поранені (300) — новий шаблон журналу',
+      hidden: true,   // старий експорт «Журнал 200/300» — у списку не показуємо, але файл розпізнається сам
       program: 'Супровід поранених (300)',
       detect: (hdr) => hdr.some((h) => /^поранений — прізвище/i.test(clean(h))),
       parse: (rows, hdr, ctx) => { const a = adapt300(rows, hdr); return parse300(a.rows, a.hdr, ctx); }
-    },
-    {
-      id: 'fallen_200',
-      label: 'Загиблі (200) — сповіщення родин',
-      program: 'Супровід родин загиблих (200)',
-      detect: (hdr) => hdr.some((h) => /отримувач сповіщення/i.test(clean(h))) && hdr.some((h) => /дата загибелі/i.test(clean(h))),
-      parse: parse200
-    },
-    {
-      id: 'wounded_300',
-      label: 'Поранені (300)',
-      program: 'Супровід поранених (300)',
-      detect: (hdr) => hdr.some((h) => /контакти родичів/i.test(clean(h))) && hdr.some((h) => /дата поранення/i.test(clean(h))),
-      parse: parse300
     }
   ];
 
@@ -1070,7 +1071,7 @@ window.Importer = (() => {
   function init() {
     const sel = $('imp-template');
     sel.innerHTML = '';
-    TEMPLATES.forEach((t) => sel.add(new Option(t.label, t.id)));
+    TEMPLATES.filter((t) => !t.hidden).forEach((t) => sel.add(new Option(t.label, t.id)));
 
     $('imp-file').addEventListener('change', onFile);
     $('imp-form-btn').addEventListener('click', onForm);
@@ -1166,7 +1167,7 @@ window.Importer = (() => {
         return;
       }
       template = other;
-      $('imp-template').value = other.id;
+      if (!other.hidden) $('imp-template').value = other.id;
       autoNote = `Шаблон визначено автоматично: «${other.label}». `;
     }
     const ctx = Persons.ctx();

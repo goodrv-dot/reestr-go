@@ -1060,3 +1060,10 @@ body.read-only .sum-cell.is-ro { cursor: default; }
 .quick-date .filter-daterange { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
 .quick-date .filter-daterange select, .quick-date .filter-daterange input { font: inherit; font-size: 0.9rem; padding: 0.25rem 0.4rem; border: 1px solid var(--line); border-radius: 8px; background: var(--white, #fff); color: inherit; }
 .tab-ext { text-decoration: none; display: inline-flex; align-items: center; }
+/* Особисті мітки адміністратора */
+.mark-dots { display: inline-flex; gap: 0.3rem; margin-top: 0.3rem; }
+.mark-dot { width: 0.95rem; height: 0.95rem; border-radius: 50%; padding: 0; cursor: pointer;
+  border: 2px solid var(--mk); background: transparent; opacity: 0.45; }
+.mark-dot:hover { opacity: 0.9; }
+.mark-dot.is-on { background: var(--mk); opacity: 1; }
+.mark-dot:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }

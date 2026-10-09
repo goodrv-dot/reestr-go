@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Unbounded:wght@600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=202610091223">
+  <link rel="stylesheet" href="style.css?v=202610091238">
 </head>
 <body>
 
@@ -356,6 +356,10 @@
           <select id="cab-status" aria-label="Статус"></select>
           <select id="cab-exec" aria-label="Виконавець"></select>
           <select id="cab-resp" aria-label="Відповідальний"></select>
+          <select id="cab-mark" aria-label="Мої мітки" hidden>
+            <option value="">Усі мітки</option><option value="any">● з будь-якою міткою</option><option value="none">○ без міток</option>
+            <option value="1">🔴 червона</option><option value="2">🟠 помаранчева</option><option value="3">🟡 жовта</option><option value="4">🟢 зелена</option><option value="5">🔵 синя</option>
+          </select>
           <select id="cab-cell" aria-label="Осередок"></select>
           <label class="cab-sort-wrap"><span class="muted">Порядок:</span>
             <select id="cab-sort" aria-label="Порядок справ">
@@ -744,6 +748,7 @@
           <li><b>Зведення справи — компактний варіант</b> внизу — те саме, що у справі вгорі, але дрібно й на одному екрані, як рядок журналу: шапка, усі розділи, родина й примітки. Жовте — незаповнене, червоне — незаповнене важливе чи прострочене. Натисніть на будь-яке поле — і правте просто там. Обидва подання працюють з одними даними: змінили в одному — оновилось в іншому.</li>
           <li><b>+ Нова справа</b> — завести загиблого чи пораненого прямо в кабінеті, без таблиці: досить прізвища та імені. Натискайте «Створити справу» один раз: поки справа зберігається, кнопка неактивна, а повторне створення тієї самої справи система не допустить.</li>
           <li>Адміністратор у «Налаштування полів» змінює назви, розділ і порядок полів, варіанти списків і правила нагадувань, додає нові поля — докладно в розділі <a href="#m-fields">«Налаштування полів»</a>.</li>
+          <li><b>Мої мітки</b> (адміністратор): під ім’ям у списку справ — п’ять кольорових кружечків. Клік ставить або знімає мітку; можна кілька кольорів одразу або жодного. Що означає кожен колір — вирішуєте самі. Мітки особисті: їх бачите лише ви, оператори й керівники — ні, у Google-дзеркало вони не потрапляють. Фільтр «Усі мітки» поруч із «Відповідальний»: конкретний колір, «з будь-якою міткою» або «без міток».</li>
           <li><b>Кілька справ одразу</b> (адміністратор): кнопка «☑ Кілька справ» додає галочки в список. Відмітьте справи (або «усі на сторінці» / «усі за фільтром»), оберіть виконавця, відповідального, осередок чи статус і натисніть «Застосувати», потім «Так, змінити (N)» — підтвердження прямо на панелі. Під панеллю видно, що відбувається: «Збережено … з …», «✓ Оновлено справ» або причину помилки. Кожна зміна потрапляє в історію справи.</li>
           <li><b>Навантаження</b> (адміністратор): скільки відкритих справ у кожного виконавця й осередку, скільки прострочено, зі статусом «Проблема», без контактної особи, без виконавця. Клік по рядку — ці справи в списку.</li>
           <li>Унизу довгої справи теж є «Назад до справ» — не треба гортати вгору (зручно на телефоні).</li>
@@ -1204,24 +1209,24 @@
   <p id="loading" class="loading">Завантаження…</p>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="config.js?v=202610091223"></script>
+  <script src="config.js?v=202610091238"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="options.js?v=202610091223"></script>
-  <script src="ui.js?v=202610091223"></script>
-  <script src="validation.js?v=202610091223"></script>
-  <script src="filters.js?v=202610091223"></script>
-  <script src="segments.js?v=202610091223"></script>
-  <script src="picker.js?v=202610091223"></script>
-  <script src="merge.js?v=202610091223"></script>
-  <script src="persons.js?v=202610091223"></script>
-  <script src="export.js?v=202610091223"></script>
-  <script src="import.js?v=202610091223"></script>
-  <script src="mfa.js?v=202610091223"></script>
-  <script src="staff.js?v=202610091223"></script>
-  <script src="ua-map.js?v=202610091223"></script>
-  <script src="dashboard.js?v=202610091223"></script>
-  <script src="cabinet.js?v=202610091223"></script>
-  <script src="nav.js?v=202610091223"></script>
-  <script src="app.js?v=202610091223"></script>
+  <script src="options.js?v=202610091238"></script>
+  <script src="ui.js?v=202610091238"></script>
+  <script src="validation.js?v=202610091238"></script>
+  <script src="filters.js?v=202610091238"></script>
+  <script src="segments.js?v=202610091238"></script>
+  <script src="picker.js?v=202610091238"></script>
+  <script src="merge.js?v=202610091238"></script>
+  <script src="persons.js?v=202610091238"></script>
+  <script src="export.js?v=202610091238"></script>
+  <script src="import.js?v=202610091238"></script>
+  <script src="mfa.js?v=202610091238"></script>
+  <script src="staff.js?v=202610091238"></script>
+  <script src="ua-map.js?v=202610091238"></script>
+  <script src="dashboard.js?v=202610091238"></script>
+  <script src="cabinet.js?v=202610091238"></script>
+  <script src="nav.js?v=202610091238"></script>
+  <script src="app.js?v=202610091238"></script>
 </body>
 </html>

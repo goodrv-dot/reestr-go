@@ -290,7 +290,7 @@ window.Importer = (() => {
   // ---------- Шаблон «200» ----------
   function parse200(rows, hdr, ctx) {
     const c = {
-      cell: col(hdr, byName(/^регіон$/)), fallen: col(hdr, byName(/^прізвище, імя/)),
+      cell: col(hdr, byName(/^регіон$/)), fallen: col(hdr, byName(/^прізвище\s*,\s*імя/)),
       callsign: col(hdr, byName(/^позивний/)), fbd: col(hdr, byName(/^дата народження/)),
       fdd: col(hdr, byName(/^дата загибелі/)), vch: col(hdr, byName(/^військова частина/)),
       brigade: col(hdr, byName(/^бригада/)), rec: col(hdr, byName(/^отримувач сповіщення/)),

@@ -36,7 +36,7 @@ window.Cabinet = (() => {
 
   function init(client, userId, admin) {
     db = client; me = userId; isAdmin = admin;
-    document.querySelectorAll('.cab-mod').forEach((b) => b.addEventListener('click', () => { module = b.dataset.m; quick = ''; preset = null; picked.clear(); load(); }));
+    document.querySelectorAll('.cab-mod').forEach((b) => b.addEventListener('click', () => { module = b.dataset.m; quick = ''; preset = null; picked.clear(); withClosed = false; load(); }));
     $('cab-preset-clear').addEventListener('click', () => { preset = null; render(); });
     try { $('cab-sort').value = localStorage.getItem('cab_sort') || 'new'; } catch { /* без сховища — типовий порядок */ }
     if (!$('cab-sort').value) $('cab-sort').value = 'new';
@@ -63,6 +63,9 @@ window.Cabinet = (() => {
   // Кілька завантажень можуть стартувати майже одночасно (вкладка + відновлення після F5) —
   // рахується лише найсвіжіше, старіші відкидаються, щоб список не задвоювався.
   let loadSeq = 0;
+  // Закриті справи («Не беремо в роботу», «Архів», «Документи ✅») не вантажимо одразу — їх тисячі,
+  // а працюють із відкритими. Довантажуємо, щойно знадобились: пошук, «Завершені», закритий статус, вибірка.
+  let withClosed = false, closedTotal = 0, closedFor = '';
   async function load() {
     const my = ++loadSeq;
     const A = acc();
@@ -84,11 +87,22 @@ window.Cabinet = (() => {
     defs = d.data || []; statuses = st.data || [];
     staff = new Map((ops.data || []).map((o) => [o.user_id, o.full_name]));
 
+    if (withClosed && closedFor !== module) withClosed = false;   // «закриті» довантажено для іншого модуля
+    closedFor = module;
+    const closedNames = statuses.filter((x) => x.closed).map((x) => x.name);
+    const inList = `(${closedNames.map((n) => `"${n.replace(/"/g, '')}"`).join(',')})`;
+    const skipClosed = !withClosed && closedNames.length;
+    if (skipClosed) {
+      const { count } = await db.from('cases').select('id', { count: 'exact', head: true }).eq('module', module).in('status', closedNames);
+      closedTotal = count || 0;
+    }
     const list = [];
     for (let from = 0; ; from += 1000) {
-      const { data, error } = await db.from('cases')
+      let q = db.from('cases')
         .select('*, person:persons!cases_person_id_fkey(id, last_name, first_name, patronymic, military_status, death_date, burial_date, wounded, wound_date, birth_date, callsign, burial_place, military_unit_code, mp_unit_id, region_id, settlement, phone, comment), case_values(stage_key, value)')
-        .eq('module', module).order('journal_id').range(from, from + 999);
+        .eq('module', module);
+      if (skipClosed) q = q.not('status', 'in', inList);
+      const { data, error } = await q.order('journal_id').range(from, from + 999);
       if (error) { console.error(error); $('cab-status-line').textContent = 'Не вдалося завантажити справи.'; return; }
       if (my !== loadSeq) return;
       list.push(...data);
@@ -97,12 +111,15 @@ window.Cabinet = (() => {
     // родина: перший пов’язаний родич (отримувач)
     const ids = list.map((c) => c.person_id);
     const kin = new Map();
-    for (let i = 0; i < ids.length; i += 150) {
-      const { data } = await db.from('military_relations')
+    const chunks = []; for (let i = 0; i < ids.length; i += 150) chunks.push(ids.slice(i, i + 150));
+    // родичів тягнемо паралельно порціями (по 4 запити одночасно), а не по черзі
+    for (let i = 0; i < chunks.length; i += 4) {
+      const res = await Promise.all(chunks.slice(i, i + 4).map((part) => db.from('military_relations')
         .select('id, related_person_id, relation_degree, created_at, person:persons!military_relations_person_id_fkey(id, last_name, first_name, patronymic, phone, settlement)')
-        .in('related_person_id', ids.slice(i, i + 150)).order('created_at');
-      (data || []).forEach((r) => { if (r.person) kin.set(r.related_person_id, [...(kin.get(r.related_person_id) || []), r]); });
+        .in('related_person_id', part).order('created_at')));
+      res.forEach(({ data }) => (data || []).forEach((r) => { if (r.person) kin.set(r.related_person_id, [...(kin.get(r.related_person_id) || []), r]); }));
     }
+    if (!skipClosed) closedTotal = 0;
     const sn = await db.from('case_seen').select('case_id, seen_at');
     // особисті кольорові мітки (лише адміністратор, кожен бачить свої)
     const mk = new Map();
@@ -436,6 +453,7 @@ window.Cabinet = (() => {
     const from = $('cab-from').value, to = $('cab-to').value, dk = dateKey();
     const stSel = $('cab-status').value;
     const showClosed = !!preset || quick === 'closed' || !!q || statuses.some((s) => s.name === stSel && s.closed);
+    if (showClosed && !withClosed && closedTotal) { withClosed = true; $('cab-status-line').textContent = 'Довантажуємо закриті справи…'; load(); }
     return cases.filter((c) => {
       if (preset && !preset.ids.has(c.id)) return false;
       if (!showClosed && isClosed(c)) return false;
@@ -503,7 +521,7 @@ window.Cabinet = (() => {
     if (sig !== lastSig) { page = 1; lastSig = sig; }
     const pages = Math.max(1, Math.ceil(list.length / PAGE)); if (page > pages) page = pages;
     const cnt = (f) => cases.filter((c) => !isClosed(c)).filter(f).length;
-    const closedN = cases.filter(isClosed).length;
+    const closedN = withClosed ? cases.filter(isClosed).length : closedTotal;
     $('cq-closed').textContent = closedN; $('cq-closed-btn').hidden = !closedN && quick !== 'closed';
     $('cq-mine').textContent = cnt((c) => c.executor_id === me);
     $('cq-overdue').textContent = cnt((c) => c.next && c.next.overdue);
@@ -1233,7 +1251,8 @@ window.Cabinet = (() => {
   async function openByJournal(jid) {
     module = jid.startsWith('300') ? '300' : '200';
     await load();
-    const c = cases.find((x) => x.journal_id === jid);
+    let c = cases.find((x) => x.journal_id === jid);
+    if (!c && !withClosed) { withClosed = true; await load(); c = cases.find((x) => x.journal_id === jid); }
     if (c) openCase(c.id);
     else Persons.toast(`Справу ${jid} не знайдено або немає доступу`);
   }
@@ -1342,7 +1361,7 @@ window.Cabinet = (() => {
 
   // Відкрити кабінет із готовою вибіркою справ (з дашборда)
   function openPreset(mod, ids, label) {
-    module = mod; quick = ''; preset = { ids: new Set(ids), label };
+    module = mod; quick = ''; preset = { ids: new Set(ids), label }; withClosed = true; closedFor = mod;
     ['cab-search', 'cab-status', 'cab-exec', 'cab-resp', 'cab-mark', 'cab-cell', 'cab-from', 'cab-to'].forEach((id) => { $(id).value = ''; });
     if (!$('cab-case').hidden) { $('cab-case').hidden = true; $('cab-list').hidden = false; current = null; }
     document.querySelector('.tab[data-tab="cabinet"]').click();

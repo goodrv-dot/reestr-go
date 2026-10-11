@@ -51,6 +51,7 @@ function showApp(operator, userId) {
       if (operator.role === 'admin') Staff.init(db, userId);
       Segments.init(db, userId, operator.role === 'admin');
       Cabinet.init(db, userId, operator.role === 'admin');
+      Feedback.init(db, userId, operator.role === 'admin');
       window.__exp = true;
     }
     const prm = new URLSearchParams(location.search);

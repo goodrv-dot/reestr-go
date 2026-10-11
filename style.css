@@ -1080,3 +1080,25 @@ body.read-only .sum-cell.is-ro { cursor: default; }
 .mark-ms { flex: none; min-width: max-content; }
 .mark-ms summary { min-height: 100%; }
 .cab-filters .mark-ms input { flex: none; padding: 0; width: auto; }
+/* «Пропозиції» — чат щодо програми */
+.topbar-user .fb-btn { margin-right: 0.5rem; }
+.fb-dialog { max-width: 44rem; }
+.fb-form { display: flex; gap: 0.5rem; align-items: flex-end; margin: 0.5rem 0 0.75rem; }
+.fb-form textarea { flex: 1; font: inherit; padding: 0.5rem; border: 1px solid var(--line); border-radius: var(--radius-field); resize: vertical; }
+.fb-tools { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem; }
+.fb-tools select { font: inherit; padding: 0.25rem 0.4rem; }
+.fb-list { max-height: 55vh; overflow: auto; display: flex; flex-direction: column; gap: 0.6rem; padding-right: 0.25rem; }
+.fb-item { border: 1px solid var(--line); border-radius: 10px; padding: 0.6rem 0.8rem; background: var(--white); }
+.fb-item.is-mine { border-left: 4px solid var(--sea); }
+.fb-item.is-unseen { box-shadow: 0 0 0 2px #f2b705 inset; }
+.fb-item header { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: baseline; font-size: 0.92rem; }
+.fb-body { margin: 0.35rem 0 0; white-space: pre-wrap; }
+.fb-reply { margin: 0.45rem 0 0; padding: 0.4rem 0.6rem; background: #eef4f8; border-radius: 8px; white-space: pre-wrap; }
+.fb-st { margin-left: auto; font-size: 0.78rem; font-weight: 600; padding: 0.1rem 0.5rem; border-radius: 999px; background: #e6eaee; }
+.fb-st-new { background: #fde8c4; color: #7a4d00; }
+.fb-st-work { background: #dbe9f6; color: #174a78; }
+.fb-st-done { background: #d9efe2; color: #1f5f3c; }
+.fb-st-no { background: #ececec; color: #5b6875; }
+.fb-actions { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: flex-start; margin-top: 0.5rem; }
+.fb-actions textarea { flex: 1 1 16rem; font: inherit; font-size: 0.92rem; padding: 0.35rem; border: 1px solid var(--line); border-radius: var(--radius-field); }
+.fb-actions select { font: inherit; padding: 0.3rem; }

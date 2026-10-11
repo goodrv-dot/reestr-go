@@ -1253,6 +1253,14 @@ window.Cabinet = (() => {
       const r = await db.rpc('robot_alert');
       if (r.data) notes = [{ kind: 'robot', label: r.data }, ...notes];
     }
+    // «Пропозиції»: адміністратору — нові, автору — відповіді на його пропозиції
+    if (window.Feedback) {
+      const fb = await Feedback.counts().catch(() => ({ fresh: 0, replies: 0 }));
+      if (fb.fresh) notes.push({ kind: 'fb', label: `Нових пропозицій: ${fb.fresh}` });
+      if (fb.replies) notes.push({ kind: 'fb', label: `Відповіли на вашу пропозицію: ${fb.replies}` });
+      Feedback.refreshDot();
+    }
+    appBadge(notes.length);
     const cnt = (k) => notes.filter((x) => x.kind === k).length;
     tabEl.textContent = 'Кабінет';
     const pill = (n, cls, title) => { if (!n) return; const b = document.createElement('span'); b.className = 'tab-badge ' + cls; b.textContent = n; b.title = title; tabEl.append(' ', b); };
@@ -1273,13 +1281,48 @@ window.Cabinet = (() => {
     }
     if (!$('bell-panel').hidden) renderBell();
   }
+  // Число сповіщень — на ярлику: у назві вкладки, на значку вкладки і (для встановленого застосунку) на іконці
+  const BASE_TITLE = document.title;
+  let favBase = null;
+  function appBadge(n) {
+    document.title = n ? `(${n > 99 ? '99+' : n}) ${BASE_TITLE}` : BASE_TITLE;
+    try { if ('setAppBadge' in navigator) (n ? navigator.setAppBadge(n) : navigator.clearAppBadge()).catch(() => {}); } catch { /* немає підтримки */ }
+    const link = document.querySelector('link[rel="icon"][sizes="32x32"]'); if (!link) return;
+    const draw = (img) => {
+      const c = document.createElement('canvas'); c.width = c.height = 32; const g = c.getContext('2d');
+      g.drawImage(img, 0, 0, 32, 32);
+      if (n) {
+        g.fillStyle = '#d64545'; g.beginPath(); g.arc(22, 10, 10, 0, Math.PI * 2); g.fill();
+        g.fillStyle = '#fff'; g.font = 'bold 13px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+        g.fillText(n > 9 ? '9+' : String(n), 22, 11);
+      }
+      // svg-іконку прибираємо, щоб браузер показав саме намальований значок
+      document.querySelectorAll('link[rel="icon"][type="image/svg+xml"]').forEach((l) => l.remove());
+      link.href = c.toDataURL('image/png');
+    };
+    if (favBase) { draw(favBase); return; }
+    const img = new Image(); img.onload = () => { favBase = img; draw(img); }; img.src = 'icons/favicon-32.png';
+  }
+
   function renderBell() {
     const p = $('bell-panel'); p.innerHTML = '<h2>Сповіщення</h2>';
-    if (!notes.length) { p.insertAdjacentHTML('beforeend', '<p class="muted">Нічого нового: прострочених дій і нових справ немає.</p>'); return; }
+    if (!notes.length) { p.insertAdjacentHTML('beforeend', '<p class="muted">Нічого нового: прострочених дій, нових справ і відповідей немає.</p>'); return; }
     notes.filter((x) => x.kind === 'robot').forEach((x) => {
       const h = document.createElement('h3'); h.className = 'n-over'; h.textContent = '⚠ Робот-дзеркало'; p.appendChild(h);
       const m = document.createElement('p'); m.className = 'bell-robot'; m.textContent = x.label + '. Дані в базі в порядку; не оновлюється лише Google-таблиця. Напишіть розробнику.'; p.appendChild(m);
     });
+    const fbn = notes.filter((x) => x.kind === 'fb');
+    if (fbn.length) {
+      const h = document.createElement('h3'); h.className = 'n-new'; h.textContent = '💬 Пропозиції'; p.appendChild(h);
+      const ul = document.createElement('ul');
+      fbn.forEach((x) => {
+        const li = document.createElement('li'); const b = document.createElement('button'); b.type = 'button'; b.className = 'bell-item';
+        b.innerHTML = '<b></b>'; b.firstChild.textContent = x.label;
+        b.onclick = () => { p.hidden = true; Feedback.open(); };
+        li.appendChild(b); ul.appendChild(li);
+      });
+      p.appendChild(ul);
+    }
     ['overdue', 'today', 'new', 'assigned'].forEach((k) => {
       const list = notes.filter((x) => x.kind === k); if (!list.length) return;
       const h = document.createElement('h3'); h.className = NOTE[k][1]; h.textContent = `${NOTE[k][0]} — ${list.length}`; p.appendChild(h);

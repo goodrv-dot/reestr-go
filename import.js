@@ -871,6 +871,13 @@ window.Importer = (() => {
     return out;
   }
 
+  // «Хлопчик», «хлопець», «син» → Хлопець; «Дівчинка», «дівчина», «донька» → Дівчина
+  function childSex(raw) {
+    const s = clean(raw).toLowerCase();
+    if (/^(хлоп|син|чол)/.test(s)) return 'Хлопець';
+    if (/^(дівч|доньк|дочк|жін)/.test(s)) return 'Дівчина';
+    return 'Не вказано';
+  }
   function makeChild(name, bd, sex, interests, needs, ts, rec) {
     const { iso, fix } = toDateNote(bd);
     const nm = clean(name);
@@ -890,7 +897,7 @@ window.Importer = (() => {
     return {
       full_name: V.normalizeName(nm, false).value || nm || null,
       birth_date: iso,
-      sex: ['Хлопець', 'Дівчина'].includes(clean(sex)) ? clean(sex) : 'Не вказано',
+      sex: childSex(sex),
       interests: known,
       special_needs: /^(ні|немає|нема|-)\.?$/i.test(nd) || !nd ? null : nd
     };
@@ -989,7 +996,7 @@ window.Importer = (() => {
           .select('related_full_name, related_birth_date, related_death_date, related_burial_date, related_burial_place, related_callsign, related_unit_id, related_unit_other, related_unit_code')
           .eq('related_status', 'Загиблий').ilike('related_full_name', `${p.last_name}%`).limit(20),
         db.from('persons')
-          .select('id, phone, extra_phones, name_check, is_extra, last_name, first_name, patronymic, email, region_id, settlement, cell_id, birth_date, wound_date, death_date, burial_date, consent_pd_at, consent_messages, sex, children(id, birth_date, full_name, rep_relation), military_relations!military_relations_person_id_fkey(id, related_full_name, relation_degree), person_programs(program_id, role)')
+          .select('id, phone, extra_phones, name_check, is_extra, last_name, first_name, patronymic, email, region_id, settlement, cell_id, birth_date, wound_date, death_date, burial_date, consent_pd_at, consent_messages, sex, children(id, birth_date, full_name, rep_relation, sex), military_relations!military_relations_person_id_fkey(id, related_full_name, relation_degree), person_programs(program_id, role)')
           .eq('military_status', 'Загиблий').ilike('last_name', `${p.last_name.slice(0, 4)}%`).limit(20)
       ]);
       const same = (n, bd) => letters(n) === letters(fullName) && (!bd || !p.birth_date || bd === p.birth_date);
@@ -1025,7 +1032,7 @@ window.Importer = (() => {
   async function matchExisting(list) {
     const { db } = Persons.ctx();
     await crossCheck200(list, db);
-    const COLS = 'id, journal, phone, extra_phones, name_check, is_extra, last_name, first_name, patronymic, email, region_id, settlement, cell_id, birth_date, consent_pd_at, consent_messages, sex, children(id, birth_date, full_name, rep_relation), military_relations!military_relations_person_id_fkey(id, related_full_name, relation_degree, related_death_date, related_burial_date, related_burial_place, related_callsign, related_unit_code, related_person_id), person_programs(program_id, role)';
+    const COLS = 'id, journal, phone, extra_phones, name_check, is_extra, last_name, first_name, patronymic, email, region_id, settlement, cell_id, birth_date, consent_pd_at, consent_messages, sex, children(id, birth_date, full_name, rep_relation, sex), military_relations!military_relations_person_id_fkey(id, related_full_name, relation_degree, related_death_date, related_burial_date, related_burial_place, related_callsign, related_unit_code, related_person_id), person_programs(program_id, role)';
     const allPhones = (r) => [r.person.phone, ...(r.person.extra_phones || [])].filter(Boolean);
     const phones = [...new Set(list.flatMap(allPhones))];
     const found = new Map();
@@ -1077,6 +1084,10 @@ window.Importer = (() => {
         }
         const newKids = r.children.filter((k) => !(ex.children || []).some((x) => x.birth_date === k.birth_date));
         r.info.push(newKids.length ? `Уже є в реєстрі: буде додано дітей — ${newKids.length}` : 'Уже є в реєстрі: нових дітей немає');
+        const kidFix = r.children.filter((k) => (ex.children || []).some((x) => x.birth_date === k.birth_date &&
+          ((!x.rep_relation && k.rep_relation) || ((!x.sex || x.sex === 'Не вказано') && k.sex !== 'Не вказано')))).length;
+        if (kidFix) r.info.push(`Буде доповнено дітей (стать, ким доводиться представник): ${kidFix}`);
+        if ((!ex.sex || ex.sex === 'Не вказано') && r.person.sex && r.person.sex !== 'Не вказано') r.info.push(`Буде доповнено стать представника: ${r.person.sex}`);
         const burialFix = r.relations.filter((rel) => rel.related_burial_date &&
           (ex.military_relations || []).some((x) => letters(x.related_full_name) === letters(rel.related_full_name) && !x.related_burial_date)).length;
         if (burialFix) r.info.push(`Буде доповнено дату поховання: ${burialFix}`);
@@ -1428,10 +1439,14 @@ window.Importer = (() => {
     // наявні діти: доповнюємо «ким представник доводиться дитині», якщо ще порожньо
     for (const k of r.children) {
       const old = (ex.children || []).find((x) => x.birth_date === k.birth_date);
-      if (old && old.id && !old.rep_relation && k.rep_relation) {
-        const { error } = await db.from('children').update({ rep_relation: k.rep_relation }).eq('id', old.id);
+      if (!old || !old.id) continue;
+      const cfix = {};
+      if (!old.rep_relation && k.rep_relation) cfix.rep_relation = k.rep_relation;
+      if ((!old.sex || old.sex === 'Не вказано') && k.sex && k.sex !== 'Не вказано') cfix.sex = k.sex;
+      if (Object.keys(cfix).length) {
+        const { error } = await db.from('children').update(cfix).eq('id', old.id);
         if (error) throw error;
-        old.rep_relation = k.rep_relation;
+        Object.assign(old, cfix);
       }
     }
     const rels = r.relations.filter((rel) => !(ex.military_relations || []).some((x) => letters(x.related_full_name) === letters(rel.related_full_name)));

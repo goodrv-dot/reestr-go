@@ -42,7 +42,7 @@ function showApp(operator, userId) {
   tabBtn('import').hidden = !A.import; tabBtn('cabinet').hidden = !hasCab;
   // перехід в ERP — лише для тих, хто має доступ «Реєстр» (і адміністраторів)
   const erp = $('erp-link'), erpUrl = window.APP_CONFIG.ERP_URL;
-  erp.hidden = !(erpUrl && A.registry);
+  erp.hidden = !erpUrl; // бачать усі співробітники
   if (!erp.hidden) erp.href = erpUrl;
   Persons.init(db, operator).then(() => {
     if (!window.__exp) {

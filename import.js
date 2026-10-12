@@ -764,7 +764,7 @@ window.Importer = (() => {
 
       if (rec._repRel) rec.children.forEach((k) => { k.rep_relation = rec._repRel; });
       keepRest(p, hdr.map((h) => clean(h)), r, new Set(Object.values(c).filter((i) => i >= 0)));
-      rec.programs.push(ctx.programByName(TEMPLATES[0].program));
+      rec.programs.push(ctx.programByName('Діти Морської піхоти'));   // явно: порядок шаблонів у списку може змінюватись
       p.has_children = rec.children.length ? 'Так' : 'Невідомо';
       out.push(rec);
 

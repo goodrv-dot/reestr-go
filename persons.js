@@ -326,6 +326,8 @@ window.Persons = (() => {
           <input id="c${n}-name" data-k="full_name"></div>
         <div class="field"><label for="c${n}-sex">Стать</label>
           <select id="c${n}-sex" data-k="sex"></select></div>
+        <div class="field"><label for="c${n}-rr">Ким доводиться представник</label>
+          <select id="c${n}-rr" data-k="rep_relation"></select></div>
         <div class="field field-span"><label for="c${n}-sn">Особливі потреби</label>
           <input id="c${n}-sn" data-k="special_needs" placeholder="Напр., потребує супроводу"></div>
       </div>
@@ -335,6 +337,8 @@ window.Persons = (() => {
     row.querySelector('[data-k="birth_date"]').value = c.birth_date || '';
     row.querySelector('[data-k="full_name"]').value = c.full_name || '';
     fillSelect(row.querySelector('[data-k="sex"]'), OPT.child_sex, c.sex || 'Не вказано');
+    const rr = row.querySelector('[data-k="rep_relation"]');
+    rr.add(new Option('Не вказано', '')); OPT.child_rep_relation.forEach((v) => rr.add(new Option(v, v))); rr.value = c.rep_relation || '';
     row.querySelector('[data-k="special_needs"]').value = c.special_needs || '';
     const ibox = row.querySelector('.child-interests');
     const have = new Set(c.interests || []);
@@ -1116,6 +1120,7 @@ window.Persons = (() => {
         birth_date: bd.value,
         full_name: name || null,
         sex: row.querySelector('[data-k="sex"]').value,
+        rep_relation: row.querySelector('[data-k="rep_relation"]').value || null,
         special_needs: row.querySelector('[data-k="special_needs"]').value.trim() || null,
         interests: [...row.querySelectorAll('.child-interests input:checked')].map((cb) => cb.value)
       });

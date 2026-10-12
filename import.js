@@ -232,19 +232,32 @@ window.Importer = (() => {
     return f ? f[0] : null;
   }
 
+  const OTHER_DEG = 'Інший член сім’ї / родич';
   function matchDegree(raw) {
-    const s = clean(raw).toLowerCase();
-    return OPT.relation_degree.find((d) => d.toLowerCase() === s) || null;
+    const s = clean(raw).toLowerCase().replace(/['ʼ`]/g, '’');
+    return OPT.relation_degree.find((d) => d.toLowerCase() === s) || detectDegree(s).degree || null;
+  }
+  // Ким представник доводиться дитині (анкета «Діти МП», питання 9) → значення довідника + стать представника
+  const REP_WORDS = [
+    [/^(мати|мама|матір)/i, 'Мати', 'Жіноча'], [/^(батько|тато|отець)/i, 'Батько', 'Чоловіча'],
+    [/^(баба|бабуся|бабця)/i, 'Баба', 'Жіноча'], [/^(дід|дідусь)/i, 'Дід', 'Чоловіча'],
+    [/^опікун/i, 'Опікун', null], [/^піклувальн/i, 'Піклувальник', null], [/^усинов/i, 'Усиновлювач', null]
+  ];
+  function matchRepRelation(raw) {
+    const s = clean(raw); if (!s) return { rel: null, sex: null };
+    const hit = REP_WORDS.find(([re]) => re.test(s));
+    return hit ? { rel: hit[1], sex: hit[2] } : { rel: 'Інший родич', sex: null, unknown: s };
   }
 
   // ---------- Розбір комірок з людьми (журнал «200») ----------
   // Як пишуть ступінь спорідненості → значення довідника
   const DEGREE_WORDS = [
-    [/^(мати|мама|матір|матері)$/i, 'Мати'], [/^(батько|тато|отець)$/i, 'Батько'],
-    [/^(дружина|жінка|вдова)$/i, 'Дружина'], [/^(чоловік)$/i, 'Чоловік'], [/^(син)$/i, 'Син'],
-    [/^(донька|дочка|доч)$/i, 'Донька'], [/^(брат)$/i, 'Брат'], [/^(сестра)$/i, 'Сестра'],
-    [/^(дід|дідусь)$/i, 'Дід'], [/^(баба|бабуся)$/i, 'Баба'], [/^(онук)$/i, 'Онук'], [/^(онука)$/i, 'Онука'],
-    [/^(тітка|тьотя|дядько|дядя|племінник|племінниця|свекруха|теща|тесть|свекор|невістка|зять|кум|кума|опікун|піклувальник)$/i, 'Інший член сім’ї / родич']
+    [/^(мати|мама|матір|матері|матуся)$/i, 'Мати'], [/^(батько|тато|отець|татко|батька)$/i, 'Батько'],
+    [/^(дружина|жінка|вдова|цивільна|дружини)$/i, 'Дружина'], [/^(чоловік|цивільний|вдівець)$/i, 'Чоловік'], [/^(син|сина|синок)$/i, 'Син'],
+    [/^(донька|дочка|доч|доня|доньки|дочки)$/i, 'Донька'], [/^(брат|брата)$/i, 'Брат'], [/^(сестра|сестри)$/i, 'Сестра'],
+    [/^(дід|дідусь)$/i, 'Дід'], [/^(баба|бабуся|бабця)$/i, 'Баба'], [/^(онук)$/i, 'Онук'], [/^(онука|онучка)$/i, 'Онука'],
+    [/^(опікун|опікунка)$/i, 'Опікун'], [/^(піклувальник|піклувальниця)$/i, 'Піклувальник'], [/^(усиновлювач|усиновлювачка)$/i, 'Усиновлювач'],
+    [/^(тітка|тьотя|дядько|дядя|племінник|племінниця|свекруха|теща|тесть|свекор|невістка|зять|кум|кума|вітчим|мачуха|родич|родичка)$/i, 'Інший член сім’ї / родич']
   ];
   function detectDegree(text) {
     const t = clean(text).replace(/^[\s,;:–—\-]+/, '');
@@ -728,6 +741,11 @@ window.Importer = (() => {
       // Основна дитина
       const kid = makeChild(g('child'), g('cbd'), g('csex'), g('interests'), g('needs'), ts, rec);
       if (kid) rec.children.push(kid);
+      // 9. Ким представник доводиться дитині → у дитину; заодно стать представника (мати/баба — жіноча, батько/дід — чоловіча)
+      const rr = matchRepRelation(g('kinToChild'));
+      if (rr.unknown) rec.warnings.push(`Споріднення з дитиною «${rr.unknown}» не зі списку — записано «Інший родич»`);
+      if (rr.sex && (!p.sex || p.sex === 'Не вказано')) p.sex = rr.sex;
+      rec._repRel = rr.rel;
 
       // Інші діти (вільний текст)
       const other = String(g('other') ?? '').trim();
@@ -744,6 +762,7 @@ window.Importer = (() => {
         });
       }
 
+      if (rec._repRel) rec.children.forEach((k) => { k.rep_relation = rec._repRel; });
       rec.programs.push(ctx.programByName(TEMPLATES[0].program));
       p.has_children = rec.children.length ? 'Так' : 'Невідомо';
       out.push(rec);
@@ -824,7 +843,7 @@ window.Importer = (() => {
           if (letters(join(r, I.mil)) && letters(join(r, I.mil)) !== letters(join(r, I.rep))) rec.warnings.push('У формі вказано, що представник сам військовий, але ПІБ військового інше — перевірте');
         } else if (rel) rec.warnings.push(`У формі вказано «${tm}», але категорія родини — «${st}». Перевірте, хто заповнював анкету`);
       } else if (tm && rec.relations[0]) {
-        const deg = OPT.relation_degree.find((d) => d.toLowerCase() === tm.toLowerCase());
+        const deg = matchDegree(tm);
         if (deg) { rec.relations[0].relation_degree = deg; rec.warnings = rec.warnings.filter((w) => !/ким представник доводиться військовому/.test(w)); }
         else rec.warnings.push(`Спорідненість із військовим «${tm}» не зі списку — вкажіть вручну`);
       }
@@ -844,6 +863,7 @@ window.Importer = (() => {
         if (!name && !clean(bd) && !(bd instanceof Date)) return;
         if (!name) { rec.warnings.push(`Дитина ${n + 2}: є дата народження, але немає ПІБ — не додано`); return; }
         const kid = makeChild(name, bd, at(r, k.sex), at(r, I.interests), null, ts, rec);
+        if (kid && rec._repRel) kid.rep_relation = rec._repRel;
         if (kid && !rec.children.some((c) => c.full_name === kid.full_name && c.birth_date === kid.birth_date)) rec.children.push(kid);
       });
       if (rec.children.length) p.has_children = 'Так';
@@ -969,7 +989,7 @@ window.Importer = (() => {
           .select('related_full_name, related_birth_date, related_death_date, related_burial_date, related_burial_place, related_callsign, related_unit_id, related_unit_other, related_unit_code')
           .eq('related_status', 'Загиблий').ilike('related_full_name', `${p.last_name}%`).limit(20),
         db.from('persons')
-          .select('id, phone, extra_phones, name_check, is_extra, last_name, first_name, patronymic, email, region_id, settlement, cell_id, birth_date, wound_date, death_date, burial_date, consent_pd_at, consent_messages, children(birth_date, full_name), military_relations!military_relations_person_id_fkey(id, related_full_name), person_programs(program_id, role)')
+          .select('id, phone, extra_phones, name_check, is_extra, last_name, first_name, patronymic, email, region_id, settlement, cell_id, birth_date, wound_date, death_date, burial_date, consent_pd_at, consent_messages, sex, children(id, birth_date, full_name, rep_relation), military_relations!military_relations_person_id_fkey(id, related_full_name, relation_degree), person_programs(program_id, role)')
           .eq('military_status', 'Загиблий').ilike('last_name', `${p.last_name.slice(0, 4)}%`).limit(20)
       ]);
       const same = (n, bd) => letters(n) === letters(fullName) && (!bd || !p.birth_date || bd === p.birth_date);
@@ -1005,7 +1025,7 @@ window.Importer = (() => {
   async function matchExisting(list) {
     const { db } = Persons.ctx();
     await crossCheck200(list, db);
-    const COLS = 'id, journal, phone, extra_phones, name_check, is_extra, last_name, first_name, patronymic, email, region_id, settlement, cell_id, birth_date, consent_pd_at, consent_messages, children(birth_date, full_name), military_relations!military_relations_person_id_fkey(id, related_full_name, related_death_date, related_burial_date, related_burial_place, related_callsign, related_unit_code, related_person_id), person_programs(program_id, role)';
+    const COLS = 'id, journal, phone, extra_phones, name_check, is_extra, last_name, first_name, patronymic, email, region_id, settlement, cell_id, birth_date, consent_pd_at, consent_messages, sex, children(id, birth_date, full_name, rep_relation), military_relations!military_relations_person_id_fkey(id, related_full_name, relation_degree, related_death_date, related_burial_date, related_burial_place, related_callsign, related_unit_code, related_person_id), person_programs(program_id, role)';
     const allPhones = (r) => [r.person.phone, ...(r.person.extra_phones || [])].filter(Boolean);
     const phones = [...new Set(list.flatMap(allPhones))];
     const found = new Map();
@@ -1383,6 +1403,7 @@ window.Importer = (() => {
         patronymic: r.person.patronymic || null, name_check: false, name_check_note: null });
     }
     if (!ex.consent_messages && r.person.consent_messages) patch.consent_messages = true;
+    if ((!ex.sex || ex.sex === 'Не вказано') && r.person.sex && r.person.sex !== 'Не вказано') patch.sex = r.person.sex;
     if (ex.is_extra && !r.isRelative) patch.is_extra = false;
     if (r.person.journal) {
       const j = { ...(ex.journal || {}) };
@@ -1404,6 +1425,15 @@ window.Importer = (() => {
       Object.assign(ex, patch);
     }
     const kids = r.children.filter((k) => !(ex.children || []).some((x) => x.birth_date === k.birth_date));
+    // наявні діти: доповнюємо «ким представник доводиться дитині», якщо ще порожньо
+    for (const k of r.children) {
+      const old = (ex.children || []).find((x) => x.birth_date === k.birth_date);
+      if (old && old.id && !old.rep_relation && k.rep_relation) {
+        const { error } = await db.from('children').update({ rep_relation: k.rep_relation }).eq('id', old.id);
+        if (error) throw error;
+        old.rep_relation = k.rep_relation;
+      }
+    }
     const rels = r.relations.filter((rel) => !(ex.military_relations || []).some((x) => letters(x.related_full_name) === letters(rel.related_full_name)));
     // Наявні зв’язки: доповнюємо порожні поля (дата поховання, місце, дата загибелі, позивний, в/ч)
     for (const rel of r.relations) {
@@ -1412,6 +1442,8 @@ window.Importer = (() => {
       const fix = {};
       ['related_burial_date', 'related_burial_place', 'related_death_date', 'related_callsign', 'related_unit_code', 'related_person_id']
         .forEach((k) => { if (!old[k] && rel[k]) fix[k] = rel[k]; });
+      // ступінь «Інший член сім’ї / родич» (не впізнано раніше) → конкретний, якщо тепер відомий
+      if (old.relation_degree === OTHER_DEG && rel.relation_degree && rel.relation_degree !== OTHER_DEG) fix.relation_degree = rel.relation_degree;
       if (Object.keys(fix).length) {
         const { error } = await db.from('military_relations').update(fix).eq('id', old.id);
         if (error) throw error;

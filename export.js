@@ -135,7 +135,7 @@ window.Exporter = (() => {
             'ПІБ представника': fio(p),
             'Телефон': p.phone || '', 'Додатковий телефон': (p.extra_phones || []).join(', '), 'Email': p.email || '',
             'Область': regions.get(p.region_id) || '', 'Населений пункт': p.settlement || '',
-            'ПІБ дитини': c.full_name || '', 'Дата народження': d(c.birth_date), 'Вік': years(c.birth_date),
+            'ПІБ дитини': c.full_name || '', 'Ким доводиться представник': c.rep_relation || '', 'Дата народження': d(c.birth_date), 'Вік': years(c.birth_date),
             'Стать': c.sex, 'Інтереси': (c.interests || []).join('; '), 'Особливі потреби': c.special_needs || ''
           };
         });

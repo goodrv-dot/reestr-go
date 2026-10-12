@@ -797,7 +797,7 @@ window.Persons = (() => {
     $('journal-fs').hidden = !mods.length;
     mods.forEach(([mod, data]) => {
       const h = document.createElement('p');
-      h.className = 'sublabel'; h.textContent = `Журнал ${mod}`;
+      h.className = 'sublabel'; h.textContent = /^\d+$/.test(mod) ? `Журнал ${mod}` : `${mod} — інші відповіді`;
       const dl = document.createElement('dl');
       dl.className = 'journal-list';
       Object.entries(data).forEach(([k, v]) => {

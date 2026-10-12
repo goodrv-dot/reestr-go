@@ -763,6 +763,7 @@ window.Importer = (() => {
       }
 
       if (rec._repRel) rec.children.forEach((k) => { k.rep_relation = rec._repRel; });
+      keepRest(p, hdr.map((h) => clean(h)), r, new Set(Object.values(c).filter((i) => i >= 0)));
       rec.programs.push(ctx.programByName(TEMPLATES[0].program));
       p.has_children = rec.children.length ? 'Так' : 'Невідомо';
       out.push(rec);
@@ -807,6 +808,8 @@ window.Importer = (() => {
     };
     const kidCols = (b) => ({ name: [sub(`10.${b}1`), sub(`10.${b}2`), sub(`10.${b}3`)], bd: sub(`10.${b}4`), sex: sub(`10.${b}5`) });
     const kids = [1, 2, 3, 4, 5].map(kidCols);
+    // усі колонки, які розбираються в поля картки; решта відповідей зберігається як є («Анкета — інші відповіді»), щоб нічого не загубилось
+    const used = new Set([tsI, ...Object.values(I).flat(), ...kids.flatMap((k) => [...k.name, k.bd, k.sex])].filter((i) => i >= 0));
     if (I.rep[0] < 0 || I.phone < 0 || kids[0].name[0] < 0 || kids[0].bd < 0) throw new Error('У файлі бракує колонок нової форми «Діти Морської піхоти» (ПІБ представника, телефон, дитина 10.11–10.14).');
     const at = (r, i) => (i >= 0 ? r[i] : null);
     const join = (r, idx) => idx.map((i) => clean(at(r, i))).filter(Boolean).join(' ');
@@ -854,6 +857,7 @@ window.Importer = (() => {
         else if (rec.relations[0]) rec.relations[0].related_birth_date = iso;
         else if (!p.birth_date) p.birth_date = iso;      // представник сам військовий
       }
+      keepRest(p, hs, r, used);
       const sx = clean(at(r, I.repSex)).toLowerCase();
       if (/^чол/.test(sx)) p.sex = 'Чоловіча'; else if (/^жін/.test(sx)) p.sex = 'Жіноча';
       // діти 2–5
@@ -871,6 +875,18 @@ window.Importer = (() => {
     return out;
   }
 
+  // Відповіді анкети без окремого поля в картці → persons.journal['Анкета'] (видно в картці, «Дані з журналу»)
+  function keepRest(p, hs, r, used) {
+    const rest = {};
+    hs.forEach((h, i) => {
+      if (!h || used.has(i)) return;
+      let v = r[i];
+      if (v instanceof Date) v = toDate(v);
+      v = clean(v);
+      if (v) rest[h.slice(0, 120)] = v.slice(0, 2000);
+    });
+    if (Object.keys(rest).length) p.journal = { ...(p.journal || {}), 'Анкета': rest };
+  }
   // «Хлопчик», «хлопець», «син» → Хлопець; «Дівчинка», «дівчина», «донька» → Дівчина
   function childSex(raw) {
     const s = clean(raw).toLowerCase();

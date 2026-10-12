@@ -1325,7 +1325,7 @@ window.Cabinet = (() => {
 
   function renderBell() {
     const p = $('bell-panel'); p.innerHTML = '<h2>Сповіщення</h2>';
-    if (!notes.length) { p.insertAdjacentHTML('beforeend', '<p class="muted">Нічого нового: прострочених дій, нових справ і відповідей немає.</p>'); return; }
+    if (!notes.length) { p.insertAdjacentHTML('beforeend', '<p class="muted">Нічого нового: прострочених дій, нових справ і відповідей немає.</p>'); badgeHint(p); return; }
     notes.filter((x) => x.kind === 'robot').forEach((x) => {
       const h = document.createElement('h3'); h.className = 'n-over'; h.textContent = '⚠ Робот-дзеркало'; p.appendChild(h);
       const m = document.createElement('p'); m.className = 'bell-robot'; m.textContent = x.label + '. Дані в базі в порядку; не оновлюється лише Google-таблиця. Напишіть розробнику.'; p.appendChild(m);
@@ -1357,6 +1357,25 @@ window.Cabinet = (() => {
       p.appendChild(ul);
       if (list.length > 15) { const m = document.createElement('p'); m.className = 'muted'; m.textContent = `…і ще ${list.length - 15} — дивіться в кабінеті`; p.appendChild(m); }
     });
+    badgeHint(p);
+  }
+
+  // Число на значку встановленої програми. iPhone/iPad (iOS 16.4+) показують його лише після дозволу на сповіщення —
+  // просимо дозвіл кнопкою (без натиску телефон не дозволяє). Android число на значку від сайтів не показує.
+  function badgeHint(p) {
+    const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+    if (!standalone || !('setAppBadge' in navigator) || !('Notification' in window)) return;
+    const box = document.createElement('p'); box.className = 'bell-hint';
+    if (Notification.permission === 'default') {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'btn-secondary btn-small';
+      b.textContent = '📱 Показувати число на значку програми';
+      b.onclick = async (e) => { e.stopPropagation(); await Notification.requestPermission().catch(() => {}); badge(); };
+      box.appendChild(b);
+    } else if (Notification.permission === 'denied') {
+      box.classList.add('muted');
+      box.textContent = 'Число на значку вимкнено в налаштуваннях телефону: Параметри → Сповіщення → Реєстр → дозволити.';
+    } else return;
+    p.appendChild(box);
   }
 
   // Відкрити кабінет із готовою вибіркою справ (з дашборда)

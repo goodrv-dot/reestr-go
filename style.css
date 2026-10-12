@@ -1102,3 +1102,11 @@ body.read-only .sum-cell.is-ro { cursor: default; }
 .fb-actions { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: flex-start; margin-top: 0.5rem; }
 .fb-actions textarea { flex: 1 1 16rem; font: inherit; font-size: 0.92rem; padding: 0.35rem; border: 1px solid var(--line); border-radius: var(--radius-field); }
 .fb-actions select { font: inherit; padding: 0.3rem; }
+.bell-hint { margin: .75rem 0 0; padding-top: .6rem; border-top: 1px solid var(--line, #dde3ea); font-size: .85rem; }
+/* Дуже вузькі телефони (iPhone SE, 320–400 px): ім’я ховаємо — лишається значок профілю */
+@media (max-width: 400px) {
+  #user-name { display: none; }
+  .topbar-user .fb-btn { margin-right: 0; }
+  .topbar-user { gap: 0.3rem; }
+  #logout-btn { padding-left: 0.5rem; padding-right: 0.5rem; }
+}

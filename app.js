@@ -344,3 +344,8 @@ function openDeepLink() {
     Persons.openForm(person);
   }
 }
+
+// Service worker (без кешу) — для числа на значку програми на телефоні та майбутніх push-сповіщень
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch((e) => console.warn('sw', e)); });
+}

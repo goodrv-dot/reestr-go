@@ -85,7 +85,11 @@ window.Segments = (() => {
     e.preventDefault();
     const name = $('seg-name').value.trim();
     if (name.length < 3) { showErr('Назва — щонайменше 3 символи.'); return; }
+    const btn = $('seg-form').querySelector('button[type="submit"]');
+    if (btn.disabled) return;                       // повторне натискання під час збереження
+    btn.disabled = true;
     const { data, error } = await db.from('segments').insert({ name, filters: state() }).select('id').single();
+    btn.disabled = false;
     if (error) {
       console.error(error);
       showErr(error.code === '23505' ? 'Сегмент з такою назвою вже є.' : 'Не вдалося зберегти сегмент.');

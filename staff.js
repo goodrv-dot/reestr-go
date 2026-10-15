@@ -63,7 +63,14 @@ window.Staff = (() => {
     });
   }
 
+  // Одна дія за раз: подвійний клік (напр. «Скинути пароль») не запускає її двічі
+  let calling = false;
   async function call(payload) {
+    if (calling) throw new Error('Зачекайте — попередня дія ще виконується');
+    calling = true;
+    try { return await callOnce(payload); } finally { calling = false; }
+  }
+  async function callOnce(payload) {
     const { data, error } = await db.functions.invoke('manage-operators', { body: payload });
     if (error) {
       let msg = 'Не вдалося виконати дію';
@@ -204,6 +211,12 @@ window.Staff = (() => {
       const cab = f.cab200.checked || f.cab300.checked;
       const cells = cab ? [...box.querySelectorAll('input:checked')].map((i) => Number(i.value)) : [];
       if (cab && !cells.length && !confirm('Осередки не вибрано: співробітник не побачить жодної справи. Зберегти так?')) return;
+      const sb = f.querySelector('button[type="submit"]'); if (sb && sb.disabled) return; if (sb) sb.disabled = true;
+      try { await saveAccess(); } finally { if (sb) sb.disabled = false; }
+    };
+    const saveAccess = async () => {
+      const cab = f.cab200.checked || f.cab300.checked;
+      const cells = cab ? [...box.querySelectorAll('input:checked')].map((i) => Number(i.value)) : [];
       const { error } = await db.rpc('set_operator_access', { p_user: o.user_id, p_registry: f.registry.checked, p_export: f.registry.checked && f.export.checked,
         p_import: f.registry.checked && f.import.checked && !f.readonly.checked, p_cab200: f.cab200.checked, p_cab300: f.cab300.checked, p_cells: cells });
       if (error) { console.error(error); Persons.toast('Не вдалося зберегти доступи'); return; }

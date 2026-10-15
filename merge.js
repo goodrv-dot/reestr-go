@@ -87,10 +87,14 @@ window.Merge = (() => {
   const EMPTY = (v) => v === null || v === undefined || v === '' ||
     ['Невідомо', 'Не вказано', 'Не застосовується'].includes(v);
 
+  let merging = false;   // одне об’єднання за раз: повторний клік не запускає друге
   async function mergeInto(keepId, other) {
+    if (merging) return;
     if (!confirm(`Об’єднати «${fio(other)}» у поточну картку?\n\nДруга картка буде видалена, її дані — перенесені сюди. Скасувати неможливо.`)) return;
     const { db } = Persons.ctx();
     const EMB = '*, children(*), military_relations!military_relations_person_id_fkey(*), person_programs(program_id), person_veteran_statuses(status)';
+    merging = true;
+    document.querySelectorAll('#dup-list button').forEach((b) => { b.disabled = true; });
     try {
       const [{ data: keep, error: e1 }, { data: oth, error: e2 }] = await Promise.all([
         db.from('persons').select(EMB).eq('id', keepId).single(),
@@ -153,7 +157,7 @@ window.Merge = (() => {
       console.error(e);
       alert('Не вдалося об’єднати картки: ' + (e.message || 'помилка бази') + '\nЧастину даних могло бути перенесено — перевірте обидві картки.');
       Persons.openForm(keepId);
-    }
+    } finally { merging = false; }
   }
 
   return { render };

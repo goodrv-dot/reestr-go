@@ -1110,3 +1110,4 @@ body.read-only .sum-cell.is-ro { cursor: default; }
   .topbar-user { gap: 0.3rem; }
   #logout-btn { padding-left: 0.5rem; padding-right: 0.5rem; }
 }
+.cab-empty { padding: 1rem; text-align: center; color: var(--muted); }

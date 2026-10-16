@@ -36,7 +36,8 @@ window.Cabinet = (() => {
 
   function init(client, userId, admin) {
     db = client; me = userId; isAdmin = admin;
-    document.querySelectorAll('.cab-mod').forEach((b) => b.addEventListener('click', () => { module = b.dataset.m; quick = ''; preset = null; picked.clear(); withClosed = false; load(); }));
+    // інший модуль — чистий список: фільтри з 200 (виконавець, статус, мітки, період…) у 300 приховали б усе
+    document.querySelectorAll('.cab-mod').forEach((b) => b.addEventListener('click', () => { module = b.dataset.m; preset = null; picked.clear(); withClosed = false; clearFilters(true); load(); }));
     $('cab-preset-clear').addEventListener('click', () => { preset = null; render(); });
     try { $('cab-sort').value = localStorage.getItem('cab_sort') || 'new'; } catch { /* без сховища — типовий порядок */ }
     if (!$('cab-sort').value) $('cab-sort').value = 'new';
@@ -407,6 +408,13 @@ window.Cabinet = (() => {
     document.addEventListener('click', (e) => { const d = $('cab-mark-ui'); if (d.open && !d.contains(e.target)) d.open = false; });
     syncMarkFilter();
   }
+  const FILTER_IDS = ['cab-search', 'cab-status', 'cab-exec', 'cab-resp', 'cab-mark', 'cab-cell', 'cab-from', 'cab-to'];
+  function clearFilters(silent) {
+    FILTER_IDS.forEach((id) => { const el = $(id); if (el) el.value = ''; });
+    quick = ''; preset = null; page = 1;
+    syncMarkFilter();
+    if (!silent) render();
+  }
   function syncMarkFilter() {
     const ui = $('cab-mark-ui'); if (!ui || ui.hidden) return;
     const sel = new Set($('cab-mark').value.split(',').filter(Boolean));
@@ -542,6 +550,13 @@ window.Cabinet = (() => {
     const totalStages = defs.filter((d) => (d.section || 'other') !== 'head').length;
     const tb = $('cab-table').tBodies[0];
     tb.innerHTML = '';
+    if (!list.length && cases.length) {
+      // усе сховали фільтри — кажемо прямо й даємо одну кнопку
+      const tr = document.createElement('tr'); const td = document.createElement('td'); td.colSpan = 20; td.className = 'cab-empty';
+      td.textContent = `Фільтри приховують усі справи (${cases.length}). `;
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'btn-link'; b.textContent = 'Скинути фільтри';
+      b.onclick = () => clearFilters(); td.appendChild(b); tr.appendChild(td); tb.appendChild(tr);
+    }
     list.slice((page - 1) * PAGE, page * PAGE).forEach((c) => {
       const tr = document.createElement('tr');
       const rec = contactOf(c);

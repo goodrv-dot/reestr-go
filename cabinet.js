@@ -104,7 +104,7 @@ window.Cabinet = (() => {
       let q = db.from('cases')
         .select('*, person:persons!cases_person_id_fkey(id, last_name, first_name, patronymic, military_status, death_date, burial_date, wounded, wound_date, birth_date, callsign, burial_place, military_unit_code, mp_unit_id, region_id, settlement, phone, comment), case_values(stage_key, value)')
         .eq('module', module);
-      if (skipClosed) q = q.not('status', 'in', inList);
+      if (skipClosed) q = q.or(`status.is.null,status.not.in.${inList}`);
       const { data, error } = await q.order('journal_id').range(from, from + 999);
       if (error) { console.error(error); $('cab-status-line').textContent = 'Не вдалося завантажити справи.'; return; }
       if (my !== loadSeq) return;

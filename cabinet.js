@@ -57,6 +57,9 @@ window.Cabinet = (() => {
     $('cab-new-cancel').addEventListener('click', () => $('cab-new').close());
     $('cab-set-close').addEventListener('click', () => { $('cab-settings').close(); load(); });
     window.addEventListener('popstate', () => { if (!$('cab-case').hidden) closeCase(true); });
+    $('cab-case').addEventListener('focusout', () => {
+      if (stagesPending) setTimeout(() => { if (stagesPending && !editingInCase()) renderStages(); }, 0);
+    });
   }
 
   // ---------- Завантаження ----------
@@ -822,7 +825,19 @@ window.Cabinet = (() => {
   }
   const isFilled = (f) => f.value !== '' && f.value != null;
 
+  // Після збереження поля справу перемальовуємо НЕ одразу, якщо оператор уже пише в іншому полі цієї справи:
+  // інакше перемальовка стирала б набраний текст і збивала курсор («підвисання»). Перемальовуємо, щойно він вийде з полів.
+  let stagesPending = false;
+  const editingInCase = () => {
+    const a = document.activeElement;
+    return !!a && !$('cab-case').hidden && $('cab-case').contains(a) && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName);
+  };
+  function refreshStages() {
+    if (editingInCase()) { stagesPending = true; return; }
+    stagesPending = false; renderStages();
+  }
   function renderStages() {
+    stagesPending = false;
     const c = current;
     const secs = SECTIONS[module].filter(([k]) => k === 'family' || sectionFields(k).length);
     if (tab !== 'all' && !secs.some(([k]) => k === tab)) tab = 'all';
@@ -991,7 +1006,7 @@ window.Cabinet = (() => {
       sectionFields(key).forEach((f) => add(grid, f, CRIT.has(f.id) || f.state === 'is-overdue' ? 'crit' : 'soft'));
     });
     // ---- Примітки
-    add(group('Примітки', 'notes'), { id: 'p-comment', label: 'Примітки (з журналу й картки)', kind: 'text', value: c.person.comment, wide: true, onSave: (val, el) => savePerson('comment', val, null, el).then(() => renderStages()) }, 'soft');
+    add(group('Примітки', 'notes'), { id: 'p-comment', label: 'Примітки (з журналу й картки)', kind: 'text', value: c.person.comment, wide: true, onSave: (val, el) => savePerson('comment', val, null, el).then(() => refreshStages()) }, 'soft');
     $('case-summary-note').textContent = (empty
       ? `Незаповнено: ${empty}` + (crit ? `, з них важливих: ${crit} (червоні)` : '') + '.'
       : 'Усе заповнено.') + ' Натисніть на будь-яке поле, щоб заповнити чи виправити — зберігається одразу.';
@@ -1022,7 +1037,7 @@ window.Cabinet = (() => {
       };
       q('phone').onchange = async () => {
         const ph = phoneOf(q('phone')); if (ph === undefined) return;
-        if (await updPerson(k.person.id, { phone: ph })) { k.person.phone = ph; renderStages(); renderHead(); }
+        if (await updPerson(k.person.id, { phone: ph })) { k.person.phone = ph; refreshStages(); renderHead(); }
       };
       q('settlement').onchange = async () => {
         const v = q('settlement').value.trim() || null;
@@ -1071,7 +1086,7 @@ window.Cabinet = (() => {
       if (module === '200' && c.status === 'Родину не встановлено' && statuses.some((s) => s.name === 'В роботі')) { await saveCase({ status: 'В роботі' }); $('case-status').value = 'В роботі'; }
       form.reset();    // щоб повторне «Додати» не створило того самого родича ще раз
       Persons.toast('Родича додано');
-      renderHead(); renderStages();
+      renderHead(); refreshStages();
     } finally { btn.disabled = false; }
   }
 
@@ -1084,9 +1099,9 @@ window.Cabinet = (() => {
     if (key === 'patronymic' && v) v = nm(v);
     const dd = key === 'death_date' ? v : p.death_date, bd = key === 'burial_date' ? v : p.burial_date;
     if ((key === 'burial_date' || key === 'death_date') && dd && bd && bd < dd) { Persons.toast('Дата поховання раніше дати загибелі — перевірте'); el.value = p[key] || ''; return; }
-    if (!(await updPerson(p.id, { [key]: v }))) { renderStages(); return; }
+    if (!(await updPerson(p.id, { [key]: v }))) { refreshStages(); return; }
     p[key] = v;
-    renderHead(); if (key !== 'comment') renderStages(); loadHistory();
+    renderHead(); if (key !== 'comment') refreshStages(); loadHistory();
   }
 
   // ---------- Нова справа ----------
@@ -1158,7 +1173,7 @@ window.Cabinet = (() => {
     c.vals[key] = value || null;
     c.next = nextAction(c);
     Persons.toast('Збережено');
-    renderHead(); renderStages();
+    renderHead(); refreshStages();
     loadHistory();
   }
 
@@ -1167,7 +1182,7 @@ window.Cabinet = (() => {
     const { error } = await db.from('cases').update(patch).eq('id', c.id);
     if (error) { console.error(error); Persons.toast('Не вдалося зберегти'); return; }
     Object.assign(c, patch);
-    if ('status' in patch) { c.next = nextAction(c); renderHead(); renderStages(); }
+    if ('status' in patch) { c.next = nextAction(c); renderHead(); refreshStages(); }
     $('case-take').hidden = c.executor_id === me;
     if ('executor_id' in patch) renderHelpers();
     Persons.toast('Збережено');

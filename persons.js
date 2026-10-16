@@ -545,7 +545,10 @@ window.Persons = (() => {
   const MODULES = {
     'Супровід родин загиблих (200)': { label: '200', cls: 'm200', rank: 1 },
     'Супровід поранених (300)': { label: '300', cls: 'm300', rank: 2 },
-    'Діти Морської піхоти': { label: 'Діти', cls: 'mkids', rank: 3 }
+    'Діти Морської піхоти': { label: 'Діти', cls: 'mkids', rank: 3 },
+    'Зниклі безвісти (БЗВ)': { label: 'БЗВ', cls: 'mbzv', rank: 4 },
+    'Звільнені з полону': { label: 'Полон', cls: 'mpol', rank: 5 },
+    'Ветерани': { label: 'Ветерани', cls: 'mvet', rank: 6 }
   };
   // Плашки: залита — основна в модулі, контурна — зв’язана в модулі
   function moduleBadges(programIds, mainIds, isExtra) {

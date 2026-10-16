@@ -36,7 +36,7 @@ function showApp(operator, userId) {
   $('user-role').textContent = window.ACCESS && window.ACCESS.readOnly ? 'Керівник · лише перегляд' : (ROLE_LABELS[operator.role] || operator.role);
   startIdleTimer();
   $('staff-tab').hidden = operator.role !== 'admin';
-  const A = window.ACCESS, hasCab = A.cab200 || A.cab300;
+  const A = window.ACCESS, hasCab = (A.cabMods || []).length > 0 || A.cab200 || A.cab300;
   const tabBtn = (t) => document.querySelector(`.tab[data-tab="${t}"]`);
   tabBtn('registry').hidden = !A.registry; tabBtn('dashboard').hidden = !A.registry;
   tabBtn('import').hidden = !A.import; tabBtn('cabinet').hidden = !hasCab;
@@ -146,6 +146,9 @@ async function enterWithSession(session) {
     window.ACCESS = { admin: adm, registry: adm || !!acc.can_registry, import: adm || !!acc.can_import,
       cab200: adm || !!acc.can_cab200, cab300: adm || !!acc.can_cab300, cells: acc.cell_ids || [],
       readOnly: !adm && !!acc.read_only };
+    // нові модулі кабінету (БЗВ, Полон, Ветерани): ACCESS.cabbzv / cabpol / cabvet
+    (acc.cab_modules || []).forEach((m) => { window.ACCESS['cab' + m] = true; });
+    window.ACCESS.cabMods = ['200', '300', ...(acc.cab_modules || [])].filter((m) => window.ACCESS['cab' + m]);
     if (window.ACCESS.readOnly) lockReadOnly();
     showApp(operator, userId);
   } catch (e) {

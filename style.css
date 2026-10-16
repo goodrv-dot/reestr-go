@@ -793,6 +793,12 @@ tr[data-module="m300"] { --mod-c: #5b3f8c; }
 .mod.m200.mod-linked  { color: #7a2e2e; }
 .mod.m300.mod-linked  { color: #5b3f8c; }
 .mod.mkids.mod-linked { color: #2f6b4e; }
+/* БЗВ — гірчичний, Полон — бірюзовий, Ветерани — оливковий */
+.mbzv { background: #8a6a24; color: #fff; } .mpol { background: #0f6e78; color: #fff; } .mvet { background: #4d5e2f; color: #fff; }
+.mod.mbzv.mod-linked { color: #8a6a24; } .mod.mpol.mod-linked { color: #0f6e78; } .mod.mvet.mod-linked { color: #4d5e2f; }
+tr[data-module="mbzv"], #form-view[data-module="mbzv"] { --mod-c: #8a6a24; }
+tr[data-module="mpol"], #form-view[data-module="mpol"] { --mod-c: #0f6e78; }
+tr[data-module="mvet"], #form-view[data-module="mvet"] { --mod-c: #4d5e2f; }
 .journal-list { display: grid; grid-template-columns: minmax(10rem, max-content) 1fr; gap: 0.25rem 1rem; margin: 0 0 0.75rem; font-size: 0.92rem; }
 .journal-list dt { color: var(--muted); }
 .journal-list dd { margin: 0; }
@@ -802,6 +808,11 @@ tr[data-module="m300"] { --mod-c: #5b3f8c; }
 .cab-mods { display: flex; gap: 0.35rem; }
 .cab-mod-200[aria-pressed="true"] { background: #7a2e2e; border-color: #7a2e2e; color: #fff; }
 .cab-mod-300[aria-pressed="true"] { background: #5b3f8c; border-color: #5b3f8c; color: #fff; }
+.cab-mod-bzv[aria-pressed="true"] { background: #8a6a24; border-color: #8a6a24; color: #fff; }
+.cab-mod-pol[aria-pressed="true"] { background: #0f6e78; border-color: #0f6e78; color: #fff; }
+.cab-mod-vet[aria-pressed="true"] { background: #4d5e2f; border-color: #4d5e2f; color: #fff; }
+.cab-mods { flex-wrap: wrap; }
+.imp-src-btn { margin: 0.3rem 0.4rem 0.3rem 0; }
 .cab-filters { display: flex; gap: 0.6rem; flex-wrap: wrap; margin: 0 0 0.75rem; }
 .cab-filters input, .cab-filters select { font: inherit; padding: 0.5rem 0.65rem; border: 1px solid var(--line); border-radius: var(--radius-field); background: var(--white); }
 .cab-filters input { flex: 1 1 18rem; }

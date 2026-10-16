@@ -103,7 +103,7 @@ window.Importer = (() => {
       parse: parse300
     },
     {
-      id: 'kids_mp_v2',
+      id: 'kids_mp_v2', source: 'kids',
       label: 'Діти МП — анкети, нова форма',
       program: 'Діти Морської піхоти',
       detect: (hdr) => hdr.some((h) => /^10\.11\s/.test(clean(h))),
@@ -115,6 +115,27 @@ window.Importer = (() => {
       program: 'Діти Морської піхоти',
       detect: (hdr) => !hdr.some((h) => /^10\.11\s/.test(clean(h))) && hdr.some((h) => clean(h).startsWith('10.')) && hdr.some((h) => /дитин/i.test(clean(h))),
       parse: parseKids
+    },
+    {
+      id: 'missing_bzv', module: 'bzv', source: 'bzv',
+      label: 'Зниклі безвісти — журнал',
+      program: 'Зниклі безвісти (БЗВ)',
+      detect: (hdr) => hdr.some((h) => /^зник безвісти/i.test(clean(h))) && hdr.some((h) => /^отримувач/i.test(clean(h))),
+      parse: parseBzv
+    },
+    {
+      id: 'released_pol', module: 'pol', source: 'pol',
+      label: 'Звільнені з полону — журнал',
+      program: 'Звільнені з полону',
+      detect: (hdr) => hdr.some((h) => /^дата звільнення/i.test(clean(h))) && hdr.some((h) => /511/.test(clean(h))),
+      parse: parsePol
+    },
+    {
+      id: 'veterans_vet', module: 'vet', source: 'vet',
+      label: 'Ветерани — журнал',
+      program: 'Ветерани',
+      detect: (hdr) => hdr.some((h) => /^стан в\/сл/i.test(clean(h))) && hdr.some((h) => /^інвалідність/i.test(clean(h))),
+      parse: parseVet
     },
     {
       id: 'fallen_200_v2',
@@ -578,6 +599,236 @@ window.Importer = (() => {
         kr.programs.push(ctx.programByName('Супровід поранених (300)'));
         out.push(kr);
       });
+    });
+    return out;
+  }
+
+  // ============================================================
+  // Журнали «Зниклі безвісти», «Звільнені з полону», «Ветерани» — колонки один до одного.
+  // Боєць → основна картка (програма модуля); отримувач / родичі → зв’язані картки.
+  // Колонки без окремого поля в реєстрі → persons.journal[модуль] (звідти — поля справи в кабінеті).
+  // ============================================================
+  const RANKS = ['старший лейтенант м/с', 'молодший лейтенант', 'старший лейтенант', 'молодший сержант', 'старший сержант', 'головний сержант',
+    'штаб-сержант', 'майстер-сержант', 'старший матрос', 'старший солдат', 'підполковник', 'лейтенант', 'полковник', 'капітан', 'старшина',
+    'сержант', 'мічман', 'матрос', 'солдат', 'майор'];
+  // «молодший сержант СОФІЄНКО Віталій Геннадійович» → { rank, name }
+  function splitRank(raw) {
+    const s = clean(raw);
+    const low = s.toLowerCase();
+    const r = RANKS.find((x) => low === x || low.startsWith(x + ' '));
+    return r ? { rank: r, name: clean(s.slice(r.length)) } : { rank: null, name: s };
+  }
+  // «А7053 34 ОБрМП», «А 0216 / 35 ОБрМП», «38 ОБрМП» → в/ч + бригада
+  function splitUnit(raw, units) {
+    let s = clean(raw);
+    let code = null;
+    const m = s.match(/(?:^|\s)[АA]\s?(\d{4})(?=\s|,|$)/);
+    if (m) { code = 'А' + m[1]; s = clean(s.replace(m[0], ' ').replace(/^[,;\/\s]+|[,;\/\s]+$/g, '')); }
+    const unit = s ? matchUnit(s, units) : { id: null, other: null };
+    return { code, unit_id: unit.id, unit_other: unit.other };
+  }
+  // «795, 04.07.26» → № + дата
+  function splitNotice(raw) {
+    if (raw === null || raw === undefined || raw === '') return {};
+    if (typeof raw === 'number' && raw > 20000) return { date: toDate(raw) };
+    const s = clean(raw);
+    const dm = s.match(/(?:^|[\s,;])(\d{1,2}[.\/]\d{1,2}[.\/]\d{2,4})(?!\d)/);
+    const date = dm ? toDate(dm[1]) : null;
+    const no = clean((dm ? s.replace(dm[1], '') : s).replace(/^[№#\s]+/, '').replace(/[,;\s]+$/, '').replace(/^[,;\s]+/, ''));
+    return { no: no || null, date };
+  }
+  const putJ = (p, mod, key, v) => {
+    if (v === null || v === undefined || clean(v) === '') return;
+    p.journal = { ...(p.journal || {}), [mod]: { ...((p.journal || {})[mod] || {}), [key]: typeof v === 'number' ? v : clean(v) } };
+  };
+  // Решта колонок (нові, додані в таблицю пізніше) — теж у журнал модуля під своєю назвою
+  function keepJournalRest(p, mod, hdr, r, used) {
+    hdr.forEach((h, i) => {
+      const name = clean(h);
+      if (!name || used.has(i) || /^№$/.test(name)) return;
+      let v = r[i];
+      if (v === null || v === undefined || clean(v) === '') return;
+      if (/дата/i.test(name)) v = toDate(v) || clean(v);
+      putJ(p, mod, name, v);
+    });
+  }
+  const dateOrNote = (rec, raw, what) => {
+    const s = clean(raw); if (!s) return null;
+    const iso = toDate(raw);
+    if (!iso) rec.warnings.push(`${what}: «${s}» не розпізнано як дату — записано в примітки`);
+    if (!iso) addComment(rec, `${what} (з журналу): ${s}`);
+    return iso;
+  };
+
+  // Спільне для бійця: ПІБ (зі званням), дата народження, телефон, в/ч і бригада, осередок
+  function soldierRecord(row, g, ctx, mod, status, relType) {
+    const rec = newRecord(row); const p = rec.person;
+    const sr = splitRank(g.fio);
+    const rank = clean(g.rank) || sr.rank;
+    const fio = splitFio(splitNameCell(rec, sr.name));
+    if (fio.error) rec.errors.push(`Військовий: ${fio.error}`); else Object.assign(p, fio);
+    if (rank) putJ(p, mod, 'Звання', rank.toLowerCase());
+    if (g.phone !== undefined) setPhone(rec, g.phone);
+    const bd = toDate(g.bd);
+    if (bd) { const chk = V.checkBirthDate(bd); if (chk.error) rec.warnings.push('Дата народження: ' + chk.error.toLowerCase()); else p.birth_date = bd; }
+    else if (clean(g.bd)) rec.warnings.push(`Дату народження «${clean(g.bd)}» не розпізнано`);
+    const u = splitUnit([g.vch, g.brigade].map(clean).filter(Boolean).join(' '), ctx.units);
+    if (u.code) p.military_unit_code = u.code;
+    if (u.unit_id) p.mp_unit_id = u.unit_id; else if (u.unit_other) { p.mp_unit_other = u.unit_other; rec.warnings.push(`Бригаду «${u.unit_other}» не знайдено в довіднику — записано текстом`); }
+    if (g.cell !== undefined) p.cell_id = matchCell(g.cell, ctx.cells, rec);
+    p.military_status = status; p.mp_relation = 'Так'; p.mp_relation_type = relType;
+    if (clean(g.notes)) addComment(rec, clean(g.notes));
+    p.consent_pd_at = new Date().toISOString();
+    rec.info.push(GO_CONSENT_NOTE);
+    return rec;
+  }
+  // Родич бійця (з колонки «Отримувач» / «Контакти родичів») → зв’язана картка
+  function kinRecord(row, owner, e, relStatus, program, ctx, addrRaw, note) {
+    const p = owner.person;
+    const kr = newRecord(row);
+    kr.isRelative = true; kr.person.is_extra = true; kr.linkTo = owner;
+    const soldierName = [p.last_name, p.first_name, p.patronymic].filter(Boolean).join(' ') || null;
+    const words = V.normalizeName(e.name, false).value?.split(' ') || [];
+    const surname = p.last_name ? (FEMALE.includes(e.degree) ? femSurname(p.last_name) : p.last_name) : null;
+    if (words.length >= 2) Object.assign(kr.person, { last_name: words[0], first_name: words[1], patronymic: words.slice(2).join(' ') || null });
+    else if (words.length === 1 && surname) {
+      Object.assign(kr.person, { last_name: surname, first_name: words[0], patronymic: null, name_check: true, name_check_note: 'вказано лише ім’я, прізвище підставлено з ПІБ бійця' });
+      kr.warnings.push(`Лише ім’я «${words[0]}» — прізвище «${surname}» підставлено, потрібно уточнити`);
+    } else if (!words.length && surname) {
+      const label = e.label || (e.degree ? e.degree.toLowerCase() : 'родич');
+      Object.assign(kr.person, { last_name: surname, first_name: label[0].toUpperCase() + label.slice(1), patronymic: null, name_check: true, name_check_note: `у файлі лише «${label}» без імені` });
+      kr.warnings.push(`ПІБ не вказано (лише «${label}») — створено тимчасове ім’я, потрібно уточнити`);
+    } else kr.errors.push(`Родич «${clean(e.text)}»: не вдалося визначити ПІБ`);
+    if (e.phones.length) addPhones(kr, e.phones); else kr.warnings.push('Немає телефону: не потрапить у розсилку');
+    if (!e.degree) kr.warnings.push('Ступінь спорідненості не впізнано — уточніть');
+    else if (e.label && e.degree === OTHER_DEG) addComment(kr, `Спорідненість: ${e.label}`);
+    if (addrRaw) Object.assign(kr.person, parseAddress(addrRaw, ctx.regions, kr));
+    kr.person.cell_id = p.cell_id;
+    kr.person.consent_pd_at = new Date().toISOString();
+    kr.info.push(note.replace('{who}', soldierName || ''));
+    kr.relations.push({ relation_degree: e.degree || OTHER_DEG, related_full_name: soldierName, related_birth_date: p.birth_date || null,
+      related_status: relStatus, related_mp: 'Так', related_unit_id: p.mp_unit_id || null, related_unit_other: p.mp_unit_other || null, related_unit_code: p.military_unit_code || null });
+    kr.programs.push(program);
+    return kr;
+  }
+  function kinFromText(row, owner, raw, relStatus, program, ctx, out) {
+    const txt = String(raw ?? '');
+    if (!txt.trim()) return;
+    if (isNote(V.extractPhones(txt).rest) && !V.extractPhones(txt).phones.length) { addComment(owner, `Контакти родичів (з журналу): ${clean(txt)}`); return; }
+    peopleChunks(txt).filter((e) => e.name || e.degree || e.phones.length)
+      .forEach((e) => out.push(kinRecord(row, owner, e, relStatus, program, ctx, null, 'Родич бійця {who} (з колонки «Контакти родичів»)')));
+  }
+  const colMap = (hdr, spec) => Object.fromEntries(Object.entries(spec).map(([k, re]) => [k, col(hdr, byName(re))]));
+
+  // ---------- «Зниклі безвісти» ----------
+  function parseBzv(rows, hdr, ctx) {
+    const c = colMap(hdr, { exec: /^виконавець/, cell: /^регіон/, notice: /^№\s*сповіщення/, missing: /^зник безвісти/, fio: /прізвище/,
+      bd: /^дата народження/, unit: /^в\/ч/, position: /^посада/, rec: /^отримувач/, degree: /^спорідненість/, addr: /^адреса/, cvs: /^цвс/, phone: /^тел/, notes: /^примітки/ });
+    if (c.fio < 0) throw new Error('У таблиці бракує колонки з ПІБ («звання, Прізвище, ім’я, по-батькові»).');
+    const program = ctx.programByName('Зниклі безвісти (БЗВ)');
+    const used = new Set(Object.values(c).filter((i) => i >= 0));
+    const out = [];
+    rows.forEach((r, i) => {
+      const g = (k) => (c[k] >= 0 ? r[c[k]] : null);
+      if (!clean(g('fio'))) return;
+      const row = i + 2;
+      const rec = soldierRecord(row, { fio: g('fio'), bd: g('bd'), vch: g('unit'), cell: g('cell'), notes: g('notes') }, ctx, 'bzv', 'Зниклий безвісти', 'Зниклий безвісти військовослужбовець МП');
+      const p = rec.person;
+      putJ(p, 'bzv', 'Виконавець', g('exec'));
+      const n = splitNotice(g('notice'));
+      putJ(p, 'bzv', '№ сповіщення', n.no); putJ(p, 'bzv', 'Дата сповіщення', n.date);
+      if (clean(g('notice')) && !n.date && !n.no) putJ(p, 'bzv', '№ сповіщення', g('notice'));
+      putJ(p, 'bzv', 'Зник безвісти', dateOrNote(rec, g('missing'), 'Дата зникнення'));
+      putJ(p, 'bzv', 'Посада', g('position'));
+      putJ(p, 'bzv', 'ЦВС', g('cvs'));
+      keepJournalRest(p, 'bzv', hdr, r, used);
+      rec.programs.push(program);
+      out.push(rec);
+      // отримувач сповіщення: ПІБ + спорідненість + адреса + телефон
+      const name = clean(g('rec')), deg = clean(g('degree')), ph = V.extractPhones(String(g('phone') ?? '')).phones;
+      if (name || deg || ph.length) {
+        const d = deg ? matchDegree(deg[0].toUpperCase() + deg.slice(1).toLowerCase()) : null;
+        const e = { text: name, name: V.extractPhones(name).rest, degree: d, label: d ? null : (deg || null), phones: [...V.extractPhones(name).phones, ...ph] };
+        if (!e.degree && deg) e.label = deg.toLowerCase();
+        const kr = kinRecord(row, rec, e, 'Зниклий безвісти', program, ctx, g('addr'), 'Отримувач сповіщення про зникнення {who}');
+        if (clean(g('phone')) && !ph.length) { kr.warnings.push(`Телефон «${clean(g('phone'))}» не розпізнано — збережено в коментарі`); addComment(kr, `Телефон з журналу (не розпізнано): ${clean(g('phone'))}`); }
+        out.push(kr);
+      } else rec.warnings.push('Отримувача сповіщення не вказано — додайте рідних у справі');
+    });
+    return out;
+  }
+
+  // ---------- «Звільнені з полону» ----------
+  function parsePol(rows, hdr, ctx) {
+    const c = colMap(hdr, { exec: /^відповідальний/, rank: /^звання$/, fio: /^піб$|прізвище/, bd: /^дата народження/, phone: /^номер телефону|^телефон/,
+      unit: /^в\/ч/, release: /^дата звільнення/, f511: /511/, reint: /^місце реінтеграції/, treat: /^місце лікування/, rehab: /^місце\s*реабілітації/,
+      cur: /^місце перебуван/, injury: /^довідка про обставини/, extra: /^додаткові довідки/, ubd: /^убд$/, bplace: /^місце народження/, kin: /^контакти родичів/, notes: /^примітки/, cell: /^осередок|^регіон/ });
+    if (c.fio < 0) throw new Error('У таблиці бракує колонки «ПІБ».');
+    const program = ctx.programByName('Звільнені з полону');
+    const used = new Set(Object.values(c).filter((i) => i >= 0));
+    const docVal = (v) => { const s = clean(v); if (!s) return null; return /^(є|так|\+|наявн)/i.test(s) ? 'Є' : /^(немає|нема|ні|-)/i.test(s) ? 'Немає' : /замовл|оформл|подан|чека/i.test(s) ? 'Замовлено' : s; };
+    const out = [];
+    rows.forEach((r, i) => {
+      const g = (k) => (c[k] >= 0 ? r[c[k]] : null);
+      if (!clean(g('fio'))) return;
+      const row = i + 2;
+      const rec = soldierRecord(row, { fio: g('fio'), rank: g('rank'), bd: g('bd'), phone: g('phone'), vch: g('unit'), cell: c.cell >= 0 ? g('cell') : undefined, notes: g('notes') },
+        ctx, 'pol', 'Звільнений з полону', 'Звільнений з полону військовослужбовець МП');
+      const p = rec.person;
+      putJ(p, 'pol', 'Відповідальний', g('exec'));
+      putJ(p, 'pol', 'Дата звільнення', dateOrNote(rec, g('release'), 'Дата звільнення'));
+      putJ(p, 'pol', 'Довідка форми 511', docVal(g('f511')));
+      putJ(p, 'pol', 'Місце реінтеграції', g('reint'));
+      putJ(p, 'pol', 'Місце лікування', g('treat'));
+      putJ(p, 'pol', 'Місце реабілітації', g('rehab'));
+      putJ(p, 'pol', 'Місце перебування зараз', g('cur'));
+      putJ(p, 'pol', 'Довідка про обставини травми', docVal(g('injury')));
+      putJ(p, 'pol', 'Додаткові довідки', g('extra'));
+      putJ(p, 'pol', 'Місце народження', g('bplace'));
+      const ubdRaw = clean(g('ubd'));
+      if (ubdRaw) {
+        const ubd = /^(так|є|\+|убд)/i.test(ubdRaw) ? 'Так' : /^(ні|немає|нема|-)/i.test(ubdRaw) ? 'Ні' : /оформ|збира|подан|процес/i.test(ubdRaw) ? 'Оформлюється' : ubdRaw;
+        putJ(p, 'pol', 'УБД', ubd);
+        if (ubd === 'Так') rec.vets = ['Учасник бойових дій'];
+      }
+      keepJournalRest(p, 'pol', hdr, r, used);
+      rec.programs.push(program);
+      out.push(rec);
+      kinFromText(row, rec, g('kin'), 'Звільнений з полону', program, ctx, out);
+    });
+    return out;
+  }
+
+  // ---------- «Ветерани» ----------
+  function parseVet(rows, hdr, ctx) {
+    const c = colMap(hdr, { status: /^статус$/, exec: /^виконавець/, cell: /^регіон/, rank: /^звання$/, fio: /прізвище|^піб$/, bd: /^дата народження/,
+      phone: /^номер телефону|^телефон/, vch: /^військова частина/, brigade: /^бригада/, live: /^місце проживання/, state: /^стан в\/сл/, dis: /^інвалідність/, notes: /^примітки/ });
+    if (c.fio < 0) throw new Error('У таблиці бракує колонки «Прізвище, ім’я, по-батькові».');
+    const program = ctx.programByName('Ветерани');
+    const used = new Set(Object.values(c).filter((i) => i >= 0));
+    const out = [];
+    rows.forEach((r, i) => {
+      const g = (k) => (c[k] >= 0 ? r[c[k]] : null);
+      if (!clean(g('fio'))) return;
+      const row = i + 2;
+      const rec = soldierRecord(row, { fio: g('fio'), rank: g('rank'), bd: g('bd'), phone: g('phone'), vch: g('vch'), brigade: g('brigade'), cell: g('cell'), notes: g('notes') },
+        ctx, 'vet', 'Ветеран', 'Ветеран МП');
+      const p = rec.person;
+      putJ(p, 'vet', 'Статус', g('status'));
+      putJ(p, 'vet', 'Виконавець', g('exec'));
+      putJ(p, 'vet', 'Стан в/сл', g('state'));
+      const dis = clean(g('dis'));
+      if (dis) {
+        const grp = /^(ііі|iii|3)\b/i.test(dis) ? 'ІІІ' : /^(іі|ii|2)\b/i.test(dis) ? 'ІІ' : /^(і|i|1)\b/i.test(dis) ? 'І' : dis;
+        putJ(p, 'vet', 'Інвалідність', grp);
+        const reg = { 'І': 'I група', 'ІІ': 'II група', 'ІІІ': 'III група' }[grp];
+        if (reg) { p.has_disability = 'Так'; p.disability_group = reg; }
+      }
+      const live = clean(g('live'));
+      if (live) { const a = parseAddress(live, ctx.regions, { warnings: [] }); p.settlement = a.settlement || live; if (a.region_id) p.region_id = a.region_id; }
+      keepJournalRest(p, 'vet', hdr, r, used);
+      rec.programs.push(program);
+      out.push(rec);
     });
     return out;
   }
@@ -1122,6 +1373,7 @@ window.Importer = (() => {
 
     $('imp-file').addEventListener('change', onFile);
     $('imp-form-btn').addEventListener('click', onForm);
+    document.querySelectorAll('.imp-src-btn').forEach((b) => b.addEventListener('click', onForm));
     $('imp-run').addEventListener('click', runImport);
     $('imp-errors-btn').addEventListener('click', downloadErrors);
     $('imp-reset').addEventListener('click', resetView);
@@ -1133,7 +1385,7 @@ window.Importer = (() => {
   }
 
   function resetView() {
-    records = []; rawRows = []; header = []; fromForm = null;
+    records = []; rawRows = []; header = []; fromForm = null; fromSheet = false;
     $('imp-file').value = '';
     $('imp-result').hidden = true;
     $('imp-status').textContent = '';
@@ -1141,43 +1393,48 @@ window.Importer = (() => {
 
   // ---------- Анкети з Google Форми (читає робот, далі — той самий перегляд) ----------
   let fromForm = null;      // { maxRow } — якщо поточний перегляд узято з форми
-  async function onForm() {
-    const btn = $('imp-form-btn');
-    const showAll = $('imp-form-all').checked;
-    btn.disabled = true;
-    $('imp-status').textContent = 'Робот читає таблицю анкет…';
+  let fromSheet = false;    // перегляд узято з Google Таблиці журналу (БЗВ / Полон / Ветерани)
+  async function onForm(e) {
+    const btn = e && e.currentTarget && e.currentTarget.dataset && e.currentTarget.dataset.src ? e.currentTarget : $('imp-form-btn');
+    const source = btn.dataset.src || 'kids';
+    const kids = source === 'kids';
+    const showAll = !kids || $('imp-form-all').checked;
+    document.querySelectorAll('.imp-src-btn, #imp-form-btn').forEach((b) => { b.disabled = true; });
+    $('imp-status').textContent = kids ? 'Робот читає таблицю анкет…' : 'Робот читає Google Таблицю…';
     $('imp-result').hidden = true;
     try {
       const { db } = Persons.ctx();
-      const { data, error } = await db.functions.invoke('kids-form', { body: { action: 'read' } });
+      const { data, error } = await db.functions.invoke('kids-form', { body: { action: 'read', source } });
       if (error || !data?.ok) {
         let msg = data?.error;
         if (!msg && error?.context?.json) msg = (await error.context.json().catch(() => ({}))).error;
-        throw new Error(msg || 'Не вдалося прочитати таблицю анкет.');
+        throw new Error(msg || 'Не вдалося прочитати таблицю.');
       }
       const total = data.rows.length;
       const from = showAll ? 0 : data.seen;
-      if (total + 1 <= from) {
+      if (kids && total + 1 <= from) {
         $('imp-status').textContent = `Нових анкет немає (у таблиці ${total}, усі вже розібрано). Щоб переглянути старі — позначте «показати й раніше розібрані».`;
         return;
       }
-      template = TEMPLATES.find((t) => t.id === 'kids_mp_v2');
+      template = TEMPLATES.find((t) => t.source === source);
       $('imp-template').value = template.id;
-      fileName = 'Google Форма: ' + (data.title || 'анкети');
-      fromForm = { maxRow: total + 1 };
-      await processTable([data.header, ...data.rows], (r) => r.rows[0] > from,
-        showAll ? `Усі анкети з таблиці (${total}). ` : `Нові анкети: рядки ${from + 1}–${total + 1} таблиці. `);
+      fileName = (kids ? 'Google Форма: ' : 'Google Таблиця: ') + (data.title || template.label);
+      fromForm = kids ? { maxRow: total + 1 } : null;
+      fromSheet = !kids;
+      await processTable([data.header, ...data.rows], kids ? (r) => r.rows[0] > from : null,
+        kids ? (showAll ? `Усі анкети з таблиці (${total}). ` : `Нові анкети: рядки ${from + 1}–${total + 1} таблиці. `)
+          : `Таблиця «${data.title}», аркуш «${data.sheet}»: рядків ${total}. Повторний перенос не дублює — наявні картки лише доповнюються. `);
     } catch (err) {
       console.error(err);
-      $('imp-status').textContent = err.message || 'Не вдалося прочитати таблицю анкет.';
-    } finally { btn.disabled = false; }
+      $('imp-status').textContent = err.message || 'Не вдалося прочитати таблицю.';
+    } finally { document.querySelectorAll('.imp-src-btn, #imp-form-btn').forEach((b) => { b.disabled = false; }); }
   }
 
   async function onFile(e) {
     const file = e.target.files[0];
     if (!file) return;
     fileName = file.name;
-    fromForm = null;
+    fromForm = null; fromSheet = false;
     template = TEMPLATES.find((t) => t.id === $('imp-template').value);
     $('imp-status').textContent = 'Читаємо файл…';
     $('imp-result').hidden = true;
@@ -1210,7 +1467,7 @@ window.Importer = (() => {
     if (!template.detect(header)) {
       const other = TEMPLATES.find((t) => t.detect(header));
       if (!other) {
-        $('imp-status').textContent = 'Файл не схожий на жоден шаблон (Діти МП, 200, 300). Перевірте, що це потрібна таблиця.';
+        $('imp-status').textContent = 'Файл не схожий на жоден шаблон (Діти МП, 200, 300, Зниклі безвісти, Полон, Ветерани). Перевірте, що це потрібна таблиця.';
         return;
       }
       template = other;
@@ -1369,9 +1626,10 @@ window.Importer = (() => {
       if (me) console.error(me);
     }
     // кабінет 200 / 300: нові справи й етапи з журналу
-    if (/\((200|300)\)/.test(template.program)) {
+    if (/\((200|300)\)/.test(template.program) || template.module) {
       const { data: sc, error: se } = await db.rpc('sync_cases_from_registry');
-      if (se) console.error(se); else if (sc && (sc.new200 || sc.new300)) Persons.toast(`Кабінет: нових справ ${sc.new200 + sc.new300}`);
+      const nn = sc ? (sc.new200 || 0) + (sc.new300 || 0) + (sc.newOther || 0) : 0;
+      if (se) console.error(se); else if (nn) Persons.toast(`Кабінет: нових справ ${nn}`);
       // виконавці / відповідальні зі старого журналу → співробітники реєстру (лише порожні поля)
       const { data: am, error: ae } = await db.rpc('auto_match_executors');
       if (ae) console.error(ae); else if (am && am.filled) Persons.toast(`Виконавців підставлено у справах: ${am.filled}`);
@@ -1411,7 +1669,7 @@ window.Importer = (() => {
   async function createNew(db, r, batchId) {
     // картку створюємо лише раз: якщо повторюємо запис після оновлення ключа — не дублюємо особу
     if (!r._pid) {
-      const p = { ...r.person, source: fromForm ? 'Анкета' : 'Excel', source_ref: fileName, import_batch_id: batchId };
+      const p = { ...r.person, source: fromForm ? 'Анкета' : fromSheet ? 'Google Таблиця' : 'Excel', source_ref: fileName, import_batch_id: batchId };
       const { data, error } = await db.from('persons').insert(p).select('id').single();
       if (error) throw error;
       r._pid = data.id;

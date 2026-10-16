@@ -19,8 +19,18 @@ window.Cabinet = (() => {
   let returnTo = null;          // справа, до якої повернутися після картки реєстру
   const acc = () => window.ACCESS || { admin: isAdmin, registry: true, cab200: true, cab300: true, cells: [] };
   const isNew = (c) => !!c.transferred_at && c.transferred_by !== me && !(seen.get(c.id) >= c.transferred_at);
-  // дата для фільтра періоду: 200 — поховання, 300 — поранення
-  const dateKey = () => (module === '200' ? 'burial_date' : 'wound_date');
+  // Модулі кабінету: назва, ключова дата (для фільтра періоду й сортування), слово для шапки справи
+  const MOD_UI = {
+    '200': { title: 'Кабінет 200 — супровід родин загиблих', short: '200', word: 'загиблий', date: 'burial_date', dateWord: 'поховання', reg: 'notice_date', exec: 'виконавець', newTitle: 'Нова справа 200 — загиблий' },
+    '300': { title: 'Кабінет 300 — супровід поранених', short: '300', word: 'поранений', date: 'wound_date', dateWord: 'поранення', reg: 'appeal_date', exec: 'відповідальний', newTitle: 'Нова справа 300 — поранений' },
+    bzv: { title: 'Зниклі безвісти', short: 'БЗВ', word: 'зниклий безвісти', val: 'missing_date', dateWord: 'зникнення', reg: 'notice_date', exec: 'виконавець', newTitle: 'Нова справа — зниклий безвісти' },
+    pol: { title: 'Звільнені з полону', short: 'Полон', word: 'звільнений з полону', val: 'release_date', dateWord: 'звільнення', reg: 'release_date', exec: 'відповідальний', newTitle: 'Нова справа — звільнений з полону' },
+    vet: { title: 'Ветерани', short: 'Ветерани', word: 'ветеран', date: 'birth_date', dateWord: 'народження', reg: '', exec: 'виконавець', newTitle: 'Нова справа — ветеран' }
+  };
+  const MODS = Object.keys(MOD_UI);
+  const ui = () => MOD_UI[module] || MOD_UI['200'];
+  // дата для фільтра періоду: 200 — поховання, 300 — поранення, БЗВ — зникнення, Полон — звільнення, Ветерани — народження
+  const dateOf = (c) => (ui().val ? (c.vals || {})[ui().val] : c.person[ui().date]) || null;
   const today = () => new Date().toISOString().slice(0, 10);
   const fmt = (iso) => (iso ? iso.slice(0, 10).split('-').reverse().join('.') : '');
   const fio = (p) => [p.last_name, p.first_name, p.patronymic].filter(Boolean).join(' ');
@@ -73,15 +83,15 @@ window.Cabinet = (() => {
   async function load() {
     const my = ++loadSeq;
     const A = acc();
-    if (!A['cab' + module]) module = A.cab200 ? '200' : '300';
+    if (!MOD_UI[module] || !A['cab' + module]) module = MODS.find((m) => A['cab' + m]) || '200';
     document.querySelectorAll('.cab-mod').forEach((b) => { b.hidden = !A['cab' + b.dataset.m]; });
     $('cq-nocell-btn').hidden = false;   // справи без осередку бачать усі з доступом до кабінету (беруть у роботу за вказівкою адміна)
     keep('cab_module', module);
     document.querySelectorAll('.cab-mod').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.m === module)));
-    $('cab-title').textContent = module === '200' ? 'Кабінет 200 — супровід родин загиблих' : 'Кабінет 300 — супровід поранених';
+    $('cab-title').textContent = ui().title;
     $('cab-status-line').textContent = 'Завантажуємо…';
-    $('cab-date-label').textContent = module === '200' ? 'Дата поховання:' : 'Дата поранення:';
-    $('cab-sort').querySelector('[value="date"]').textContent = module === '200' ? 'за датою поховання' : 'за датою поранення';
+    $('cab-date-label').textContent = `Дата ${ui().dateWord}:`;
+    $('cab-sort').querySelector('[value="date"]').textContent = `за датою ${ui().dateWord}`;
     const [d, st, ops] = await Promise.all([
       db.from('case_stage_defs').select('*').eq('module', module).eq('active', true).order('sort'),
       db.from('case_statuses').select('*').eq('module', module).order('sort'),
@@ -461,7 +471,7 @@ window.Cabinet = (() => {
     const q = $('cab-search').value.trim().toLowerCase();
     const st = $('cab-status').value, ex = $('cab-exec').value, rs = $('cab-resp').value, ce = $('cab-cell').value;
     const mkf = new Set(isAdmin ? $('cab-mark').value.split(',').filter(Boolean) : []);
-    const from = $('cab-from').value, to = $('cab-to').value, dk = dateKey();
+    const from = $('cab-from').value, to = $('cab-to').value;
     const stSel = $('cab-status').value;
     const showClosed = !!preset || quick === 'closed' || !!q || statuses.some((s) => s.name === stSel && s.closed);
     if (showClosed && !withClosed && closedTotal) { withClosed = true; $('cab-status-line').textContent = 'Довантажуємо закриті справи…'; load(); }
@@ -469,7 +479,7 @@ window.Cabinet = (() => {
       if (preset && !preset.ids.has(c.id)) return false;
       if (!showClosed && isClosed(c)) return false;
       if (quick === 'closed' && !isClosed(c)) return false;
-      if (from || to) { const d = c.person[dk]; if (!d || (from && d < from) || (to && d > to)) return false; }
+      if (from || to) { const d = dateOf(c); if (!d || (from && d < from) || (to && d > to)) return false; }
       if (q && !matchSearch(c, q)) return false;
       if (st && c.status !== st) return false;
       if (ex === 'none' ? c.executor_id : ex && c.executor_id !== ex) return false;
@@ -489,10 +499,10 @@ window.Cabinet = (() => {
   // дата сповіщення (200) / звернення (300), далі номер справи.
   function sorted(list) {
     const mode = $('cab-sort').value || 'new';
-    const reg = (c) => c.vals[module === '200' ? 'notice_date' : 'appeal_date'] || '';
+    const reg = (c) => (ui().reg && c.vals[ui().reg]) || '';
     const cmp = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
     const added = (a, b) => cmp((a.created_at || '').slice(0, 16), (b.created_at || '').slice(0, 16)) || cmp(reg(a), reg(b)) || cmp(a.journal_id, b.journal_id);
-    const byDate = (a, b) => { const x = a.person[dateKey()] || '', y = b.person[dateKey()] || ''; return (!x) - (!y) || cmp(y, x); };
+    const byDate = (a, b) => { const x = dateOf(a) || '', y = dateOf(b) || ''; return (!x) - (!y) || cmp(y, x); };
     const f = mode === 'old' ? added : mode === 'abc' ? (a, b) => fio(a.person).localeCompare(fio(b.person), 'uk') : mode === 'date' ? byDate : (a, b) => added(b, a);
     const pin = $('cab-pin').checked;
     const ov = (c) => (c.next && c.next.overdue ? 0 : 1);
@@ -520,7 +530,7 @@ window.Cabinet = (() => {
   // Справи без дати, які пройшли б решту фільтрів (тобто «загубилися» саме через період)
   function noDateCount() {
     const f = $('cab-from').value, t = $('cab-to').value; $('cab-from').value = ''; $('cab-to').value = '';
-    const n = filtered().filter((c) => !c.person[dateKey()]).length;
+    const n = filtered().filter((c) => !dateOf(c)).length;
     $('cab-from').value = f; $('cab-to').value = t; return n;
   }
 
@@ -577,7 +587,7 @@ window.Cabinet = (() => {
         else q.innerHTML = (g.crit ? `<span class="q-pill q-pill-crit" title="Потрібно заповнити: ${g.crit}">${g.crit}</span>` : '') + (g.soft ? `<span class="q-pill q-pill-warn" title="Бажано заповнити: ${g.soft}">${g.soft}</span>` : '');
         tr.children[0].append(document.createElement('br'), q); }
       tr.children[1].textContent = fio(c.person);
-      { const d = c.person[dateKey()]; if (d) { const m = document.createElement('span'); m.className = 'muted cab-date'; m.textContent = (module === '200' ? 'поховання ' : 'поранення ') + fmt(d); tr.children[1].append(document.createElement('br'), m); } }
+      { const d = dateOf(c); if (d && module !== 'vet') { const m = document.createElement('span'); m.className = 'muted cab-date'; m.textContent = ui().dateWord + ' ' + fmt(d); tr.children[1].append(document.createElement('br'), m); } }
       if (isAdmin) tr.children[1].append(document.createElement('br'), markDots(c));
       if (isNew(c)) { const b = document.createElement('span'); b.className = 'cab-new-mark'; b.textContent = 'нова'; b.title = 'Справу передано у ваш осередок'; tr.children[1].append(' ', b); }
       tr.children[2].innerHTML = rec ? '<span></span><br><span class="muted"></span>' : '<span class="muted">родину не встановлено</span>';
@@ -629,7 +639,10 @@ window.Cabinet = (() => {
   // ---------- Справа ----------
   const SECTIONS = {
     '200': [['person', 'Особа'], ['notice', 'Сповіщення'], ['family', 'Родина'], ['burial', 'Поховання'], ['support', 'Супровід'], ['awards', 'Нагороди і юридичне'], ['problems', 'Проблеми'], ['other', 'Інше']],
-    '300': [['person', 'Особа'], ['treat', 'Лікування'], ['docs', 'Документи'], ['family', 'Родина'], ['problems', 'Проблеми'], ['other', 'Інше']]
+    '300': [['person', 'Особа'], ['treat', 'Лікування'], ['docs', 'Документи'], ['family', 'Родина'], ['problems', 'Проблеми'], ['other', 'Інше']],
+    bzv: [['person', 'Особа'], ['notice', 'Сповіщення'], ['search', 'Пошук'], ['family', 'Родина'], ['problems', 'Проблеми'], ['other', 'Інше']],
+    pol: [['person', 'Особа'], ['release', 'Звільнення'], ['treat', 'Реінтеграція і лікування'], ['docs', 'Документи'], ['family', 'Родина'], ['problems', 'Проблеми'], ['other', 'Інше']],
+    vet: [['person', 'Особа'], ['state', 'Стан і інвалідність'], ['family', 'Родина'], ['problems', 'Проблеми'], ['other', 'Інше']]
   };
   // Поля особи, які редагуються у справі й одразу потрапляють у картку реєстру
   const PERSON_FIELDS = {
@@ -642,6 +655,19 @@ window.Cabinet = (() => {
       person: [['last_name', 'Прізвище'], ['first_name', 'Ім’я'], ['patronymic', 'По батькові'], ['callsign', 'Позивний'], ['birth_date', 'Дата народження', 'date'],
         ['phone', 'Номер телефону', 'phone'], ['military_unit_code', 'Військова частина', 'code'], ['mp_unit_id', 'Бригада', 'unit'], ['region_id', 'Регіон (область)', 'region'],
         ['wound_date', 'Дата поранення', 'date']]
+    },
+    bzv: {
+      person: [['last_name', 'Прізвище'], ['first_name', 'Ім’я'], ['patronymic', 'По батькові'], ['callsign', 'Позивний'], ['birth_date', 'Дата народження', 'date'],
+        ['military_unit_code', 'Військова частина', 'code'], ['mp_unit_id', 'Бригада', 'unit'], ['region_id', 'Регіон (область)', 'region']]
+    },
+    pol: {
+      person: [['last_name', 'Прізвище'], ['first_name', 'Ім’я'], ['patronymic', 'По батькові'], ['callsign', 'Позивний'], ['birth_date', 'Дата народження', 'date'],
+        ['phone', 'Номер телефону', 'phone'], ['military_unit_code', 'Військова частина', 'code'], ['mp_unit_id', 'Бригада', 'unit'], ['region_id', 'Регіон (область)', 'region']]
+    },
+    vet: {
+      person: [['last_name', 'Прізвище'], ['first_name', 'Ім’я'], ['patronymic', 'По батькові'], ['callsign', 'Позивний'], ['birth_date', 'Дата народження', 'date'],
+        ['phone', 'Номер телефону', 'phone'], ['military_unit_code', 'Військова частина', 'code'], ['mp_unit_id', 'Бригада', 'unit'], ['region_id', 'Регіон (область)', 'region'],
+        ['settlement', 'Місце проживання']]
     }
   };
   const P_LABELS = Object.fromEntries([['p_comment', 'Примітки'], ...Object.values(PERSON_FIELDS).flatMap((m) => Object.values(m).flat()).map(([k, l]) => ['p_' + k, l])]);
@@ -713,7 +739,7 @@ window.Cabinet = (() => {
     $('case-take').onclick = () => { eSel.value = me; saveCase({ executor_id: me }); };
     renderHelpers();
     $('case-history-box').open = window.matchMedia('(min-width: 961px)').matches;   // на телефоні історію згорнуто
-    const legacy = [c.vals.executor_legacy && `${module === '300' ? 'відповідальний' : 'виконавець'} — ${c.vals.executor_legacy}`, c.vals.responsible && `відповідальний — ${c.vals.responsible}`].filter(Boolean);
+    const legacy = [c.vals.executor_legacy && `${ui().exec} — ${c.vals.executor_legacy}`, c.vals.responsible && `відповідальний — ${c.vals.responsible}`].filter(Boolean);
     $('case-legacy').textContent = legacy.length ? `Як було в журналі: ${legacy.join('; ')}` : '';
     renderHead();
     renderStages();
@@ -724,7 +750,7 @@ window.Cabinet = (() => {
     const c = current, p = c.person;
     $('case-title').textContent = fio(p) + (p.callsign ? ` «${p.callsign}»` : '');
     const sub = $('case-sub');
-    sub.textContent = `${c.journal_id} · ${module === '200' ? 'загиблий' : 'поранений'}`;
+    sub.textContent = `${c.journal_id} · ${ui().word}`;
     if (p.death_date) { const d = document.createElement('b'); d.className = 'death-date'; d.textContent = `дата смерті ${fmt(p.death_date)}`; sub.append(' · ', d); }
     sub.append((p.burial_date ? ` · поховання ${fmt(p.burial_date)}` : '') +
       (p.wound_date ? ` · поранення ${fmt(p.wound_date)}` : '') + (c.next ? ` · далі: ${c.next.label}, ${dueText(c.next)}` : ''));
@@ -1122,7 +1148,7 @@ window.Cabinet = (() => {
   // ---------- Нова справа ----------
   function openNew() {
     const d = $('cab-new'); d.querySelector('form').reset();
-    $('cab-new-title').textContent = module === '200' ? 'Нова справа 200 — загиблий' : 'Нова справа 300 — поранений';
+    $('cab-new-title').textContent = ui().newTitle;
     const sel = $('cab-new-cell'); sel.innerHTML = '<option value="">— не вказано —</option>';
     const A = acc();
     if (!isAdmin) sel.innerHTML = '';
@@ -1235,7 +1261,7 @@ window.Cabinet = (() => {
   async function openSettings() {
     const { data } = await db.from('case_stage_defs').select('*').eq('module', module).order('sort');
     const tb = $('cab-set-table').tBodies[0]; tb.innerHTML = '';
-    $('cab-set-title').textContent = `Поля справи — кабінет ${module}`;
+    $('cab-set-title').textContent = `Поля справи — ${ui().short === ui().title ? ui().title : 'кабінет ' + ui().short}`;
     const keys = (data || []).map((d) => [d.key, d.label]);
     const row = (d) => {
       const tr = document.createElement('tr');
@@ -1282,7 +1308,7 @@ window.Cabinet = (() => {
 
   // Відкрити справу за посиланням ?case=200-0123
   async function openByJournal(jid) {
-    module = jid.startsWith('300') ? '300' : '200';
+    module = /^300/.test(jid) ? '300' : /^БЗВ/i.test(jid) ? 'bzv' : /^ПОЛ/i.test(jid) ? 'pol' : /^ВЕТ/i.test(jid) ? 'vet' : '200';
     await load();
     let c = cases.find((x) => x.journal_id === jid);
     if (!c && !withClosed) { withClosed = true; await load(); c = cases.find((x) => x.journal_id === jid); }

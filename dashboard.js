@@ -11,8 +11,14 @@ window.Dashboard = (() => {
     minors:   { label: 'Неповнолітніх дітей',     calc: (p) => (p.children_ages || []).filter((a) => a < 18).length },
     critical: { label: 'Карток з критичними позначками', calc: (p) => (p.critical_count > 0 ? 1 : 0) },
     cases200: { label: 'Справ 200 (загиблі)', cases: '200', what: 'поховання', chart: 'Поховання по місяцях', none: 'без дати поховання' },
-    cases300: { label: 'Справ 300 (поранені)', cases: '300', what: 'поранення', chart: 'Поранення по місяцях', none: 'без дати поранення' }
+    cases300: { label: 'Справ 300 (поранені)', cases: '300', what: 'поранення', chart: 'Поранення по місяцях', none: 'без дати поранення' },
+    casesbzv: { label: 'Справ БЗВ (зниклі безвісти)', cases: 'bzv', name: 'БЗВ', what: 'зникнення', chart: 'Зникнення по місяцях', none: 'без дати зникнення' },
+    casespol: { label: 'Справ «Полон» (звільнені з полону)', cases: 'pol', name: 'Полон', what: 'звільнення', chart: 'Звільнення з полону по місяцях', none: 'без дати звільнення' },
+    casesvet: { label: 'Справ «Ветерани»', cases: 'vet', name: 'Ветерани', what: 'народження', chart: 'Народження по місяцях', none: 'без дати народження' }
   };
+  // дата справи для періоду: 200 — поховання, 300 — поранення, БЗВ — зникнення, Полон — звільнення (поля справи), Ветерани — народження
+  const CASE_DATE = { bzv: 'missing_date', pol: 'release_date' };
+  const modName = (M) => M.name || M.cases;
   const hasCab = (m) => { const A = window.ACCESS; return !A || !!A['cab' + m]; };
   let caseRows = null;      // [{id, module, region, month}] — month: 200 = поховання, 300 = поранення; — справи кабінету з областю за осередком
   const MONTHS = ['січень', 'лютий', 'березень', 'квітень', 'травень', 'червень', 'липень', 'серпень', 'вересень', 'жовтень', 'листопад', 'грудень'];
@@ -170,7 +176,7 @@ window.Dashboard = (() => {
         byRegion.set(c.region, (byRegion.get(c.region) || 0) + 1);
       });
       const undated = mine.filter((c) => !c.month).length;
-      $('dash-note').textContent = `Усього справ ${caseMod}: ${mine.length}` + (undated ? `, з них ${M.none}: ${undated}` : '') +
+      $('dash-note').textContent = `Усього справ ${modName(M)}: ${mine.length}` + (undated ? `, з них ${M.none}: ${undated}` : '') +
         (hasPeriod() ? '. Коли обрано період, справи без дати не рахуються — «увесь час» показує всі.' : '.');
       renderMonths(mine);
     } else {
@@ -202,7 +208,7 @@ window.Dashboard = (() => {
     // Легенда
     $('dash-legend-max').textContent = max || 0;
     $('dash-legend-min').textContent = max ? 1 : 0;
-    $('dash-title').textContent = caseMod && hasPeriod() ? `Справи ${caseMod} · ${M.what}: ${periodText()}` : `${M.label} по областях`;
+    $('dash-title').textContent = caseMod && hasPeriod() ? `Справи ${modName(M)} · ${M.what}: ${periodText()}` : `${M.label} по областях`;
 
     // Підсумки
     $('dash-total').textContent = total;
@@ -242,16 +248,26 @@ window.Dashboard = (() => {
     const all = [];
     for (let from = 0; ; from += 1000) {
       const { data, error } = await db.from('cases')
-        .select('id, module, cell_id, person:persons!cases_person_id_fkey(region_id, cell_id, burial_date, wound_date)')
+        .select('id, module, cell_id, person:persons!cases_person_id_fkey(region_id, cell_id, burial_date, wound_date, birth_date)')
         .order('id').range(from, from + 999);
       if (error) { console.error(error); $('dash-status').textContent = 'Не вдалося завантажити справи.'; caseRows = []; return; }
       all.push(...data);
       if (data.length < 1000) break;
     }
+    // дати зникнення / звільнення — у полях справи (лише для БЗВ і Полону, тож запит невеликий)
+    const vd = new Map();
+    const newIds = all.filter((c) => CASE_DATE[c.module]).map((c) => c.id);
+    for (let i = 0; i < newIds.length; i += 200) {
+      const { data } = await db.from('case_values').select('case_id, stage_key, value').in('case_id', newIds.slice(i, i + 200)).in('stage_key', Object.values(CASE_DATE));
+      (data || []).forEach((v) => vd.set(v.case_id + '|' + v.stage_key, v.value));
+    }
+    const dateOf = (c, p) => (c.module === '200' ? p.burial_date : c.module === '300' ? p.wound_date : c.module === 'vet' ? p.birth_date
+      : vd.get(c.id + '|' + CASE_DATE[c.module])) || '';
     caseRows = all.map((c) => {
       const p = c.person || {};
       const name = regions.get(cellRegion.get(c.cell_id) || cellRegion.get(p.cell_id) || p.region_id);
-      return { id: c.id, module: c.module, region: name && name !== 'За кордоном' ? name : null, month: ((c.module === '200' ? p.burial_date : p.wound_date) || '').slice(0, 7) || null };
+      const d = dateOf(c, p);
+      return { id: c.id, module: c.module, region: name && name !== 'За кордоном' ? name : null, month: /^\d{4}-\d{2}/.test(d) ? d.slice(0, 7) : null };
     });
     $('dash-status').textContent = '';
   }
@@ -324,7 +340,7 @@ window.Dashboard = (() => {
       const ids = (caseRows || []).filter((c) => c.module === caseMod && c.region === name && inPeriod(c)).map((c) => c.id);
       if (!ids.length) { Persons.toast(`${short(name)}: справ немає`); return; }
       const when = hasPeriod() ? `, ${METRICS[metric].what} ${periodText()}` : '';
-      Cabinet.openPreset(caseMod, ids, `Дашборд: справи ${caseMod}${when}, ${short(name)} — ${ids.length}`);
+      Cabinet.openPreset(caseMod, ids, `Дашборд: справи ${modName(METRICS[metric])}${when}, ${short(name)} — ${ids.length}`);
       return;
     }
     const { regions } = Persons.ctx();

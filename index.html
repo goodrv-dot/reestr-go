@@ -19,7 +19,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Unbounded:wght@600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=202610161235">
+  <link rel="stylesheet" href="style.css?v=202610161331">
 </head>
 <body>
 
@@ -475,7 +475,7 @@
         </div>
       </div>
       <p id="dash-cond" class="muted dash-cond"></p>
-      <p id="dash-case-hint" class="muted dash-hint" hidden>Дані з Кабінету: одна справа — один загиблий або поранений, область — за осередком справи. Можна обрати період за датою. Клік по області відкриває ці справи в Кабінеті. Фільтри вкладки «Особи» тут не діють.</p>
+      <p id="dash-case-hint" class="muted dash-hint" hidden>Дані з Кабінету: одна справа — один загиблий, поранений, зниклий безвісти, звільнений з полону чи ветеран; область — за осередком справи. Можна обрати період за датою. Клік по області відкриває ці справи в Кабінеті. Фільтри вкладки «Особи» тут не діють.</p>
       <p id="dash-hint" class="muted dash-hint">Карта враховує пошук, фільтри й сегмент з вкладки «Особи». Клік по області відкриває список її людей.</p>
       <div class="dash-metrics" role="group" aria-label="Що показувати">
         <button type="button" class="qchip dash-metric" data-m="persons" aria-pressed="true">Осіб</button>
@@ -484,6 +484,9 @@
         <button type="button" class="qchip dash-metric" data-m="critical" aria-pressed="false">Критичні картки</button>
         <button type="button" class="qchip dash-metric cab-mod-200" data-m="cases200" aria-pressed="false">Справи 200</button>
         <button type="button" class="qchip dash-metric cab-mod-300" data-m="cases300" aria-pressed="false">Справи 300</button>
+        <button type="button" class="qchip dash-metric cab-mod-bzv" data-m="casesbzv" aria-pressed="false">Справи БЗВ</button>
+        <button type="button" class="qchip dash-metric cab-mod-pol" data-m="casespol" aria-pressed="false">Справи Полон</button>
+        <button type="button" class="qchip dash-metric cab-mod-vet" data-m="casesvet" aria-pressed="false">Справи Ветерани</button>
         <button id="dash-reset" class="btn-link reset-all" type="button" hidden>Скинути фільтри</button>
       </div>
       <section id="dash-burials" class="dash-burials" hidden aria-label="Період">
@@ -812,7 +815,7 @@
       <section id="m-dash">
         <h2>Дашборд (карта)</h2>
         <ul>
-          <li><b>Справи 200 / Справи 300</b> беруться з Кабінету: одна справа — один загиблий або поранений, область визначається за осередком справи. Клік по області відкриває саме ці справи в Кабінеті (над списком видно, яка це вибірка; «показати всі справи» її знімає). Ці показники бачить той, хто має доступ до відповідного кабінету.</li>
+          <li><b>Справи 200 / 300 / БЗВ / Полон / Ветерани</b> беруться з Кабінету: одна справа — одна людина, область визначається за осередком справи. Період: 200 — за датою поховання, 300 — поранення, БЗВ — зникнення, Полон — звільнення, Ветерани — народження. Клік по області відкриває саме ці справи в Кабінеті (над списком видно, яка це вибірка; «показати всі справи» її знімає). Ці показники бачить той, хто має доступ до відповідного кабінету.</li>
           <li>Вкладка «Дашборд» показує карту України: чим темніша область, тим більше людей. Наведіть мишку — побачите число.</li>
           <li>Перемикачі вгорі: <b>Осіб / Дітей / Неповнолітніх дітей / Критичні картки</b>.</li>
           <li>Карта <b>враховує пошук, фільтри й сегмент</b> з вкладки «Особи». Наприклад, оберіть сегмент «Родини загиблих — табори» — і побачите, в яких областях такі родини.</li>
@@ -1260,25 +1263,25 @@
   <p id="loading" class="loading">Завантаження…</p>
 
   <script src="vendor/supabase-2.117.3.js"></script>
-  <script src="config.js?v=202610161235"></script>
+  <script src="config.js?v=202610161331"></script>
   <script src="vendor/xlsx-0.18.5.full.min.js"></script>
-  <script src="options.js?v=202610161235"></script>
-  <script src="ui.js?v=202610161235"></script>
-  <script src="validation.js?v=202610161235"></script>
-  <script src="filters.js?v=202610161235"></script>
-  <script src="segments.js?v=202610161235"></script>
-  <script src="picker.js?v=202610161235"></script>
-  <script src="merge.js?v=202610161235"></script>
-  <script src="persons.js?v=202610161235"></script>
-  <script src="export.js?v=202610161235"></script>
-  <script src="import.js?v=202610161235"></script>
-  <script src="mfa.js?v=202610161235"></script>
-  <script src="staff.js?v=202610161235"></script>
-  <script src="ua-map.js?v=202610161235"></script>
-  <script src="dashboard.js?v=202610161235"></script>
-  <script src="cabinet.js?v=202610161235"></script>
-  <script src="feedback.js?v=202610161235"></script>
-  <script src="nav.js?v=202610161235"></script>
-  <script src="app.js?v=202610161235"></script>
+  <script src="options.js?v=202610161331"></script>
+  <script src="ui.js?v=202610161331"></script>
+  <script src="validation.js?v=202610161331"></script>
+  <script src="filters.js?v=202610161331"></script>
+  <script src="segments.js?v=202610161331"></script>
+  <script src="picker.js?v=202610161331"></script>
+  <script src="merge.js?v=202610161331"></script>
+  <script src="persons.js?v=202610161331"></script>
+  <script src="export.js?v=202610161331"></script>
+  <script src="import.js?v=202610161331"></script>
+  <script src="mfa.js?v=202610161331"></script>
+  <script src="staff.js?v=202610161331"></script>
+  <script src="ua-map.js?v=202610161331"></script>
+  <script src="dashboard.js?v=202610161331"></script>
+  <script src="cabinet.js?v=202610161331"></script>
+  <script src="feedback.js?v=202610161331"></script>
+  <script src="nav.js?v=202610161331"></script>
+  <script src="app.js?v=202610161331"></script>
 </body>
 </html>

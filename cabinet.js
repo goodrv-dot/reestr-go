@@ -1160,19 +1160,27 @@ window.Cabinet = (() => {
   async function mirrorStatus() {
     const el = $('cab-mirror'); if (!el) return;
     const { data } = await db.rpc('mirror_status');
-    if (!data || !(data.sheet_200 || data.sheet_300)) return;
+    if (!data || !(data.sheet_200 || data.sheet_300 || data.sheet_bzv || data.sheet_pol || data.sheet_vet)) return;
     const t = data.last_write ? new Date(data.last_write).toLocaleString('uk-UA', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
     const bad = /^помилка/.test(data.last_status || '');
     el.innerHTML = '';
     el.append(bad ? '⚠ Google-дзеркало: помилка · ' : `Google-дзеркало: оновлено ${t} · `);
     // кожен модуль — своя таблиця; якщо таблиця спільна — одне посилання
-    const links = data.sheet_200 === data.sheet_300 ? [['відкрити', data.sheet_200]] : [['200', data.sheet_200], ['300', data.sheet_300]].filter(([, id]) => id);
+    const links = [];
+    [['200', data.sheet_200], ['300', data.sheet_300], ['БЗВ', data.sheet_bzv], ['Звільнені з полону', data.sheet_pol], ['Ветерани', data.sheet_vet]]
+      .forEach(([label, id]) => { if (!id) return; const same = links.find((l) => l[1] === id); if (same) same[0] += ' / ' + label; else links.push([label, id]); });
     links.forEach(([label, id], i) => {
       if (i) el.append(' · ');
       const a = document.createElement('a');
       a.href = `https://docs.google.com/spreadsheets/d/${encodeURIComponent(id)}/edit`; a.target = '_blank'; a.rel = 'noopener'; a.textContent = label;
       el.append(a);
     });
+    // джерело анкет «Діти» (Google Форма) — не дзеркало, лише для зручності
+    if (data.sheet_kids) {
+      const a = document.createElement('a');
+      a.href = `https://docs.google.com/spreadsheets/d/${encodeURIComponent(data.sheet_kids)}/edit`; a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'анкети «Діти»';
+      el.append(' · ', a);
+    }
     // резервна копія бази
     const bkBad = /^помилка/.test(data.backup_status || '');
     const bk = data.backup_last ? new Date(data.backup_last).toLocaleString('uk-UA', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : null;

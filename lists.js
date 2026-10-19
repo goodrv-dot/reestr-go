@@ -22,9 +22,11 @@ window.Lists = (() => {
     if (ready) return; ready = true;
     $('lists-new').addEventListener('click', createList);
     $('list-back').addEventListener('click', () => { current = null; showIndex(); });
-    const tc = $('lists-to-cab'), cabTab = document.querySelector('.tab[data-tab="cabinet"]');
-    tc.hidden = !cabTab || cabTab.hidden;
-    tc.addEventListener('click', () => cabTab.click());
+    const tab = (t) => document.querySelector(`.tab[data-tab="${t}"]`);
+    const rb = $('reg-lists-btn'); rb.hidden = !(window.ACCESS && window.ACCESS.lists);
+    rb.addEventListener('click', () => { window.__listsFrom = 'registry'; tab('lists').click(); });
+    // «← Назад» — туди, звідки відкрили списки (кабінет чи «Особи»)
+    $('lists-to-cab').addEventListener('click', () => { const t = tab(window.__listsFrom || 'cabinet'); if (t && !t.hidden) t.click(); });
     $('lists-noreg').hidden = !!(window.ACCESS && window.ACCESS.registry);
     $('list-meta').addEventListener('change', saveMeta);
     $('list-add-q').addEventListener('input', debounce(searchPeople, 350));
@@ -44,6 +46,9 @@ window.Lists = (() => {
   // ---------- Перелік списків ----------
   async function load() {
     if (!db) return;
+    const from = document.querySelector(`.tab[data-tab="${window.__listsFrom || 'cabinet'}"]`);
+    $('lists-to-cab').hidden = !from || from.hidden;
+    $('lists-to-cab').textContent = (window.__listsFrom || 'cabinet') === 'registry' ? '← Особи' : '← Кабінет';
     const [l, o] = await Promise.all([
       db.from('person_lists').select('*, person_list_members(count)').order('created_at', { ascending: false }),
       db.from('operators').select('user_id, full_name, role, can_lists, can_registry, active').order('full_name')

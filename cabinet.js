@@ -50,7 +50,7 @@ window.Cabinet = (() => {
     document.querySelectorAll('.cab-mod').forEach((b) => b.addEventListener('click', () => { module = b.dataset.m; preset = null; picked.clear(); withClosed = false; clearFilters(true); load(); }));
     $('cab-preset-clear').addEventListener('click', () => { preset = null; render(); });
     const lb = $('cab-lists-btn'); lb.hidden = !(window.ACCESS && window.ACCESS.lists);
-    lb.addEventListener('click', () => document.querySelector('.tab[data-tab="lists"]').click());
+    lb.addEventListener('click', () => { window.__listsFrom = 'cabinet'; document.querySelector('.tab[data-tab="lists"]').click(); });
     try { $('cab-sort').value = localStorage.getItem('cab_sort') || 'new'; } catch { /* без сховища — типовий порядок */ }
     if (!$('cab-sort').value) $('cab-sort').value = 'new';
     try { $('cab-pin').checked = localStorage.getItem('cab_pin') !== '0'; } catch { /* ок */ }

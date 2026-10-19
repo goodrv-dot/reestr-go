@@ -39,7 +39,7 @@ function showApp(operator, userId) {
   const A = window.ACCESS, hasCab = (A.cabMods || []).length > 0 || A.cab200 || A.cab300;
   const tabBtn = (t) => document.querySelector(`.tab[data-tab="${t}"]`);
   tabBtn('registry').hidden = !A.registry; tabBtn('dashboard').hidden = !A.registry;
-  tabBtn('import').hidden = !A.import; tabBtn('cabinet').hidden = !hasCab; tabBtn('lists').hidden = !(A.lists && !hasCab);   // зі списками й кабінетом — кнопка «📋 Списки» в кабінеті
+  tabBtn('import').hidden = !A.import; tabBtn('cabinet').hidden = !hasCab; tabBtn('lists').hidden = !(A.lists && !hasCab && !A.registry);   // «📋 Списки» — кнопки в кабінеті та в «Особах»
   // перехід в ERP — лише для тих, хто має доступ «Реєстр» (і адміністраторів)
   const erp = $('erp-link'), erpUrl = window.APP_CONFIG.ERP_URL;
   erp.hidden = !erpUrl; // бачать усі співробітники

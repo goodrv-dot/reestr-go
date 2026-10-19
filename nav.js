@@ -3,7 +3,7 @@ const VIEWS = { registry: 'registry-view', cabinet: 'cabinet-view', dashboard: '
 
 function showTab(tab) {
   const lt = document.querySelector('.tab[data-tab="lists"]');
-  const lit = tab === 'lists' && lt && lt.hidden ? 'cabinet' : tab;   // «Списки» відкриті з кабінету — підсвічуємо «Кабінет»
+  const lit = tab === 'lists' && lt && lt.hidden ? (window.__listsFrom || (document.querySelector('.tab[data-tab="cabinet"]').hidden ? 'registry' : 'cabinet')) : tab;   // «Списки» відкриті з кабінету / «Осіб» — підсвічуємо їх
   document.querySelectorAll('.tab[data-tab]').forEach((b) => {
     const on = b.dataset.tab === lit;
     b.classList.toggle('is-active', on);

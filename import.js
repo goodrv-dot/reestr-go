@@ -1332,6 +1332,17 @@ window.Importer = (() => {
     list.forEach((r) => {
       if (r.errors.length) { r.state = 'error'; r.include = false; return; }
       let ex = allPhones(r).map((ph) => found.get(ph)).find(Boolean);
+      // Основна картка (загиблий / поранений / боєць) НЕ зливається з людиною з іншим прізвищем лише через спільний телефон:
+      // у журналах часто вказують телефон дружини чи матері. Тоді — нова картка, а номер іде в примітку.
+      if (ex && !r.isRelative && !r.mergeTo200 && !(ex.name_check) && letters(ex.last_name).slice(0, 4) !== letters(r.person.last_name).slice(0, 4)) {
+        const shared = allPhones(r).filter((ph) => found.get(ph) === ex);
+        r.person.phone = r.person.phone && shared.includes(r.person.phone) ? null : r.person.phone;
+        r.person.extra_phones = (r.person.extra_phones || []).filter((ph) => !shared.includes(ph));
+        if (!r.person.phone && r.person.extra_phones.length) r.person.phone = r.person.extra_phones.shift();
+        addComment(r, `Телефон з журналу ${shared.map((ph) => V.formatPhone(ph) || ph).join(', ')} — у реєстрі належить «${ex.last_name} ${ex.first_name}»`);
+        r.warnings.push(`Телефон належить іншій людині в реєстрі («${ex.last_name} ${ex.first_name}», напр. родичу) — картки НЕ об’єднано, номер записано в примітки`);
+        ex = allPhones(r).map((ph) => found.get(ph)).find(Boolean) || null;
+      }
       if (!ex && r.mergeTo200) ex = r.mergeTo200;
       if (!ex && !r.person.phone && r.person.last_name) {
         const k = letters(r.person.last_name) + '|' + letters(r.person.first_name) + '|' + letters(r.person.patronymic);

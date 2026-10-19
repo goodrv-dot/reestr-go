@@ -5,7 +5,7 @@
 window.Staff = (() => {
   // нові модулі кабінету: доступ — окремим списком operators.cab_modules
   const NEW_MODS = ['bzv', 'pol', 'vet'];
-  const MOD_NAMES = { bzv: 'Кабінет БЗВ', pol: 'Кабінет Полон', vet: 'Кабінет Ветерани' };
+  const MOD_NAMES = { bzv: 'Кабінет БЗВ', pol: 'Кабінет Звільнені з полону', vet: 'Кабінет Ветерани' };
   const $ = (id) => document.getElementById(id);
   let db = null;
   let me = null;
@@ -226,7 +226,7 @@ window.Staff = (() => {
         p_import: f.registry.checked && f.import.checked && !f.readonly.checked, p_cab200: f.cab200.checked, p_cab300: f.cab300.checked, p_cells: cells });
       if (error) { console.error(error); Persons.toast('Не вдалося зберегти доступи'); return; }
       const mods = await db.rpc('set_operator_modules', { p_user: o.user_id, p_mods: NEW_MODS.filter((m) => f['cab' + m].checked) });
-      if (mods.error) { console.error(mods.error); Persons.toast('Не вдалося зберегти доступ до кабінетів БЗВ / Полон / Ветерани'); return; }
+      if (mods.error) { console.error(mods.error); Persons.toast('Не вдалося зберегти доступ до кабінетів БЗВ / Звільнені з полону / Ветерани'); return; }
       const ro = await db.rpc('set_operator_readonly', { p_user: o.user_id, p_ro: f.readonly.checked });
       if (ro.error) { console.error(ro.error); Persons.toast('Не вдалося зберегти режим «Лише перегляд»'); return; }
       d.close(); Persons.toast('Доступи збережено. Співробітник побачить зміни після наступного входу.'); load();

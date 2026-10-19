@@ -1467,7 +1467,7 @@ window.Importer = (() => {
     if (!template.detect(header)) {
       const other = TEMPLATES.find((t) => t.detect(header));
       if (!other) {
-        $('imp-status').textContent = 'Файл не схожий на жоден шаблон (Діти МП, 200, 300, Зниклі безвісти, Полон, Ветерани). Перевірте, що це потрібна таблиця.';
+        $('imp-status').textContent = 'Файл не схожий на жоден шаблон (Діти МП, 200, 300, Зниклі безвісти, Звільнені з полону, Ветерани). Перевірте, що це потрібна таблиця.';
         return;
       }
       template = other;

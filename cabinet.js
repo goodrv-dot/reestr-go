@@ -24,12 +24,12 @@ window.Cabinet = (() => {
     '200': { title: 'Кабінет 200 — супровід родин загиблих', short: '200', word: 'загиблий', date: 'burial_date', dateWord: 'поховання', reg: 'notice_date', exec: 'виконавець', newTitle: 'Нова справа 200 — загиблий' },
     '300': { title: 'Кабінет 300 — супровід поранених', short: '300', word: 'поранений', date: 'wound_date', dateWord: 'поранення', reg: 'appeal_date', exec: 'відповідальний', newTitle: 'Нова справа 300 — поранений' },
     bzv: { title: 'Зниклі безвісти', short: 'БЗВ', word: 'зниклий безвісти', val: 'missing_date', dateWord: 'зникнення', reg: 'notice_date', exec: 'виконавець', newTitle: 'Нова справа — зниклий безвісти' },
-    pol: { title: 'Звільнені з полону', short: 'Полон', word: 'звільнений з полону', val: 'release_date', dateWord: 'звільнення', reg: 'release_date', exec: 'відповідальний', newTitle: 'Нова справа — звільнений з полону' },
+    pol: { title: 'Звільнені з полону', short: 'Звільнені з полону', word: 'звільнений з полону', val: 'release_date', dateWord: 'звільнення', reg: 'release_date', exec: 'відповідальний', newTitle: 'Нова справа — звільнений з полону' },
     vet: { title: 'Ветерани', short: 'Ветерани', word: 'ветеран', date: 'birth_date', dateWord: 'народження', reg: '', exec: 'виконавець', newTitle: 'Нова справа — ветеран' }
   };
   const MODS = Object.keys(MOD_UI);
   const ui = () => MOD_UI[module] || MOD_UI['200'];
-  // дата для фільтра періоду: 200 — поховання, 300 — поранення, БЗВ — зникнення, Полон — звільнення, Ветерани — народження
+  // дата для фільтра періоду: 200 — поховання, 300 — поранення, БЗВ — зникнення, Звільнені з полону — звільнення, Ветерани — народження
   const dateOf = (c) => (ui().val ? (c.vals || {})[ui().val] : c.person[ui().date]) || null;
   const today = () => new Date().toISOString().slice(0, 10);
   const fmt = (iso) => (iso ? iso.slice(0, 10).split('-').reverse().join('.') : '');

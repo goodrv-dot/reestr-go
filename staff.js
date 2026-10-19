@@ -156,7 +156,7 @@ window.Staff = (() => {
       if (o.active && o.no_login) {
         tdAct.appendChild(btn('Надати вхід', () => openEdit(o, 'login')));
       }
-      tdAct.appendChild(btn('Написання в журналах', () => openEdit(o, 'aliases')));
+      // «Написання в журналах» прибрано після переходу (старі журнали імпортовано)
       if (o.active && !o.no_login) {
         tdAct.appendChild(btn('Скинути пароль', async () => {
           if (!confirm(`Видати ${o.full_name} новий тимчасовий пароль? Старий перестане діяти.`)) return;

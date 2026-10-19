@@ -110,7 +110,7 @@ window.Importer = (() => {
       parse: parseKidsV2
     },
     {
-      id: 'kids_mp',
+      id: 'kids_mp', source: 'kids_old',
       label: 'Діти МП — анкети, стара форма',
       program: 'Діти Морської піхоти',
       detect: (hdr) => !hdr.some((h) => /^10\.11\s/.test(clean(h))) && hdr.some((h) => clean(h).startsWith('10.')) && hdr.some((h) => /дитин/i.test(clean(h))),
@@ -1675,7 +1675,7 @@ window.Importer = (() => {
   async function createNew(db, r, batchId) {
     // картку створюємо лише раз: якщо повторюємо запис після оновлення ключа — не дублюємо особу
     if (!r._pid) {
-      const p = { ...r.person, source: fromForm ? 'Анкета' : fromSheet ? 'Google Таблиця' : 'Excel', source_ref: fileName, import_batch_id: batchId };
+      const p = { ...r.person, source: fromForm || /^kids/.test(template.id) ? 'Анкета' : fromSheet ? 'Google Таблиця' : 'Excel', source_ref: fileName, import_batch_id: batchId };
       const { data, error } = await db.from('persons').insert(p).select('id').single();
       if (error) throw error;
       r._pid = data.id;

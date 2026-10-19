@@ -147,7 +147,19 @@ window.Merge = (() => {
       const vets = (oth.person_veteran_statuses || []).map((x) => x.status).filter((st) => !(keep.person_veteran_statuses || []).some((y) => y.status === st));
       if (vets.length) { r = await db.from('person_veteran_statuses').insert(vets.map((status) => ({ person_id: keep.id, status }))); if (r.error) throw r.error; }
 
-      // 6. Видалити другу картку
+      // 6. Справи кабінету: друга картка як особа справи чи контакт родини → поточна
+      r = await db.from('cases').update({ person_id: keep.id }).eq('person_id', oth.id);
+      if (r.error) throw r.error;
+      r = await db.from('cases').update({ contact_person_id: keep.id }).eq('contact_person_id', oth.id);
+      if (r.error) throw r.error;
+      // 7. Списки: переносимо участь (якщо поточна вже в тому списку — лишається її рядок)
+      const { data: lm } = await db.from('person_list_members').select('list_id, status, note, extra, added_at').eq('person_id', oth.id);
+      if (lm && lm.length) {
+        r = await db.from('person_list_members').upsert(lm.map((x) => ({ ...x, person_id: keep.id })), { onConflict: 'list_id,person_id', ignoreDuplicates: true });
+        if (r.error) throw r.error;
+      }
+
+      // 8. Видалити другу картку
       r = await db.from('persons').delete().eq('id', oth.id).select('id');
       if (r.error || !r.data.length) throw r.error || new Error('Не вдалося видалити другу картку (потрібні права адміністратора)');
 

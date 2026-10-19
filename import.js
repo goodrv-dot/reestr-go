@@ -1582,6 +1582,12 @@ window.Importer = (() => {
 
     $('imp-run').disabled = true;
     $('imp-status').textContent = 'Імпортуємо…';
+    window.__importBusy = true;     // поки йде імпорт — без автовиходу через бездіяльність
+    const warn = (e) => { e.preventDefault(); e.returnValue = ''; };   // і попередження, якщо закривають вкладку
+    window.addEventListener('beforeunload', warn);
+    try { await runImportBody(db, todo); } finally { window.__importBusy = false; window.removeEventListener('beforeunload', warn); }
+  }
+  async function runImportBody(db, todo) {
 
     const { data: batch, error: be } = await db.from('import_batches')
       .insert({ file_name: fileName, template: template.label, rows_total: records.length })

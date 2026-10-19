@@ -228,6 +228,8 @@ function isStale() {
 }
 function checkIdle() {
   if ($('app-screen').hidden) return;
+  // довгий імпорт (до години) — це робота, а не бездіяльність: поки він іде, автовихід не спрацьовує
+  if (window.__importBusy) { lastWrite = 0; markActivity(); return; }
   if (isStale()) logout(`Сесію завершено після ${IDLE_MINUTES} хвилин бездіяльності. Увійдіть знову.`);
 }
 function startIdleTimer() {

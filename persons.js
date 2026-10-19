@@ -459,6 +459,8 @@ window.Persons = (() => {
   // ---------- Список ----------
   function showList() {
     const fromCard = !$('form-view').hidden;
+    const ret = window.__cardReturn; window.__cardReturn = null;
+    if (fromCard && ret === 'lists') { $('form-view').hidden = true; $('list-view').hidden = false; document.querySelector('.tab[data-tab="lists"]').click(); return; }
     // без доступу до реєстру картку відкривають лише зі справи — повертаємо в кабінет
     if (fromCard && window.ACCESS && !window.ACCESS.registry) { $('form-view').hidden = true; $('list-view').hidden = false; document.querySelector('.tab[data-tab="cabinet"]').click(); return; }
     $('form-view').hidden = true;

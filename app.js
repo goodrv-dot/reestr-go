@@ -39,7 +39,7 @@ function showApp(operator, userId) {
   const A = window.ACCESS, hasCab = (A.cabMods || []).length > 0 || A.cab200 || A.cab300;
   const tabBtn = (t) => document.querySelector(`.tab[data-tab="${t}"]`);
   tabBtn('registry').hidden = !A.registry; tabBtn('dashboard').hidden = !A.registry;
-  tabBtn('import').hidden = !A.import; tabBtn('cabinet').hidden = !hasCab; tabBtn('lists').hidden = !A.lists;
+  tabBtn('import').hidden = !A.import; tabBtn('cabinet').hidden = !hasCab; tabBtn('lists').hidden = !(A.lists && !hasCab);   // зі списками й кабінетом — кнопка «📋 Списки» в кабінеті
   // перехід в ERP — лише для тих, хто має доступ «Реєстр» (і адміністраторів)
   const erp = $('erp-link'), erpUrl = window.APP_CONFIG.ERP_URL;
   erp.hidden = !erpUrl; // бачать усі співробітники
@@ -59,7 +59,7 @@ function showApp(operator, userId) {
     // після F5 повертаємось на ту саму вкладку (і в ту саму справу кабінету), якщо до неї є доступ
     let last = null, lastCase = null;
     try { last = sessionStorage.getItem('last_tab'); lastCase = sessionStorage.getItem('cab_case'); } catch { /* ок */ }
-    const back = !prm.get('case') && !prm.get('person') && last && tabBtn(last) && !tabBtn(last).hidden ? last : null;
+    const back = !prm.get('case') && !prm.get('person') && last && tabBtn(last) && (!tabBtn(last).hidden || (last === 'lists' && A.lists)) ? last : null;
     if (back) {
       tabBtn(back).click();
       if (back === 'cabinet' && lastCase) Cabinet.openByJournal(lastCase);

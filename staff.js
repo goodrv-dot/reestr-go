@@ -127,7 +127,7 @@ window.Staff = (() => {
     else if (o.role === 'admin') tdExp.innerHTML = '<span class="muted">усе (адміністратор)</span>';
     else {
       const cells = Persons.ctx().cells;
-      const parts = [o.read_only && '👁 Лише перегляд', o.can_registry && 'Реєстр', o.can_registry && o.can_export && 'Експорт', o.can_registry && o.can_import && 'Імпорт', o.can_registry && o.can_lists && 'Списки', o.can_cab200 && 'Кабінет 200', o.can_cab300 && 'Кабінет 300', ...(o.cab_modules || []).map((m) => MOD_NAMES[m]).filter(Boolean)].filter(Boolean);
+      const parts = [o.read_only && '👁 Лише перегляд', o.can_registry && 'Реєстр', o.can_registry && o.can_export && 'Експорт', o.can_registry && o.can_import && 'Імпорт', o.can_lists && 'Списки', o.can_cab200 && 'Кабінет 200', o.can_cab300 && 'Кабінет 300', ...(o.cab_modules || []).map((m) => MOD_NAMES[m]).filter(Boolean)].filter(Boolean);
       const cn = (o.cell_ids || []).map((id) => cells.get(id)).filter(Boolean);
       const sum = document.createElement('div'); sum.className = 'acc-sum';
       sum.innerHTML = '<span></span><br><span class="muted"></span>';
@@ -201,7 +201,7 @@ window.Staff = (() => {
     });
     const sync = () => {
       f.export.disabled = !f.registry.checked;
-      f.lists.disabled = !f.registry.checked || f.readonly.checked;
+      f.lists.disabled = !(f.registry.checked || anyCab()) || f.readonly.checked;   // списки — для реєстру або кабінету
       if (f.lists.disabled) f.lists.checked = false;
       f.import.disabled = !f.registry.checked || f.readonly.checked;
       if (f.readonly.checked) f.import.checked = false;
@@ -230,7 +230,7 @@ window.Staff = (() => {
       if (error) { console.error(error); Persons.toast('Не вдалося зберегти доступи'); return; }
       const mods = await db.rpc('set_operator_modules', { p_user: o.user_id, p_mods: NEW_MODS.filter((m) => f['cab' + m].checked) });
       if (mods.error) { console.error(mods.error); Persons.toast('Не вдалося зберегти доступ до кабінетів БЗВ / Звільнені з полону / Ветерани'); return; }
-      const li = await db.rpc('set_operator_lists', { p_user: o.user_id, p_on: f.registry.checked && f.lists.checked && !f.readonly.checked });
+      const li = await db.rpc('set_operator_lists', { p_user: o.user_id, p_on: (f.registry.checked || anyCab()) && f.lists.checked && !f.readonly.checked });
       if (li.error) { console.error(li.error); Persons.toast('Не вдалося зберегти доступ «Списки»'); return; }
       const ro = await db.rpc('set_operator_readonly', { p_user: o.user_id, p_ro: f.readonly.checked });
       if (ro.error) { console.error(ro.error); Persons.toast('Не вдалося зберегти режим «Лише перегляд»'); return; }

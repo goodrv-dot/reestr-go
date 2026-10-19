@@ -8,7 +8,7 @@ window.Lists = (() => {
   const LIST_ST = ['Відкритий', 'Подано', 'Закрито'];
   const MEMBER_ST = ['Підготовка', 'Подано', 'Виконано', 'Відмовлено'];
   let db = null, me = null, isAdmin = false, ready = false;
-  let lists = [], current = null, members = [], ops = new Map(), listOps = [];
+  let lists = [], current = null, members = [], ops = new Map(), listOps = [], hiddenCnt = 0;
   const fio = (p) => [p.last_name, p.first_name, p.patronymic].filter(Boolean).join(' ');
   const fmt = (iso) => (iso ? String(iso).slice(0, 10).split('-').reverse().join('.') : '');
   const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
@@ -22,6 +22,10 @@ window.Lists = (() => {
     if (ready) return; ready = true;
     $('lists-new').addEventListener('click', createList);
     $('list-back').addEventListener('click', () => { current = null; showIndex(); });
+    const tc = $('lists-to-cab'), cabTab = document.querySelector('.tab[data-tab="cabinet"]');
+    tc.hidden = !cabTab || cabTab.hidden;
+    tc.addEventListener('click', () => cabTab.click());
+    $('lists-noreg').hidden = !!(window.ACCESS && window.ACCESS.registry);
     $('list-meta').addEventListener('change', saveMeta);
     $('list-add-q').addEventListener('input', debounce(searchPeople, 350));
     $('list-print').addEventListener('click', () => printList());
@@ -47,7 +51,7 @@ window.Lists = (() => {
     if (l.error) { console.error(l.error); $('lists-status').textContent = 'Не вдалося завантажити списки.'; return; }
     lists = l.data || [];
     ops = new Map((o.data || []).map((x) => [x.user_id, x.full_name]));
-    listOps = (o.data || []).filter((x) => x.active && (x.role === 'admin' || (x.can_lists && x.can_registry)));
+    listOps = (o.data || []).filter((x) => x.active && (x.role === 'admin' || x.can_lists));
     $('lists-status').textContent = '';
     if (current) { const c = lists.find((x) => x.id === current.id); if (c) { current = c; return openList(c.id); } }
     showIndex();
@@ -159,6 +163,7 @@ window.Lists = (() => {
       (data || []).forEach((r) => { if (r.person && !kin.has(r.related_person_id)) kin.set(r.related_person_id, r); });
     }
     members = all.filter((m) => m.person).map((m) => ({ ...m, kin: kin.get(m.person_id) || null }));
+    hiddenCnt = all.length - members.length;   // люди поза вашими справами (спільний список)
     const c = lists.find((x) => x.id === current.id); if (c) c.person_list_members = [{ count: members.length }];
     $('list-status').textContent = '';
     renderMembers();
@@ -196,7 +201,7 @@ window.Lists = (() => {
         <td><input data-f="note"></td>${cols.map((c) => `<td><input data-x="${esc(c)}"></td>`).join('')}
         <td><button type="button" class="btn-link list-rm" title="Прибрати зі списку">✕</button></td>`;
       tr.querySelector('.list-fio').textContent = fio(p);
-      tr.querySelector('.list-fio').onclick = () => { document.querySelector('.tab[data-tab="registry"]').click(); Persons.openForm(p.id); };
+      tr.querySelector('.list-fio').onclick = () => { window.__cardReturn = 'lists'; document.querySelector('.tab[data-tab="registry"]').click(); Persons.openForm(p.id); };
       tr.children[1].lastChild.textContent = [fmt(p.birth_date), p.military_status].filter(Boolean).join(' · ');
       tr.children[2].textContent = [rankOf(p), p.military_unit_code, unitOf(p), eventOf(p), kinOf(m)].filter(Boolean).join(' · ');
       const sel = tr.querySelector('[data-f="status"]'); sel.value = m.status; sel.disabled = !edit;
@@ -211,7 +216,8 @@ window.Lists = (() => {
       rm.onclick = () => removeMember(m);
       tb.appendChild(tr);
     });
-    $('list-count').textContent = `Осіб у списку: ${members.length}` + (members.length ? ' · ' + MEMBER_ST.map((s) => `${s.toLowerCase()}: ${members.filter((m) => m.status === s).length}`).join(', ') : '');
+    $('list-count').textContent = `Осіб у списку: ${members.length}` + (members.length ? ' · ' + MEMBER_ST.map((s) => `${s.toLowerCase()}: ${members.filter((m) => m.status === s).length}`).join(', ') : '')
+      + (hiddenCnt ? ` · ще ${hiddenCnt} — поза вашими справами, вам не видно` : '');
     $('list-members').hidden = !members.length;
     renderPrintCols();
   }

@@ -2,8 +2,10 @@
 const VIEWS = { registry: 'registry-view', cabinet: 'cabinet-view', dashboard: 'dashboard-view', import: 'import-view', lists: 'lists-view', staff: 'staff-view', manual: 'manual-view' };
 
 function showTab(tab) {
+  const lt = document.querySelector('.tab[data-tab="lists"]');
+  const lit = tab === 'lists' && lt && lt.hidden ? 'cabinet' : tab;   // «Списки» відкриті з кабінету — підсвічуємо «Кабінет»
   document.querySelectorAll('.tab[data-tab]').forEach((b) => {
-    const on = b.dataset.tab === tab;
+    const on = b.dataset.tab === lit;
     b.classList.toggle('is-active', on);
     b.setAttribute('aria-current', on ? 'page' : 'false');
     if (on) b.scrollIntoView({ block: 'nearest', inline: 'nearest' });

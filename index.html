@@ -19,7 +19,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Unbounded:wght@600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=202610191335">
+  <link rel="stylesheet" href="style.css?v=202610191544">
 </head>
 <body>
 
@@ -359,6 +359,7 @@
             <button id="cab-settings-btn" class="btn-secondary btn-small" type="button" hidden>Налаштування полів</button>
             <button id="cab-bulk-btn" class="btn-secondary btn-small" type="button" aria-pressed="false" hidden>☑ Кілька справ</button>
             <button id="cab-load-btn" class="btn-secondary btn-small" type="button" hidden>Навантаження</button>
+            <button id="cab-lists-btn" class="btn-secondary btn-small" type="button" hidden>📋 Списки</button>
             <span id="cab-mirror" class="cab-mirror" hidden></span>
           </div>
         </div>
@@ -529,9 +530,11 @@
 
     <main id="lists-view" class="app-main" hidden>
       <div id="lists-index">
+        <button id="lists-to-cab" class="btn-link" type="button" hidden>← Кабінет</button>
         <div class="list-head"><h1>Списки</h1><button id="lists-new" class="btn-primary" type="button">+ Новий список</button></div>
         <p class="muted">Добірки людей під задачу: «Представити до нагороди — листопад», «Запрошення на захід»… Одна людина може бути в кількох списках. Список бачите ви, адміністратор і ті, кому ви його відкрили.</p>
         <p id="lists-status" class="muted"></p>
+        <p id="lists-noreg" class="muted" hidden>Додавати можна людей із ваших справ кабінету (загиблих, поранених, їхніх рідних).</p>
         <div class="table-wrap"><table id="lists-table" class="lists-table" hidden><thead><tr><th>Назва</th><th>Статус</th><th>Термін</th><th>Осіб</th><th>Автор</th></tr></thead><tbody></tbody></table></div>
         <p id="lists-empty" class="muted" hidden>Списків ще немає. Натисніть «+ Новий список».</p>
       </div>
@@ -874,13 +877,13 @@
       <section id="m-lists">
         <h2>Списки (добірки під задачу)</h2>
         <ul>
-          <li><b>Списки</b> — окрема вкладка для робіт на кшталт «Представити до нагороди — листопад», «Запрошення на захід». Людей у список додають вручну, і вони там лишаються (на відміну від сегмента, який сам перераховується за фільтром). Одна людина може бути в будь-якій кількості списків.</li>
+          <li><b>Списки</b> — окрема вкладка для робіт на кшталт «Представити до нагороди — листопад», «Запрошення на захід». Людей у список додають вручну, і вони там лишаються (на відміну від сегмента, який сам перераховується за фільтром). Одна людина може бути в будь-якій кількості списків. Відкриваються кнопкою <b>«📋 Списки»</b> у шапці кабінету (поруч із «Навантаження»).</li>
           <li><b>+ Новий список</b> → назва. У списку: термін, статус списку (Відкритий / Подано / Закрито), опис і <b>додаткові колонки</b> — через кому, напр. «Вид нагороди, Підстава, Дата подання». Для кожної людини в списку є свій <b>статус</b> (Підготовка / Подано / Виконано / Відмовлено), примітка й значення додаткових колонок.</li>
           <li><b>Як додати людей:</b> пошуком у самому списку (від 3 літер прізвища); з картки особи — кнопка «📋 До списку»; або всіх, хто зараз у «Особах» за пошуком і фільтрами, — кнопка «📋 До списку» біля вивантаження. Повторно ту саму людину в той самий список не додасть.</li>
           <li>У картці особи під заголовком видно, в яких списках вона вже є і з яким статусом — щоб не подати людину двічі.</li>
           <li><b>🖨 Друк</b> — таблиця на А4 (альбомна) з назвою, терміном, кількістю й рядком «Склав(ла)». <b>📥 Excel</b> — та сама таблиця файлом. Які колонки друкувати — «Колонки для друку й Excel» (запам’ятовується для кожного списку).</li>
           <li><b>Хто бачить:</b> автор, адміністратор і ті, кому автор відкрив список («Поділитися списком»). Співавтори можуть додавати людей і правити список, але змінювати доступ і видаляти список — лише автор чи адміністратор. Видалення списку не чіпає картки в реєстрі.</li>
-          <li>Доступ «Списки» дає адміністратор у «Змінити доступи» (потрібен також доступ «Реєстр»).</li>
+          <li>Доступ «Списки» дає адміністратор у «Змінити доступи» — разом із «Реєстром» або будь-яким кабінетом. Хто має лише кабінет, у списку бачить і може додати тільки людей зі своїх справ (за модулем і осередком) та їхніх рідних; інших людей у спільному списку йому не видно — під таблицею буде позначка, скільки їх.</li>
         </ul>
       </section>
 
@@ -1072,7 +1075,7 @@
         <label class="check"><input type="checkbox" name="registry"> Реєстр — «Особи», «Дашборд», фільтри, сегменти</label>
         <label class="check"><input type="checkbox" name="export"> Експорт — вивантаження Excel і CSV</label>
         <label class="check"><input type="checkbox" name="import"> Імпорт — завантаження файлів</label>
-        <label class="check"><input type="checkbox" name="lists"> Списки — добірки людей під задачу (нагородження тощо), друк і Excel</label>
+        <label class="check"><input type="checkbox" name="lists"> Списки — добірки людей під задачу (нагородження тощо), друк і Excel. Кнопка «📋 Списки» в кабінеті; без «Реєстру» — лише люди з доступних справ</label>
       </fieldset>
       <fieldset class="acc-set"><legend>Кабінет (справи своїх осередків)</legend>
         <label class="check"><input type="checkbox" name="cab200"> Кабінет 200 — родини загиблих</label>
@@ -1330,26 +1333,26 @@
   </dialog>
   <div id="print-area" class="print-area" aria-hidden="true"></div>
   <script src="vendor/supabase-2.117.3.js"></script>
-  <script src="config.js?v=202610191335"></script>
+  <script src="config.js?v=202610191544"></script>
   <script src="vendor/xlsx-0.18.5.full.min.js"></script>
-  <script src="options.js?v=202610191335"></script>
-  <script src="ui.js?v=202610191335"></script>
-  <script src="validation.js?v=202610191335"></script>
-  <script src="filters.js?v=202610191335"></script>
-  <script src="segments.js?v=202610191335"></script>
-  <script src="picker.js?v=202610191335"></script>
-  <script src="merge.js?v=202610191335"></script>
-  <script src="persons.js?v=202610191335"></script>
-  <script src="export.js?v=202610191335"></script>
-  <script src="import.js?v=202610191335"></script>
-  <script src="mfa.js?v=202610191335"></script>
-  <script src="staff.js?v=202610191335"></script>
-  <script src="ua-map.js?v=202610191335"></script>
-  <script src="dashboard.js?v=202610191335"></script>
-  <script src="cabinet.js?v=202610191335"></script>
-  <script src="lists.js?v=202610191335"></script>
-  <script src="feedback.js?v=202610191335"></script>
-  <script src="nav.js?v=202610191335"></script>
-  <script src="app.js?v=202610191335"></script>
+  <script src="options.js?v=202610191544"></script>
+  <script src="ui.js?v=202610191544"></script>
+  <script src="validation.js?v=202610191544"></script>
+  <script src="filters.js?v=202610191544"></script>
+  <script src="segments.js?v=202610191544"></script>
+  <script src="picker.js?v=202610191544"></script>
+  <script src="merge.js?v=202610191544"></script>
+  <script src="persons.js?v=202610191544"></script>
+  <script src="export.js?v=202610191544"></script>
+  <script src="import.js?v=202610191544"></script>
+  <script src="mfa.js?v=202610191544"></script>
+  <script src="staff.js?v=202610191544"></script>
+  <script src="ua-map.js?v=202610191544"></script>
+  <script src="dashboard.js?v=202610191544"></script>
+  <script src="cabinet.js?v=202610191544"></script>
+  <script src="lists.js?v=202610191544"></script>
+  <script src="feedback.js?v=202610191544"></script>
+  <script src="nav.js?v=202610191544"></script>
+  <script src="app.js?v=202610191544"></script>
 </body>
 </html>

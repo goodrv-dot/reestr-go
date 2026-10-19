@@ -922,6 +922,11 @@ window.Persons = (() => {
     $('person-link').hidden = !id;
     loadKin(id).catch((e) => console.error(e));
     Merge.render(id, isAdmin).catch((e) => console.error(e));
+    // «Списки»: у яких списках людина і кнопка «До списку»
+    const A = window.ACCESS || {};
+    const tl = $('person-tolist'); tl.hidden = !(id && A.lists && !A.readOnly);
+    tl.onclick = () => Lists.addDialog({ ids: [id], label: 'Особа: ' + $('form-title').textContent, after: () => showLists(id) });
+    showLists(id);
     loadOtherKin(id).catch((e) => console.error(e));
     Ui.paint($('person-form'));
     await showQuality(id);
@@ -932,6 +937,15 @@ window.Persons = (() => {
     if (!history.state || history.state.view !== 'card') history.pushState({ view: 'card' }, '');
     window.scrollTo(0, 0);
     $('f-last_name').focus();
+  }
+
+  async function showLists(id) {
+    const el = $('form-lists'); el.hidden = true; el.textContent = '';
+    if (!id || !window.Lists || !(window.ACCESS || {}).lists) return;
+    const rows = await Lists.forPerson(id);
+    if (!rows.length || editingId !== id) return;
+    el.textContent = 'У списках: ' + rows.map((r) => `${r.list.name} (${r.status.toLowerCase()})`).join('; ');
+    el.hidden = false;
   }
 
   function fillForm(p) {

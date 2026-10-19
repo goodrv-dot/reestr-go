@@ -85,7 +85,7 @@ window.Staff = (() => {
 
   async function load() {
     const { data, error } = await db.from('operators')
-      .select('user_id, full_name, email, role, can_export, can_registry, can_import, can_cab200, can_cab300, cab_modules, cell_ids, active, must_change_password, created_at, no_login, aliases, read_only')
+      .select('user_id, full_name, email, role, can_export, can_registry, can_import, can_cab200, can_cab300, cab_modules, can_lists, cell_ids, active, must_change_password, created_at, no_login, aliases, read_only')
       .order('active', { ascending: false }).order('full_name');
     const tbody = $('staff-table').tBodies[0];
     tbody.innerHTML = '';
@@ -127,7 +127,7 @@ window.Staff = (() => {
     else if (o.role === 'admin') tdExp.innerHTML = '<span class="muted">усе (адміністратор)</span>';
     else {
       const cells = Persons.ctx().cells;
-      const parts = [o.read_only && '👁 Лише перегляд', o.can_registry && 'Реєстр', o.can_registry && o.can_export && 'Експорт', o.can_registry && o.can_import && 'Імпорт', o.can_cab200 && 'Кабінет 200', o.can_cab300 && 'Кабінет 300', ...(o.cab_modules || []).map((m) => MOD_NAMES[m]).filter(Boolean)].filter(Boolean);
+      const parts = [o.read_only && '👁 Лише перегляд', o.can_registry && 'Реєстр', o.can_registry && o.can_export && 'Експорт', o.can_registry && o.can_import && 'Імпорт', o.can_registry && o.can_lists && 'Списки', o.can_cab200 && 'Кабінет 200', o.can_cab300 && 'Кабінет 300', ...(o.cab_modules || []).map((m) => MOD_NAMES[m]).filter(Boolean)].filter(Boolean);
       const cn = (o.cell_ids || []).map((id) => cells.get(id)).filter(Boolean);
       const sum = document.createElement('div'); sum.className = 'acc-sum';
       sum.innerHTML = '<span></span><br><span class="muted"></span>';
@@ -190,6 +190,7 @@ window.Staff = (() => {
     f.registry.checked = o.can_registry; f.export.checked = o.can_export; f.import.checked = o.can_import;
     f.cab200.checked = o.can_cab200; f.cab300.checked = o.can_cab300; f.readonly.checked = !!o.read_only;
     NEW_MODS.forEach((m) => { f['cab' + m].checked = (o.cab_modules || []).includes(m); });
+    f.lists.checked = !!o.can_lists;
     const anyCab = () => f.cab200.checked || f.cab300.checked || NEW_MODS.some((m) => f['cab' + m].checked);
     const box = $('acc-cells'); box.innerHTML = '';
     [...Persons.ctx().cells].forEach(([id, n]) => {
@@ -200,6 +201,8 @@ window.Staff = (() => {
     });
     const sync = () => {
       f.export.disabled = !f.registry.checked;
+      f.lists.disabled = !f.registry.checked || f.readonly.checked;
+      if (f.lists.disabled) f.lists.checked = false;
       f.import.disabled = !f.registry.checked || f.readonly.checked;
       if (f.readonly.checked) f.import.checked = false;
       $('acc-cells-wrap').hidden = !anyCab();
@@ -227,6 +230,8 @@ window.Staff = (() => {
       if (error) { console.error(error); Persons.toast('Не вдалося зберегти доступи'); return; }
       const mods = await db.rpc('set_operator_modules', { p_user: o.user_id, p_mods: NEW_MODS.filter((m) => f['cab' + m].checked) });
       if (mods.error) { console.error(mods.error); Persons.toast('Не вдалося зберегти доступ до кабінетів БЗВ / Звільнені з полону / Ветерани'); return; }
+      const li = await db.rpc('set_operator_lists', { p_user: o.user_id, p_on: f.registry.checked && f.lists.checked && !f.readonly.checked });
+      if (li.error) { console.error(li.error); Persons.toast('Не вдалося зберегти доступ «Списки»'); return; }
       const ro = await db.rpc('set_operator_readonly', { p_user: o.user_id, p_ro: f.readonly.checked });
       if (ro.error) { console.error(ro.error); Persons.toast('Не вдалося зберегти режим «Лише перегляд»'); return; }
       d.close(); Persons.toast('Доступи збережено. Співробітник побачить зміни після наступного входу.'); load();

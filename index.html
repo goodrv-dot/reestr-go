@@ -19,7 +19,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Unbounded:wght@600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=202610191210">
+  <link rel="stylesheet" href="style.css?v=202610191249">
 </head>
 <body>
 
@@ -58,6 +58,7 @@
           <button type="button" class="tab" data-tab="cabinet">Кабінет</button>
           <button type="button" class="tab" data-tab="dashboard">Дашборд</button>
           <button type="button" class="tab" data-tab="import">Імпорт</button>
+          <button type="button" class="tab" data-tab="lists" hidden>Списки</button>
           <button type="button" class="tab" data-tab="staff" id="staff-tab" hidden>Співробітники</button>
           <a id="erp-link" class="tab tab-ext" target="_blank" rel="noopener" hidden title="Відкрити ERP у новій вкладці">ERP ↗</a>
           <button type="button" class="tab" data-tab="manual">Мануал</button>
@@ -96,6 +97,7 @@
               <button id="export-excel-btn" class="btn-secondary btn-small" type="button">Excel</button>
               <button id="export-csv-btn" class="btn-secondary btn-small" type="button">CSV для SendPulse</button>
             </div>
+            <button id="tolist-filter-btn" class="btn-secondary btn-small" type="button" hidden title="Додати всіх, хто зараз у списку за пошуком і фільтрами">📋 До списку</button>
             <button id="add-btn" class="btn-primary" type="button">Додати особу</button>
           </div>
         </div>
@@ -158,9 +160,11 @@
         <div class="form-title-row">
           <h1 id="form-title">Нова особа</h1>
           <button id="person-link" type="button" class="btn-secondary btn-small" hidden title="Скопіювати посилання на цю картку">🔗 Посилання</button>
+          <button id="person-tolist" type="button" class="btn-secondary btn-small" hidden title="Додати цю людину до списку (напр. нагородження)">📋 До списку</button>
         </div>
         <div id="form-badges" class="mods form-mods"></div>
         <p id="form-meta" class="form-meta muted" hidden></p>
+        <p id="form-lists" class="form-meta muted" hidden></p>
         <section id="quality-box" class="quality" hidden aria-labelledby="quality-title">
           <h2 id="quality-title">Що потрібно доповнити</h2>
           <ul id="quality-critical" class="q-list q-critical"></ul>
@@ -523,6 +527,44 @@
       </div>
     </main>
 
+    <main id="lists-view" class="app-main" hidden>
+      <div id="lists-index">
+        <div class="list-head"><h1>Списки</h1><button id="lists-new" class="btn-primary" type="button">+ Новий список</button></div>
+        <p class="muted">Добірки людей під задачу: «Представити до нагороди — листопад», «Запрошення на захід»… Одна людина може бути в кількох списках. Список бачите ви, адміністратор і ті, кому ви його відкрили.</p>
+        <p id="lists-status" class="muted"></p>
+        <div class="table-wrap"><table id="lists-table" class="lists-table" hidden><thead><tr><th>Назва</th><th>Статус</th><th>Термін</th><th>Осіб</th><th>Автор</th></tr></thead><tbody></tbody></table></div>
+        <p id="lists-empty" class="muted" hidden>Списків ще немає. Натисніть «+ Новий список».</p>
+      </div>
+      <div id="list-one" hidden>
+        <button id="list-back" class="btn-link" type="button">← До всіх списків</button>
+        <h1 id="list-title"></h1>
+        <p id="list-owner" class="muted"></p>
+        <form id="list-meta" class="list-meta" novalidate>
+          <label>Назва<input name="name" maxlength="200"></label>
+          <label>Термін<input name="due_date" type="date"></label>
+          <label>Статус списку<select name="status"></select></label>
+          <label class="wide">Опис<input name="description" maxlength="500" placeholder="Для чого список, куди подається"></label>
+          <label class="wide">Додаткові колонки<input name="columns" placeholder="через кому: Вид нагороди, Підстава, Дата подання"></label>
+        </form>
+        <details id="list-share-wrap" class="list-share"><summary>Поділитися списком</summary><div id="list-share" class="list-share-box"></div></details>
+        <div id="list-add" class="list-add">
+          <label for="list-add-q"><b>Додати людину:</b></label>
+          <input id="list-add-q" type="search" placeholder="Прізвище (від 3 літер)…" autocomplete="off">
+          <div id="list-add-res"></div>
+          <p class="muted">Або додайте з картки особи («📋 До списку») чи всіх за фільтром у «Особах».</p>
+        </div>
+        <div class="list-tools">
+          <span id="list-count" class="muted"></span>
+          <details class="list-cols-wrap"><summary>Колонки для друку й Excel</summary><div id="list-cols" class="list-cols"></div></details>
+          <button id="list-print" class="btn-secondary btn-small" type="button">🖨 Друк</button>
+          <button id="list-excel" class="btn-secondary btn-small" type="button">📥 Excel</button>
+          <button id="list-delete" class="btn-link btn-link-danger" type="button">Видалити список</button>
+        </div>
+        <p id="list-status" class="muted"></p>
+        <div class="table-wrap"><table id="list-members" class="list-members" hidden><thead><tr></tr></thead><tbody></tbody></table></div>
+      </div>
+    </main>
+
     <main id="import-view" class="app-main" hidden>
       <h1>Імпорт з Excel</h1>
       <p class="muted imp-lead">Оберіть шаблон і файл. До запису в реєстр ви побачите попередній перегляд: хто новий, кого буде доповнено, що перевірити і де помилки.</p>
@@ -616,6 +658,7 @@
         <a href="#m-cab">Кабінет</a>
         <a href="#m-fields">Налаштування полів</a>
         <a href="#m-dash">Дашборд</a>
+        <a href="#m-lists">Списки</a>
         <a href="#m-import">Імпорт</a>
         <a href="#m-export">Вивантаження</a>
         <a href="#m-phone">Телефони</a>
@@ -827,6 +870,19 @@
         </ul>
       </section>
 
+      <section id="m-lists">
+        <h2>Списки (добірки під задачу)</h2>
+        <ul>
+          <li><b>Списки</b> — окрема вкладка для робіт на кшталт «Представити до нагороди — листопад», «Запрошення на захід». Людей у список додають вручну, і вони там лишаються (на відміну від сегмента, який сам перераховується за фільтром). Одна людина може бути в будь-якій кількості списків.</li>
+          <li><b>+ Новий список</b> → назва. У списку: термін, статус списку (Відкритий / Подано / Закрито), опис і <b>додаткові колонки</b> — через кому, напр. «Вид нагороди, Підстава, Дата подання». Для кожної людини в списку є свій <b>статус</b> (Підготовка / Подано / Виконано / Відмовлено), примітка й значення додаткових колонок.</li>
+          <li><b>Як додати людей:</b> пошуком у самому списку (від 3 літер прізвища); з картки особи — кнопка «📋 До списку»; або всіх, хто зараз у «Особах» за пошуком і фільтрами, — кнопка «📋 До списку» біля вивантаження. Повторно ту саму людину в той самий список не додасть.</li>
+          <li>У картці особи під заголовком видно, в яких списках вона вже є і з яким статусом — щоб не подати людину двічі.</li>
+          <li><b>🖨 Друк</b> — таблиця на А4 (альбомна) з назвою, терміном, кількістю й рядком «Склав(ла)». <b>📥 Excel</b> — та сама таблиця файлом. Які колонки друкувати — «Колонки для друку й Excel» (запам’ятовується для кожного списку).</li>
+          <li><b>Хто бачить:</b> автор, адміністратор і ті, кому автор відкрив список («Поділитися списком»). Співавтори можуть додавати людей і правити список, але змінювати доступ і видаляти список — лише автор чи адміністратор. Видалення списку не чіпає картки в реєстрі.</li>
+          <li>Доступ «Списки» дає адміністратор у «Змінити доступи» (потрібен також доступ «Реєстр»).</li>
+        </ul>
+      </section>
+
       <section id="m-import">
         <h2>Імпорт з Excel</h2>
         <ol>
@@ -943,7 +999,7 @@
       <section id="m-staff">
         <h2>Співробітники (для адміністратора)</h2>
         <ul>
-          <li><b>Доступи</b> задаються кожному співробітнику окремо (кнопка «Змінити доступи»): <b>Реєстр</b> (Особи, Дашборд, фільтри), <b>Експорт</b>, <b>Імпорт</b>, <b>Кабінет 200</b>, <b>Кабінет 300</b>, <b>Кабінет БЗВ</b>, <b>Кабінет Звільнені з полону</b>, <b>Кабінет Ветерани</b> та перелік <b>осередків</b>. Адміністратор бачить усе.</li>
+          <li><b>Доступи</b> задаються кожному співробітнику окремо (кнопка «Змінити доступи»): <b>Реєстр</b> (Особи, Дашборд, фільтри), <b>Експорт</b>, <b>Імпорт</b>, <b>Списки</b>, <b>Кабінет 200</b>, <b>Кабінет 300</b>, <b>Кабінет БЗВ</b>, <b>Кабінет Звільнені з полону</b>, <b>Кабінет Ветерани</b> та перелік <b>осередків</b>. Адміністратор бачить усе.</li>
           <li>Оператор осередку без «Реєстру» бачить лише справи своїх осередків, справи без осередку і картки людей із цих справ (загиблий/поранений та рідні). Чужих справ і решти реєстру для нього не існує — це обмеження на рівні бази, а не лише схованих вкладок.</li>
           <li>Новий співробітник створюється <b>без доступів</b> — одразу задайте їх. Зміни діють після наступного входу співробітника.</li>
           <li><b>Передача справи:</b> осередок у справі змінює лише адміністратор. Оператори нового осередку бачать позначку «нова» у списку, фільтр «Нові» та лічильник на вкладці «Кабінет», доки не відкриють справу. Справи без осередку — фільтр «Нерозподілені»: їх бачать усі співробітники з доступом до цього кабінету й можуть узяти в роботу («Взяти собі») за вказівкою адміністратора; щоб справа пішла в конкретний осередок, адміністратор ставить осередок.</li>
@@ -1015,6 +1071,7 @@
         <label class="check"><input type="checkbox" name="registry"> Реєстр — «Особи», «Дашборд», фільтри, сегменти</label>
         <label class="check"><input type="checkbox" name="export"> Експорт — вивантаження Excel і CSV</label>
         <label class="check"><input type="checkbox" name="import"> Імпорт — завантаження файлів</label>
+        <label class="check"><input type="checkbox" name="lists"> Списки — добірки людей під задачу (нагородження тощо), друк і Excel</label>
       </fieldset>
       <fieldset class="acc-set"><legend>Кабінет (справи своїх осередків)</legend>
         <label class="check"><input type="checkbox" name="cab200"> Кабінет 200 — родини загиблих</label>
@@ -1262,26 +1319,36 @@
   <!-- Завантаження -->
   <p id="loading" class="loading">Завантаження…</p>
 
+  <dialog id="tolist-dialog" class="dialog" aria-labelledby="tolist-title">
+    <form id="tolist-form" novalidate>
+      <h2 id="tolist-title">Додати до списку</h2>
+      <p id="tolist-what" class="muted"></p>
+      <div class="field"><label for="tolist-select">Список</label><select id="tolist-select"></select></div>
+      <div class="form-actions"><button type="submit" class="btn-primary">Додати</button><button type="button" id="tolist-cancel" class="btn-secondary">Скасувати</button></div>
+    </form>
+  </dialog>
+  <div id="print-area" class="print-area" aria-hidden="true"></div>
   <script src="vendor/supabase-2.117.3.js"></script>
-  <script src="config.js?v=202610191210"></script>
+  <script src="config.js?v=202610191249"></script>
   <script src="vendor/xlsx-0.18.5.full.min.js"></script>
-  <script src="options.js?v=202610191210"></script>
-  <script src="ui.js?v=202610191210"></script>
-  <script src="validation.js?v=202610191210"></script>
-  <script src="filters.js?v=202610191210"></script>
-  <script src="segments.js?v=202610191210"></script>
-  <script src="picker.js?v=202610191210"></script>
-  <script src="merge.js?v=202610191210"></script>
-  <script src="persons.js?v=202610191210"></script>
-  <script src="export.js?v=202610191210"></script>
-  <script src="import.js?v=202610191210"></script>
-  <script src="mfa.js?v=202610191210"></script>
-  <script src="staff.js?v=202610191210"></script>
-  <script src="ua-map.js?v=202610191210"></script>
-  <script src="dashboard.js?v=202610191210"></script>
-  <script src="cabinet.js?v=202610191210"></script>
-  <script src="feedback.js?v=202610191210"></script>
-  <script src="nav.js?v=202610191210"></script>
-  <script src="app.js?v=202610191210"></script>
+  <script src="options.js?v=202610191249"></script>
+  <script src="ui.js?v=202610191249"></script>
+  <script src="validation.js?v=202610191249"></script>
+  <script src="filters.js?v=202610191249"></script>
+  <script src="segments.js?v=202610191249"></script>
+  <script src="picker.js?v=202610191249"></script>
+  <script src="merge.js?v=202610191249"></script>
+  <script src="persons.js?v=202610191249"></script>
+  <script src="export.js?v=202610191249"></script>
+  <script src="import.js?v=202610191249"></script>
+  <script src="mfa.js?v=202610191249"></script>
+  <script src="staff.js?v=202610191249"></script>
+  <script src="ua-map.js?v=202610191249"></script>
+  <script src="dashboard.js?v=202610191249"></script>
+  <script src="cabinet.js?v=202610191249"></script>
+  <script src="lists.js?v=202610191249"></script>
+  <script src="feedback.js?v=202610191249"></script>
+  <script src="nav.js?v=202610191249"></script>
+  <script src="app.js?v=202610191249"></script>
 </body>
 </html>

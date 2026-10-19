@@ -1,5 +1,5 @@
 // Перемикання вкладок + системна кнопка «Назад» (історія браузера)
-const VIEWS = { registry: 'registry-view', cabinet: 'cabinet-view', dashboard: 'dashboard-view', import: 'import-view', staff: 'staff-view', manual: 'manual-view' };
+const VIEWS = { registry: 'registry-view', cabinet: 'cabinet-view', dashboard: 'dashboard-view', import: 'import-view', lists: 'lists-view', staff: 'staff-view', manual: 'manual-view' };
 
 function showTab(tab) {
   document.querySelectorAll('.tab[data-tab]').forEach((b) => {
@@ -12,6 +12,7 @@ function showTab(tab) {
   try { sessionStorage.setItem('last_tab', tab); } catch { /* без сховища — після F5 відкриється типова вкладка */ }
   if (tab === 'dashboard') Dashboard.refresh();
   if (tab === 'cabinet') Cabinet.load();
+  if (tab === 'lists') Lists.load();
 }
 
 document.querySelectorAll('.tab[data-tab]').forEach((btn) => {

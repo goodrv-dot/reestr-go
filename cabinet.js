@@ -736,7 +736,7 @@ window.Cabinet = (() => {
     const cSel = $('case-cell'); cSel.innerHTML = '<option value="">— не вказано —</option>';
     [...Persons.ctx().cells].forEach(([cid, n]) => cSel.add(new Option(n, cid)));
     cSel.value = c.cell_id || '';
-    cSel.disabled = !isAdmin;   // передача між осередками — етап B
+    cSel.disabled = !!acc().readOnly;   // осередок змінюють і оператори (у чужий — з підтвердженням)
     sSel.onchange = () => saveCase({ status: sSel.value });
     eSel.onchange = () => saveCase({ executor_id: eSel.value || null });
     rSel.onchange = () => saveCase({ responsible_id: rSel.value || null });
@@ -1025,7 +1025,7 @@ window.Cabinet = (() => {
       w.appendChild(ok); d.appendChild(w);
     });
     add(head, { id: 'h-resp', label: 'Відповідальний (по осередку)', kind: 'map', options: staff, value: c.responsible_id, onSave: (v) => saveCase({ responsible_id: v || null }).then(syncAll) }, 'soft');
-    add(head, { id: 'h-cell', label: 'Осередок', kind: 'map', options: cells, value: c.cell_id, readonly: !isAdmin, onSave: (v) => saveCase({ cell_id: v ? Number(v) : null }).then(syncAll) }, 'crit');
+    add(head, { id: 'h-cell', label: 'Осередок', kind: 'map', options: cells, value: c.cell_id, readonly: !!acc().readOnly, onSave: (v) => saveCase({ cell_id: v ? Number(v) : null }).then(syncAll) }, 'crit');
     add(head, { id: 'h-contact', label: 'Контактна особа', kind: 'map', options: new Map(c.kin.map((x) => [x.person.id, `${fio(x.person)} (${x.relation_degree})`])), value: k ? k.person.id : '',
       readonly: !c.kin.length, onSave: (v) => { if (v) saveCase({ contact_person_id: v }).then(syncAll); } }, 'crit');
     // ---- розділи
@@ -1233,8 +1233,19 @@ window.Cabinet = (() => {
 
   async function saveCase(patch) {
     const c = current;
-    const { error } = await db.from('cases').update(patch).eq('id', c.id);
-    if (error) { console.error(error); Persons.toast('Не вдалося зберегти'); return; }
+    let error;
+    if ('cell_id' in patch && !isAdmin) {
+      // осередок оператор змінює сам (через базу — з перевіркою доступу); у чужий осередок — після підтвердження
+      const mine = (acc().cells || []).includes(patch.cell_id);
+      if (patch.cell_id && !mine && !confirm(`Передати справу в осередок «${Persons.ctx().cells.get(patch.cell_id) || ''}»?\n\nЦе не ваш осередок — після передачі справа зникне з вашого кабінету.`)) {
+        $('case-cell').value = c.cell_id || ''; renderHead(); return false;
+      }
+      ({ error } = await db.rpc('set_case_cell', { p_case: c.id, p_cell: patch.cell_id }));
+      const rest = { ...patch }; delete rest.cell_id;
+      if (!error && Object.keys(rest).length) ({ error } = await db.from('cases').update(rest).eq('id', c.id));
+      if (!error && patch.cell_id && !mine) { Object.assign(c, patch); Persons.toast('Справу передано в інший осередок'); closeCase(); load(); return; }
+    } else ({ error } = await db.from('cases').update(patch).eq('id', c.id));
+    if (error) { console.error(error); Persons.toast('Не вдалося зберегти' + (error.message && /осередок|доступу|перегляд/.test(error.message) ? ': ' + error.message : '')); return; }
     Object.assign(c, patch);
     if ('status' in patch) { c.next = nextAction(c); renderHead(); refreshStages(); }
     $('case-take').hidden = c.executor_id === me;

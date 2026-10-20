@@ -1082,7 +1082,7 @@ window.Cabinet = (() => {
     cSel.innerHTML = '<option value="">— не вказано —</option>';
     [...Persons.ctx().cells].forEach(([cid, n]) => cSel.add(new Option(n, cid)));
     cSel.value = c.cell_id || "";
-    cSel.disabled = !isAdmin;
+    cSel.disabled = !!acc().readOnly;
     sSel.onchange = () => saveCase({ status: sSel.value });
     eSel.onchange = () => saveCase({ executor_id: eSel.value || null });
     rSel.onchange = () => saveCase({ responsible_id: rSel.value || null });
@@ -1539,7 +1539,7 @@ window.Cabinet = (() => {
       d.appendChild(w);
     });
     add(head, { id: "h-resp", label: "Відповідальний (по осередку)", kind: "map", options: staff, value: c.responsible_id, onSave: (v) => saveCase({ responsible_id: v || null }).then(syncAll) }, "soft");
-    add(head, { id: "h-cell", label: "Осередок", kind: "map", options: cells, value: c.cell_id, readonly: !isAdmin, onSave: (v) => saveCase({ cell_id: v ? Number(v) : null }).then(syncAll) }, "crit");
+    add(head, { id: "h-cell", label: "Осередок", kind: "map", options: cells, value: c.cell_id, readonly: !!acc().readOnly, onSave: (v) => saveCase({ cell_id: v ? Number(v) : null }).then(syncAll) }, "crit");
     add(head, {
       id: "h-contact",
       label: "Контактна особа",
@@ -1879,10 +1879,31 @@ window.Cabinet = (() => {
   }
   async function saveCase(patch) {
     const c = current;
-    const { error } = await db.from("cases").update(patch).eq("id", c.id);
+    let error;
+    if ("cell_id" in patch && !isAdmin) {
+      const mine = (acc().cells || []).includes(patch.cell_id);
+      if (patch.cell_id && !mine && !confirm(`Передати справу в осередок «${Persons.ctx().cells.get(patch.cell_id) || ""}»?
+
+Це не ваш осередок — після передачі справа зникне з вашого кабінету.`)) {
+        $("case-cell").value = c.cell_id || "";
+        renderHead();
+        return false;
+      }
+      ({ error } = await db.rpc("set_case_cell", { p_case: c.id, p_cell: patch.cell_id }));
+      const rest = { ...patch };
+      delete rest.cell_id;
+      if (!error && Object.keys(rest).length) ({ error } = await db.from("cases").update(rest).eq("id", c.id));
+      if (!error && patch.cell_id && !mine) {
+        Object.assign(c, patch);
+        Persons.toast("Справу передано в інший осередок");
+        closeCase();
+        load();
+        return;
+      }
+    } else ({ error } = await db.from("cases").update(patch).eq("id", c.id));
     if (error) {
       console.error(error);
-      Persons.toast("Не вдалося зберегти");
+      Persons.toast("Не вдалося зберегти" + (error.message && /осередок|доступу|перегляд/.test(error.message) ? ": " + error.message : ""));
       return;
     }
     Object.assign(c, patch);

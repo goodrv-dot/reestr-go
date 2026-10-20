@@ -2067,9 +2067,8 @@ window.Cabinet = (() => {
       if (r.data) notes = [{ kind: "robot", label: r.data }, ...notes];
     }
     if (window.Feedback) {
-      const fb = await Feedback.counts().catch(() => ({ fresh: 0, replies: 0 }));
-      if (fb.fresh) notes.push({ kind: "fb", label: `Нових пропозицій: ${fb.fresh}` });
-      if (fb.replies) notes.push({ kind: "fb", label: `Відповіли на вашу пропозицію: ${fb.replies}` });
+      const fb = await Feedback.counts().catch(() => ({ fresh: 0 }));
+      if (fb.fresh) notes.push({ kind: "fb", label: `Нове в чаті / задачах: ${fb.fresh}` });
       Feedback.refreshDot();
     }
     appBadge(notes.length);
@@ -2179,7 +2178,7 @@ window.Cabinet = (() => {
     if (fbn.length) {
       const h = document.createElement("h3");
       h.className = "n-new";
-      h.textContent = "💬 Пропозиції";
+      h.textContent = "💬 Чат / Задачі";
       p.appendChild(h);
       const ul = document.createElement("ul");
       fbn.forEach((x) => {

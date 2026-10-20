@@ -1172,3 +1172,25 @@ body.read-only .sum-cell.is-ro { cursor: default; }
 /* Кабінет: примітки в загальному списку справ — 3 рядки, повний текст у підказці */
 .cab-table td.cab-note { min-width: 12rem; max-width: 20rem; font-size: 0.85rem; color: var(--ink-2, #444); }
 .cab-table td.cab-note > span { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; white-space: pre-line; }
+
+/* Чат / Задачі */
+.fb-row { display: block; width: 100%; text-align: left; cursor: pointer; font: inherit; color: inherit; }
+.fb-row:hover { border-color: var(--sea); }
+.fb-row .fb-body { color: var(--ink-2, #444); font-size: 0.92rem; }
+.fb-compose { display: flex; flex-direction: column; gap: 0.6rem; }
+.fb-compose input, .fb-compose textarea { font: inherit; padding: 0.5rem; border: 1px solid var(--line); border-radius: var(--radius-field); }
+.fb-to { border: 1px solid var(--line); border-radius: 10px; padding: 0.5rem 0.8rem; display: flex; flex-direction: column; gap: 0.3rem; }
+.fb-to-list { max-height: 12rem; overflow: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); gap: 0.15rem 0.8rem; margin-top: 0.35rem; }
+#fb-to-q { width: 100%; }
+.fb-th-body { background: #f4f7f9; border-radius: 8px; padding: 0.6rem 0.8rem; }
+.fb-members { display: flex; flex-wrap: wrap; gap: 0.35rem 0.6rem; margin: 0.5rem 0; }
+.fb-member { display: inline-flex; gap: 0.3rem; align-items: center; font-size: 0.88rem; border: 1px solid var(--line); border-radius: 999px; padding: 0.1rem 0.25rem 0.1rem 0.6rem; }
+.fb-member .fb-st { margin-left: 0; }
+.fb-my-status { display: flex; gap: 0.5rem; align-items: center; }
+.fb-my-status select { font: inherit; padding: 0.25rem 0.4rem; }
+.fb-msgs { display: flex; flex-direction: column; gap: 0.45rem; max-height: 40vh; overflow: auto; margin: 0.5rem 0; }
+.fb-msg { border: 1px solid var(--line); border-radius: 10px; padding: 0.4rem 0.7rem; max-width: 85%; background: var(--white); }
+.fb-msg.is-mine { align-self: flex-end; background: #eef4f8; }
+.fb-msg-h { font-size: 0.82rem; }
+.fb-msg-b { white-space: pre-wrap; }
+#fb-delete { margin-top: 0.4rem; }

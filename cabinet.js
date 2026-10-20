@@ -1370,11 +1370,10 @@ window.Cabinet = (() => {
       const r = await db.rpc('robot_alert');
       if (r.data) notes = [{ kind: 'robot', label: r.data }, ...notes];
     }
-    // «Пропозиції»: адміністратору — нові, автору — відповіді на його пропозиції
+    // «Чат / Задачі»: розмови, де є щось нове не від мене
     if (window.Feedback) {
-      const fb = await Feedback.counts().catch(() => ({ fresh: 0, replies: 0 }));
-      if (fb.fresh) notes.push({ kind: 'fb', label: `Нових пропозицій: ${fb.fresh}` });
-      if (fb.replies) notes.push({ kind: 'fb', label: `Відповіли на вашу пропозицію: ${fb.replies}` });
+      const fb = await Feedback.counts().catch(() => ({ fresh: 0 }));
+      if (fb.fresh) notes.push({ kind: 'fb', label: `Нове в чаті / задачах: ${fb.fresh}` });
       Feedback.refreshDot();
     }
     appBadge(notes.length);
@@ -1430,7 +1429,7 @@ window.Cabinet = (() => {
     });
     const fbn = notes.filter((x) => x.kind === 'fb');
     if (fbn.length) {
-      const h = document.createElement('h3'); h.className = 'n-new'; h.textContent = '💬 Пропозиції'; p.appendChild(h);
+      const h = document.createElement('h3'); h.className = 'n-new'; h.textContent = '💬 Чат / Задачі'; p.appendChild(h);
       const ul = document.createElement('ul');
       fbn.forEach((x) => {
         const li = document.createElement('li'); const b = document.createElement('button'); b.type = 'button'; b.className = 'bell-item';

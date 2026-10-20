@@ -581,6 +581,7 @@ window.Cabinet = (() => {
         <td class="cab-id"></td>
         <td class="cell-name"></td>
         <td class="cab-family"></td>
+        <td class="cab-note"><span></span></td>
         <td></td>
         <td><span class="cab-status"></span></td>
         <td class="cab-exec"></td>
@@ -600,20 +601,22 @@ window.Cabinet = (() => {
         tr.children[2].firstChild.textContent = `${rec.relation_degree}: ${fio(rec.person)}` + (c.kin.length > 1 ? ` (+${c.kin.length - 1})` : '');
         tr.children[2].lastChild.textContent = V.formatPhone(rec.person.phone) || 'без телефону';
       }
-      tr.children[3].textContent = cells.get(c.cell_id) || '—';
-      const sp = tr.children[4].firstChild;
+      { const n = String(c.person.comment || '').trim(); const el = tr.children[3].firstChild;
+        el.textContent = n; if (n) tr.children[3].title = n; else tr.children[3].innerHTML = '<span class="muted">—</span>'; }
+      tr.children[4].textContent = cells.get(c.cell_id) || '—';
+      const sp = tr.children[5].firstChild;
       sp.textContent = c.status || '—';
       const col = statusColor(c.status, color.get(c.status));
       sp.style.setProperty('--st', col); sp.style.color = inkFor(col);
-      tr.children[5].textContent = staff.get(c.executor_id) || (c.vals.executor_legacy ? `(${c.vals.executor_legacy})` : '—');
+      tr.children[6].textContent = staff.get(c.executor_id) || (c.vals.executor_legacy ? `(${c.vals.executor_legacy})` : '—');
       { const r = staff.get(c.responsible_id) || (c.vals.responsible ? `(${c.vals.responsible})` : '');
-        if (r) { const m = document.createElement('span'); m.className = 'muted cab-resp-line'; m.textContent = 'відп.: ' + r; tr.children[5].append(document.createElement('br'), m); } }
+        if (r) { const m = document.createElement('span'); m.className = 'muted cab-resp-line'; m.textContent = 'відп.: ' + r; tr.children[6].append(document.createElement('br'), m); } }
       if (c.next) {
-        tr.children[6].innerHTML = '<span></span><br><span class="due-tag"></span>';
-        tr.children[6].firstChild.textContent = c.next.label;
-        tr.children[6].lastChild.textContent = dueText(c.next); tr.children[6].lastChild.classList.add('due-' + c.next.level);
+        tr.children[7].innerHTML = '<span></span><br><span class="due-tag"></span>';
+        tr.children[7].firstChild.textContent = c.next.label;
+        tr.children[7].lastChild.textContent = dueText(c.next); tr.children[7].lastChild.classList.add('due-' + c.next.level);
         tr.classList.add('row-' + c.next.level);
-      } else tr.children[6].textContent = '—';
+      } else tr.children[7].textContent = '—';
       if (bulkMode) {
         const td = document.createElement('td'); td.className = 'cab-sel';
         const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = picked.has(c.id);

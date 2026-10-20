@@ -1168,3 +1168,7 @@ body.read-only .sum-cell.is-ro { cursor: default; }
 .online-list li.is-away .online-dot { background: #b5bcc2; }
 .online-list .muted { font-size: 0.82rem; width: 100%; padding-left: 1.05rem; }
 .online-note { font-size: 0.78rem; margin: 0.6rem 0 0; }
+
+/* Кабінет: примітки в загальному списку справ — 3 рядки, повний текст у підказці */
+.cab-table td.cab-note { min-width: 12rem; max-width: 20rem; font-size: 0.85rem; color: var(--ink-2, #444); }
+.cab-table td.cab-note > span { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; white-space: pre-line; }

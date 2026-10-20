@@ -1159,3 +1159,12 @@ body.read-only .sum-cell.is-ro { cursor: default; }
   #print-area .print-sign { margin-top: 18pt; }
   @page { size: A4 landscape; margin: 12mm; }
 }
+
+/* «Хто зараз у програмі» (адміністратор) */
+.online-count { background: #3f9a5a; color: #fff; }
+.online-list li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.15rem 0.45rem; padding: 0.35rem 0; border-bottom: 1px solid var(--line); }
+.online-list li:last-child { border-bottom: 0; }
+.online-dot { width: 0.6rem; height: 0.6rem; border-radius: 50%; background: #3f9a5a; flex: none; align-self: center; }
+.online-list li.is-away .online-dot { background: #b5bcc2; }
+.online-list .muted { font-size: 0.82rem; width: 100%; padding-left: 1.05rem; }
+.online-note { font-size: 0.78rem; margin: 0.6rem 0 0; }

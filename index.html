@@ -19,7 +19,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Unbounded:wght@600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=202610191812">
+  <link rel="stylesheet" href="style.css?v=202610200608">
 </head>
 <body>
 
@@ -65,6 +65,13 @@
         </nav>
       </div>
       <div class="topbar-user">
+        <div class="bell-wrap">
+          <button id="online-btn" class="bell-btn online-btn" type="button" aria-label="Хто зараз у програмі" aria-haspopup="true" hidden>
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.5 3-5.5 6.5-5.5s6.5 2 6.5 5.5"/><circle cx="17.5" cy="9" r="2.5"/><path d="M16.5 14.6c3 .2 5 1.9 5 4.9"/></svg>
+            <span id="online-count" class="bell-count online-count">0</span>
+          </button>
+          <div id="online-panel" class="bell-panel online-panel" role="dialog" aria-label="Хто зараз у програмі" hidden></div>
+        </div>
         <button id="fb-btn" class="bell-btn fb-btn" type="button" aria-label="Пропозиції щодо програми" title="Пропозиції щодо програми" hidden>
           <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
           <span id="fb-count" class="bell-count" hidden></span>
@@ -1004,6 +1011,7 @@
       <section id="m-staff">
         <h2>Співробітники (для адміністратора)</h2>
         <ul>
+          <li><b>Хто зараз у програмі</b> (лише адміністратор): значок із людьми й зеленим числом угорі праворуч. Натисніть — список, хто зараз відкрив програму, на якій вкладці і з котрої години. Сіра крапка — програма відкрита, але вкладка браузера не активна. Закрили вкладку чи вийшли — людина зникає зі списку за кілька секунд. Нічого не записується в базу.</li>
           <li><b>Доступи</b> задаються кожному співробітнику окремо (кнопка «Змінити доступи»): <b>Реєстр</b> (Особи, Дашборд, фільтри), <b>Експорт</b>, <b>Імпорт</b>, <b>Списки</b>, <b>Кабінет 200</b>, <b>Кабінет 300</b>, <b>Кабінет БЗВ</b>, <b>Кабінет Звільнені з полону</b>, <b>Кабінет Ветерани</b> та перелік <b>осередків</b>. Адміністратор бачить усе.</li>
           <li>Оператор осередку без «Реєстру» бачить лише справи своїх осередків, справи без осередку і картки людей із цих справ (загиблий/поранений та рідні). Чужих справ і решти реєстру для нього не існує — це обмеження на рівні бази, а не лише схованих вкладок.</li>
           <li>Новий співробітник створюється <b>без доступів</b> — одразу задайте їх. Зміни діють після наступного входу співробітника.</li>
@@ -1334,26 +1342,27 @@
   </dialog>
   <div id="print-area" class="print-area" aria-hidden="true"></div>
   <script src="vendor/supabase-2.117.3.js"></script>
-  <script src="config.js?v=202610191812"></script>
+  <script src="config.js?v=202610200608"></script>
   <script src="vendor/xlsx-0.18.5.full.min.js"></script>
-  <script src="options.js?v=202610191812"></script>
-  <script src="ui.js?v=202610191812"></script>
-  <script src="validation.js?v=202610191812"></script>
-  <script src="filters.js?v=202610191812"></script>
-  <script src="segments.js?v=202610191812"></script>
-  <script src="picker.js?v=202610191812"></script>
-  <script src="merge.js?v=202610191812"></script>
-  <script src="persons.js?v=202610191812"></script>
-  <script src="export.js?v=202610191812"></script>
-  <script src="import.js?v=202610191812"></script>
-  <script src="mfa.js?v=202610191812"></script>
-  <script src="staff.js?v=202610191812"></script>
-  <script src="ua-map.js?v=202610191812"></script>
-  <script src="dashboard.js?v=202610191812"></script>
-  <script src="cabinet.js?v=202610191812"></script>
-  <script src="lists.js?v=202610191812"></script>
-  <script src="feedback.js?v=202610191812"></script>
-  <script src="nav.js?v=202610191812"></script>
-  <script src="app.js?v=202610191812"></script>
+  <script src="options.js?v=202610200608"></script>
+  <script src="ui.js?v=202610200608"></script>
+  <script src="validation.js?v=202610200608"></script>
+  <script src="filters.js?v=202610200608"></script>
+  <script src="segments.js?v=202610200608"></script>
+  <script src="picker.js?v=202610200608"></script>
+  <script src="merge.js?v=202610200608"></script>
+  <script src="persons.js?v=202610200608"></script>
+  <script src="export.js?v=202610200608"></script>
+  <script src="import.js?v=202610200608"></script>
+  <script src="mfa.js?v=202610200608"></script>
+  <script src="staff.js?v=202610200608"></script>
+  <script src="ua-map.js?v=202610200608"></script>
+  <script src="dashboard.js?v=202610200608"></script>
+  <script src="cabinet.js?v=202610200608"></script>
+  <script src="lists.js?v=202610200608"></script>
+  <script src="presence.js?v=202610200608"></script>
+  <script src="feedback.js?v=202610200608"></script>
+  <script src="nav.js?v=202610200608"></script>
+  <script src="app.js?v=202610200608"></script>
 </body>
 </html>

@@ -35,6 +35,7 @@ function showApp(operator, userId) {
   $('user-name').textContent = operator.full_name;
   $('user-role').textContent = window.ACCESS && window.ACCESS.readOnly ? 'Керівник · лише перегляд' : (ROLE_LABELS[operator.role] || operator.role);
   startIdleTimer();
+  try { Presence.start(db, userId, operator.full_name, operator.role === 'admin'); } catch (e) { console.error(e); }   // «хто зараз у програмі»
   $('staff-tab').hidden = operator.role !== 'admin';
   const A = window.ACCESS, hasCab = (A.cabMods || []).length > 0 || A.cab200 || A.cab300;
   const tabBtn = (t) => document.querySelector(`.tab[data-tab="${t}"]`);
@@ -199,6 +200,7 @@ $('login-form').addEventListener('submit', async (e) => {
 // ---------- Вихід ----------
 async function logout(message) {
   stopIdleTimer();
+  try { Presence.stop(); } catch { /* ок */ }
   await db.auth.signOut();
   showLogin(message);
 }

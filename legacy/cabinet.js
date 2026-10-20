@@ -120,6 +120,8 @@ window.Cabinet = (() => {
       mirrorStatus();
       initBulk();
     }
+    $("cab-mark-ui").hidden = false;
+    initMarkFilter();
     $("cab-settings-btn").addEventListener("click", openSettings);
     $("cab-new-btn").addEventListener("click", openNew);
     $("cab-new-form").addEventListener("submit", submitNew);
@@ -198,7 +200,7 @@ window.Cabinet = (() => {
     if (!skipClosed) closedTotal = 0;
     const sn = await db.from("case_seen").select("case_id, seen_at");
     const mk = /* @__PURE__ */ new Map();
-    if (isAdmin) {
+    {
       for (let from = 0; ; from += 1e3) {
         const { data, error } = await db.from("case_marks").select("case_id, colors").order("case_id").range(from, from + 999);
         if (error) {
@@ -378,8 +380,6 @@ window.Cabinet = (() => {
   const picked = /* @__PURE__ */ new Set();
   function initBulk() {
     $("cab-bulk-btn").hidden = false;
-    $("cab-mark-ui").hidden = false;
-    initMarkFilter();
     $("cab-bulk-btn").addEventListener("click", () => {
       bulkMode = !bulkMode;
       picked.clear();
@@ -683,7 +683,7 @@ window.Cabinet = (() => {
   function filtered() {
     const q = $("cab-search").value.trim().toLowerCase();
     const st = $("cab-status").value, ex = $("cab-exec").value, rs = $("cab-resp").value, ce = $("cab-cell").value;
-    const mkf = new Set(isAdmin ? $("cab-mark").value.split(",").filter(Boolean) : []);
+    const mkf = new Set($("cab-mark").value.split(",").filter(Boolean));
     const from = $("cab-from").value, to = $("cab-to").value;
     const stSel = $("cab-status").value;
     const showClosed = !!preset || quick === "closed" || !!q || statuses.some((s) => s.name === stSel && s.closed);
@@ -834,15 +834,22 @@ window.Cabinet = (() => {
       }
       tr.children[1].textContent = fio(c.person);
       {
+        const p = c.person;
+        const lines = [];
+        if (module === "200") {
+          const b = [p.birth_date && "н. " + fmt(p.birth_date), p.death_date && "заг. " + fmt(p.death_date)].filter(Boolean).join(" · ");
+          if (b) lines.push(b);
+        }
         const d = dateOf(c);
-        if (d && module !== "vet") {
+        if (d && module !== "vet") lines.push(ui().dateWord + " " + fmt(d));
+        lines.forEach((t) => {
           const m = document.createElement("span");
           m.className = "muted cab-date";
-          m.textContent = ui().dateWord + " " + fmt(d);
+          m.textContent = t;
           tr.children[1].append(document.createElement("br"), m);
-        }
+        });
       }
-      if (isAdmin) tr.children[1].append(document.createElement("br"), markDots(c));
+      tr.children[1].append(document.createElement("br"), markDots(c));
       if (isNew(c)) {
         const b = document.createElement("span");
         b.className = "cab-new-mark";

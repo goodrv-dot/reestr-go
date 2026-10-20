@@ -64,6 +64,7 @@ window.Cabinet = (() => {
     $('cab-pager').addEventListener('click', (e) => { const b = e.target.closest('.pg-btn'); if (!b || b.disabled) return; page = Number(b.dataset.page); render(); $('cab-table').scrollIntoView({ block: 'start' }); });
     $('cab-settings-btn').hidden = !isAdmin;
     if (isAdmin) { mirrorStatus(); initBulk(); }
+    $('cab-mark-ui').hidden = false; initMarkFilter();   // особисті мітки — у всіх (кожен бачить свої)
     $('cab-settings-btn').addEventListener('click', openSettings);
     $('cab-new-btn').addEventListener('click', openNew);
     $('cab-new-form').addEventListener('submit', submitNew);
@@ -137,9 +138,9 @@ window.Cabinet = (() => {
     }
     if (!skipClosed) closedTotal = 0;
     const sn = await db.from('case_seen').select('case_id, seen_at');
-    // особисті кольорові мітки (лише адміністратор, кожен бачить свої)
+    // особисті кольорові мітки (кожен співробітник бачить лише свої)
     const mk = new Map();
-    if (isAdmin) {
+    {
       for (let from = 0; ; from += 1000) {
         const { data, error } = await db.from('case_marks').select('case_id, colors').order('case_id').range(from, from + 999);
         if (error) { console.error(error); break; }
@@ -262,7 +263,7 @@ window.Cabinet = (() => {
   let bulkMode = false, lastList = [];
   const picked = new Set();
   function initBulk() {
-    $('cab-bulk-btn').hidden = false; $('cab-mark-ui').hidden = false; initMarkFilter();
+    $('cab-bulk-btn').hidden = false;
     $('cab-bulk-btn').addEventListener('click', () => {
       bulkMode = !bulkMode; picked.clear(); bulkDisarm(); bkMsg('');
       $('cab-bulk-btn').setAttribute('aria-pressed', String(bulkMode));
@@ -472,7 +473,7 @@ window.Cabinet = (() => {
   function filtered() {
     const q = $('cab-search').value.trim().toLowerCase();
     const st = $('cab-status').value, ex = $('cab-exec').value, rs = $('cab-resp').value, ce = $('cab-cell').value;
-    const mkf = new Set(isAdmin ? $('cab-mark').value.split(',').filter(Boolean) : []);
+    const mkf = new Set($('cab-mark').value.split(',').filter(Boolean));
     const from = $('cab-from').value, to = $('cab-to').value;
     const stSel = $('cab-status').value;
     const showClosed = !!preset || quick === 'closed' || !!q || statuses.some((s) => s.name === stSel && s.closed);
@@ -593,8 +594,12 @@ window.Cabinet = (() => {
         else q.innerHTML = (g.crit ? `<span class="q-pill q-pill-crit" title="Потрібно заповнити: ${g.crit}">${g.crit}</span>` : '') + (g.soft ? `<span class="q-pill q-pill-warn" title="Бажано заповнити: ${g.soft}">${g.soft}</span>` : '');
         tr.children[0].append(document.createElement('br'), q); }
       tr.children[1].textContent = fio(c.person);
-      { const d = dateOf(c); if (d && module !== 'vet') { const m = document.createElement('span'); m.className = 'muted cab-date'; m.textContent = ui().dateWord + ' ' + fmt(d); tr.children[1].append(document.createElement('br'), m); } }
-      if (isAdmin) tr.children[1].append(document.createElement('br'), markDots(c));
+      { const p = c.person; const lines = [];
+        // 200: народження й загибель — одним рядком, поховання — окремим
+        if (module === '200') { const b = [p.birth_date && 'н. ' + fmt(p.birth_date), p.death_date && 'заг. ' + fmt(p.death_date)].filter(Boolean).join(' · '); if (b) lines.push(b); }
+        const d = dateOf(c); if (d && module !== 'vet') lines.push(ui().dateWord + ' ' + fmt(d));
+        lines.forEach((t) => { const m = document.createElement('span'); m.className = 'muted cab-date'; m.textContent = t; tr.children[1].append(document.createElement('br'), m); }); }
+      tr.children[1].append(document.createElement('br'), markDots(c));
       if (isNew(c)) { const b = document.createElement('span'); b.className = 'cab-new-mark'; b.textContent = 'нова'; b.title = 'Справу передано у ваш осередок'; tr.children[1].append(' ', b); }
       tr.children[2].innerHTML = rec ? '<span></span><br><span class="muted"></span>' : '<span class="muted">родину не встановлено</span>';
       if (rec) {

@@ -721,7 +721,8 @@ window.Cabinet = (() => {
     const mode = $("cab-sort").value || "new";
     const reg = (c) => ui().reg && c.vals[ui().reg] || "";
     const cmp = (a, b) => a < b ? -1 : a > b ? 1 : 0;
-    const added = (a, b) => cmp((a.created_at || "").slice(0, 16), (b.created_at || "").slice(0, 16)) || cmp(reg(a), reg(b)) || cmp(a.journal_id, b.journal_id);
+    const num = (c) => Number(String(c.journal_id || "").split("-").pop()) || 0;
+    const added = module === "200" ? (a, b) => num(a) - num(b) : (a, b) => cmp((a.created_at || "").slice(0, 16), (b.created_at || "").slice(0, 16)) || cmp(reg(a), reg(b)) || cmp(a.journal_id, b.journal_id);
     const byDate = (a, b) => {
       const x = dateOf(a) || "", y = dateOf(b) || "";
       return !x - !y || cmp(y, x);

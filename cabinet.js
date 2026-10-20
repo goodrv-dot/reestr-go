@@ -476,7 +476,9 @@ window.Cabinet = (() => {
     const mkf = new Set($('cab-mark').value.split(',').filter(Boolean));
     const from = $('cab-from').value, to = $('cab-to').value;
     const stSel = $('cab-status').value;
-    const showClosed = !!preset || quick === 'closed' || !!q || statuses.some((s) => s.name === stSel && s.closed);
+    // вибрано колір мітки — показуємо справи з цією міткою з усіма статусами (і завершені теж)
+    const markColors = [...mkf].some((x) => x !== 'none');
+    const showClosed = !!preset || quick === 'closed' || !!q || markColors || statuses.some((s) => s.name === stSel && s.closed);
     if (showClosed && !withClosed && closedTotal) { withClosed = true; $('cab-status-line').textContent = 'Довантажуємо закриті справи…'; load(); }
     return cases.filter((c) => {
       if (preset && !preset.ids.has(c.id)) return false;
@@ -487,7 +489,12 @@ window.Cabinet = (() => {
       if (st && c.status !== st) return false;
       if (ex === 'none' ? c.executor_id : ex && c.executor_id !== ex) return false;
       if (rs === 'none' ? c.responsible_id : rs && c.responsible_id !== rs) return false;
-      if (mkf.size) { const m = marks.get(c.id) || []; if (!((mkf.has('none') && !m.length) || m.some((x) => mkf.has(String(x))))) return false; }
+      if (mkf.size) {
+        const m = marks.get(c.id) || []; const hit = m.some((x) => mkf.has(String(x)));
+        if (!((mkf.has('none') && !m.length) || hit)) return false;
+        // завершені справи — лише якщо на них є обрана мітка (а не «без міток»), щоб не висипати тисячі закритих
+        if (markColors && isClosed(c) && !hit && !q && !preset && quick !== 'closed' && !statuses.some((s) => s.name === stSel && s.closed)) return false;
+      }
       if (ce === 'none' ? c.cell_id : ce && String(c.cell_id) !== ce) return false;
       if (quick === 'mine' && c.executor_id !== me) return false;
       if (quick === 'overdue' && !(c.next && c.next.overdue)) return false;

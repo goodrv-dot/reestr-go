@@ -1,0 +1,434 @@
+// АВТОМАТИЧНО з dashboard.js (tools/build-legacy.mjs) — не редагувати вручну
+window.Dashboard = /* @__PURE__ */ (() => {
+  const $ = (id) => document.getElementById(id);
+  const NS = "http://www.w3.org/2000/svg";
+  const METRICS = {
+    persons: { label: "Осіб", calc: () => 1 },
+    children: { label: "Дітей", calc: (p) => (p.children_ages || []).length },
+    minors: { label: "Неповнолітніх дітей", calc: (p) => (p.children_ages || []).filter((a) => a < 18).length },
+    critical: { label: "Карток з критичними позначками", calc: (p) => p.critical_count > 0 ? 1 : 0 },
+    cases200: { label: "Справ 200 (загиблі)", cases: "200", what: "поховання", chart: "Поховання по місяцях", none: "без дати поховання" },
+    cases300: { label: "Справ 300 (поранені)", cases: "300", what: "поранення", chart: "Поранення по місяцях", none: "без дати поранення" },
+    casesbzv: { label: "Справ БЗВ (зниклі безвісти)", cases: "bzv", name: "БЗВ", what: "зникнення", chart: "Зникнення по місяцях", none: "без дати зникнення" },
+    casespol: { label: "Справ «Звільнені з полону»", cases: "pol", name: "Звільнені з полону", what: "звільнення", chart: "Звільнення з полону по місяцях", none: "без дати звільнення" },
+    casesvet: { label: "Справ «Ветерани»", cases: "vet", name: "Ветерани", what: "народження", chart: "Народження по місяцях", none: "без дати народження" }
+  };
+  const CASE_DATE = { bzv: "missing_date", pol: "release_date" };
+  const modName = (M) => M.name || M.cases;
+  const hasCab = (m) => {
+    const A = window.ACCESS;
+    return !A || !!A["cab" + m];
+  };
+  let caseRows = null;
+  const MONTHS = ["січень", "лютий", "березень", "квітень", "травень", "червень", "липень", "серпень", "вересень", "жовтень", "листопад", "грудень"];
+  const MONTHS_SHORT = ["січ", "лют", "бер", "кві", "тра", "чер", "лип", "сер", "вер", "жов", "лис", "гру"];
+  let period = { from: "", to: "" };
+  let metric = "persons";
+  let rows = [];
+  let byRegion = /* @__PURE__ */ new Map();
+  let ready = false;
+  const ALWAYS = ["Луганська", "Автономна Республіка Крим"];
+  const short = (n) => n === "Автономна Республіка Крим" ? "АР Крим" : n;
+  function fullList() {
+    const list = [...byRegion.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "uk"));
+    ALWAYS.forEach((n) => {
+      if (!byRegion.has(n)) list.push([n, 0]);
+    });
+    return list;
+  }
+  function init() {
+    if (ready) return;
+    ready = true;
+    document.querySelectorAll(".dash-metric").forEach((b) => b.addEventListener("click", () => {
+      metric = b.dataset.m;
+      document.querySelectorAll(".dash-metric").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+      period = { from: "", to: "" };
+      if (METRICS[metric].cases && !caseRows) loadCases().then(render);
+      else render();
+    }));
+    $("dash-png").addEventListener("click", downloadPng);
+    $("dash-refresh").addEventListener("click", () => {
+      caseRows = null;
+      refresh();
+    });
+    document.querySelectorAll('.dash-metric[data-m^="cases"]').forEach((b) => {
+      b.hidden = !hasCab(b.dataset.m.slice(5));
+    });
+    $("dash-reset").addEventListener("click", () => {
+      Persons.resetAll();
+      refresh();
+    });
+    $("dash-from").addEventListener("change", () => {
+      period.from = $("dash-from").value;
+      fixPeriod("from");
+      render();
+    });
+    $("dash-to").addEventListener("change", () => {
+      period.to = $("dash-to").value;
+      fixPeriod("to");
+      render();
+    });
+    $("dash-all").addEventListener("click", () => {
+      period = { from: "", to: "" };
+      render();
+    });
+    buildMap();
+  }
+  function buildMap() {
+    const svg = $("dash-map");
+    svg.setAttribute("viewBox", UA_MAP.viewBox);
+    const gR = document.createElementNS(NS, "g");
+    const gL = document.createElementNS(NS, "g");
+    gL.setAttribute("class", "map-labels");
+    UA_MAP.regions.forEach((r) => {
+      const p = document.createElementNS(NS, "path");
+      p.setAttribute("d", r.d);
+      p.setAttribute("class", "map-region");
+      p.dataset.name = r.name;
+      p.setAttribute("tabindex", "0");
+      p.setAttribute("role", "button");
+      gR.appendChild(p);
+      const t = document.createElementNS(NS, "text");
+      t.setAttribute("x", r.cx);
+      t.setAttribute("y", r.cy);
+      t.setAttribute("class", "map-value");
+      t.dataset.name = r.name;
+      gL.appendChild(t);
+    });
+    UA_MAP.points.forEach((pt) => {
+      const c = document.createElementNS(NS, "circle");
+      c.setAttribute("cx", pt.cx);
+      c.setAttribute("cy", pt.cy);
+      c.setAttribute("r", 13);
+      c.setAttribute("class", "map-region map-city");
+      c.dataset.name = pt.name;
+      c.setAttribute("tabindex", "0");
+      c.setAttribute("role", "button");
+      gR.appendChild(c);
+      const t = document.createElementNS(NS, "text");
+      t.setAttribute("x", pt.cx + 18);
+      t.setAttribute("y", pt.cy);
+      t.setAttribute("class", "map-value map-city-value");
+      t.dataset.name = pt.name;
+      gL.appendChild(t);
+    });
+    svg.append(gR, gL);
+    const tip = $("dash-tip");
+    const showTip = (el, ev) => {
+      const v = byRegion.get(el.dataset.name) || 0;
+      tip.textContent = `${short(el.dataset.name)}: ${v}`;
+      tip.hidden = false;
+      const box = $("dash-map-wrap").getBoundingClientRect();
+      const x = ev ? ev.clientX - box.left : el.getBoundingClientRect().left - box.left + 20;
+      const y = ev ? ev.clientY - box.top : el.getBoundingClientRect().top - box.top;
+      tip.style.left = Math.min(x + 14, box.width - 180) + "px";
+      tip.style.top = y + 14 + "px";
+    };
+    svg.addEventListener("mousemove", (e) => {
+      const el = e.target.closest(".map-region");
+      if (el) showTip(el, e);
+      else tip.hidden = true;
+    });
+    svg.addEventListener("mouseleave", () => {
+      tip.hidden = true;
+    });
+    svg.addEventListener("focusin", (e) => {
+      const el = e.target.closest(".map-region");
+      if (el) showTip(el);
+    });
+    svg.addEventListener("focusout", () => {
+      tip.hidden = true;
+    });
+    svg.addEventListener("click", (e) => {
+      const el = e.target.closest(".map-region");
+      if (el) openRegion(el.dataset.name);
+    });
+    svg.addEventListener("keydown", (e) => {
+      const el = e.target.closest(".map-region");
+      if (el && (e.key === "Enter" || e.key === " ")) {
+        e.preventDefault();
+        openRegion(el.dataset.name);
+      }
+    });
+  }
+  async function refresh() {
+    init();
+    $("dash-status").textContent = "Рахуємо…";
+    try {
+      rows = [];
+      for (let from = 0; ; from += 1e3) {
+        const { query } = await Persons.buildQuery("region_id, children_ages, critical_count");
+        const { data, error } = await query.order("id").range(from, from + 999);
+        if (error) throw error;
+        rows.push(...data);
+        if (data.length < 1e3) break;
+      }
+      if (METRICS[metric].cases) await loadCases();
+      $("dash-status").textContent = "";
+      const cond = selectionText();
+      $("dash-cond").textContent = cond.length ? "Умови: " + cond.join("; ") : "Увесь реєстр (без фільтрів)";
+      $("dash-reset").hidden = !Persons.hasSelection();
+      render();
+    } catch (e) {
+      console.error(e);
+      $("dash-status").textContent = "Не вдалося завантажити дані. Спробуйте ще раз.";
+    }
+  }
+  function selectionText() {
+    const seg = window.Segments && Segments.label();
+    const q = $("search").value.trim();
+    return [...seg ? [seg] : [], ...q ? [`Пошук: ${q}`] : [], ...Filters.describe()];
+  }
+  function render() {
+    const { regions } = Persons.ctx();
+    const M = METRICS[metric];
+    const caseMod = M.cases;
+    $("dash-burials").hidden = !caseMod;
+    $("dash-cond").hidden = !!caseMod;
+    $("dash-hint").hidden = !!caseMod;
+    $("dash-case-hint").hidden = !caseMod;
+    byRegion = /* @__PURE__ */ new Map();
+    let total = 0, noRegion = 0, abroad = 0;
+    if (caseMod) {
+      if (!caseRows) return;
+      $("dash-from").value = period.from;
+      $("dash-to").value = period.to;
+      $("dash-period-label").textContent = `Дата ${M.what}: з`;
+      $("dash-months-name").textContent = M.chart;
+      $("dash-months").setAttribute("aria-label", M.chart);
+      const mine = caseRows.filter((c) => c.module === caseMod);
+      mine.filter(inPeriod).forEach((c) => {
+        total++;
+        if (!c.region) {
+          noRegion++;
+          return;
+        }
+        byRegion.set(c.region, (byRegion.get(c.region) || 0) + 1);
+      });
+      const undated = mine.filter((c) => !c.month).length;
+      $("dash-note").textContent = `Усього справ ${modName(M)}: ${mine.length}` + (undated ? `, з них ${M.none}: ${undated}` : "") + (hasPeriod() ? ". Коли обрано період, справи без дати не рахуються — «увесь час» показує всі." : ".");
+      renderMonths(mine);
+    } else {
+      const calc = METRICS[metric].calc;
+      rows.forEach((p) => {
+        const v = calc(p);
+        total += v;
+        const name = regions.get(p.region_id);
+        if (!name) {
+          noRegion += v;
+          return;
+        }
+        if (name === "За кордоном") {
+          abroad += v;
+          return;
+        }
+        byRegion.set(name, (byRegion.get(name) || 0) + v);
+      });
+    }
+    const max = Math.max(0, ...byRegion.values());
+    document.querySelectorAll("#dash-map .map-region").forEach((el) => {
+      const v = byRegion.get(el.dataset.name) || 0;
+      el.style.fill = v ? color(v / (max || 1)) : "";
+      el.classList.toggle("is-empty", !v);
+      el.setAttribute("aria-label", `${el.dataset.name}: ${v}`);
+    });
+    document.querySelectorAll("#dash-map .map-value").forEach((t) => {
+      const v = byRegion.get(t.dataset.name) || 0;
+      t.textContent = v || "";
+      t.classList.toggle("on-dark", !t.classList.contains("map-city-value") && v / (max || 1) > 0.55);
+    });
+    $("dash-legend-max").textContent = max || 0;
+    $("dash-legend-min").textContent = max ? 1 : 0;
+    $("dash-title").textContent = caseMod && hasPeriod() ? `Справи ${modName(M)} · ${M.what}: ${periodText()}` : `${M.label} по областях`;
+    $("dash-total").textContent = total;
+    $("dash-total-label").textContent = METRICS[metric].label.toLowerCase();
+    $("dash-noregion").textContent = noRegion;
+    $("dash-abroad").textContent = abroad;
+    const list = fullList();
+    const ul = $("dash-list");
+    ul.innerHTML = "";
+    if (!byRegion.size) ul.innerHTML = '<li class="muted">Немає даних за цими умовами</li>';
+    list.forEach(([name, v]) => {
+      const li = document.createElement("li");
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "dash-row" + (v ? "" : " is-zero");
+      btn.innerHTML = '<span class="dash-name"></span><span class="dash-bar"><i></i></span><b></b>';
+      btn.querySelector(".dash-name").textContent = short(name);
+      btn.querySelector("i").style.width = `${v / (max || 1) * 100}%`;
+      btn.querySelector("i").style.background = color(v / (max || 1));
+      btn.querySelector("b").textContent = v;
+      btn.title = caseMod ? "Відкрити ці справи в Кабінеті" : "Відкрити список осіб цієї області";
+      btn.addEventListener("click", () => openRegion(name));
+      li.appendChild(btn);
+      ul.appendChild(li);
+    });
+  }
+  async function loadCases() {
+    const { db, regions } = Persons.ctx();
+    $("dash-status").textContent = "Рахуємо справи…";
+    const cres = await db.from("cells").select("id, region_id");
+    const cellRegion = new Map((cres.data || []).map((c) => [c.id, c.region_id]));
+    const all = [];
+    for (let from = 0; ; from += 1e3) {
+      const { data, error } = await db.from("cases").select("id, module, cell_id, person:persons!cases_person_id_fkey(region_id, cell_id, burial_date, wound_date, birth_date)").order("id").range(from, from + 999);
+      if (error) {
+        console.error(error);
+        $("dash-status").textContent = "Не вдалося завантажити справи.";
+        caseRows = [];
+        return;
+      }
+      all.push(...data);
+      if (data.length < 1e3) break;
+    }
+    const vd = /* @__PURE__ */ new Map();
+    const newIds = all.filter((c) => CASE_DATE[c.module]).map((c) => c.id);
+    for (let i = 0; i < newIds.length; i += 200) {
+      const { data } = await db.from("case_values").select("case_id, stage_key, value").in("case_id", newIds.slice(i, i + 200)).in("stage_key", Object.values(CASE_DATE));
+      (data || []).forEach((v) => vd.set(v.case_id + "|" + v.stage_key, v.value));
+    }
+    const dateOf = (c, p) => (c.module === "200" ? p.burial_date : c.module === "300" ? p.wound_date : c.module === "vet" ? p.birth_date : vd.get(c.id + "|" + CASE_DATE[c.module])) || "";
+    caseRows = all.map((c) => {
+      const p = c.person || {};
+      const name = regions.get(cellRegion.get(c.cell_id) || cellRegion.get(p.cell_id) || p.region_id);
+      const d = dateOf(c, p);
+      return { id: c.id, module: c.module, region: name && name !== "За кордоном" ? name : null, month: /^\d{4}-\d{2}/.test(d) ? d.slice(0, 7) : null };
+    });
+    $("dash-status").textContent = "";
+  }
+  const hasPeriod = () => !!(period.from || period.to);
+  const inPeriod = (c) => !hasPeriod() || !!c.month && (!period.from || c.month >= period.from) && (!period.to || c.month <= period.to);
+  function fixPeriod(changed) {
+    if (period.from && period.to && period.from > period.to) {
+      if (changed === "from") period.to = period.from;
+      else period.from = period.to;
+    }
+  }
+  function monthName(ym, short2) {
+    if (!ym) return "";
+    const [y, m] = ym.split("-").map(Number);
+    return `${(short2 ? MONTHS_SHORT : MONTHS)[m - 1]} ${short2 ? String(y).slice(2) : y}`;
+  }
+  function periodText() {
+    if (!period.from && !period.to) return "увесь час";
+    if (period.from === period.to) return monthName(period.from);
+    return `${monthName(period.from)} — ${monthName(period.to)}`;
+  }
+  function renderMonths(mine) {
+    const svg = $("dash-months");
+    const end = period.to || mine.map((c) => c.month).filter(Boolean).sort().slice(-1)[0] || (/* @__PURE__ */ new Date()).toISOString().slice(0, 7);
+    const months = [];
+    let [y, m] = end.split("-").map(Number);
+    for (let i = 0; i < 12; i++) {
+      months.unshift(`${y}-${String(m).padStart(2, "0")}`);
+      m--;
+      if (!m) {
+        m = 12;
+        y--;
+      }
+    }
+    const counts = months.map((mm) => mine.filter((c) => c.month === mm).length);
+    const max = Math.max(1, ...counts);
+    const W = 720, H = 190, padB = 34, padT = 22, bw = W / 12;
+    svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+    svg.innerHTML = "";
+    months.forEach((mm, i) => {
+      const v = counts[i];
+      const h = (H - padB - padT) * (v / max);
+      const sel = hasPeriod() && (!period.from || mm >= period.from) && (!period.to || mm <= period.to);
+      const g = document.createElementNS(NS, "g");
+      g.setAttribute("class", "mbar" + (sel ? " is-sel" : ""));
+      g.setAttribute("tabindex", "0");
+      g.setAttribute("role", "button");
+      g.setAttribute("aria-label", `${monthName(mm)}: ${v}`);
+      g.innerHTML = `<rect x="${i * bw + 6}" y="${padT}" width="${bw - 12}" height="${H - padB - padT}" class="mbar-hit"/>
+        <rect x="${i * bw + 10}" y="${H - padB - h}" width="${bw - 20}" height="${Math.max(h, v ? 2 : 0)}" rx="3" class="mbar-fill"/>
+        <text x="${i * bw + bw / 2}" y="${H - padB - h - 6}" class="mbar-val">${v || ""}</text>
+        <text x="${i * bw + bw / 2}" y="${H - 12}" class="mbar-lbl">${monthName(mm, true)}</text>`;
+      const pick = () => {
+        period = { from: mm, to: mm };
+        render();
+      };
+      g.addEventListener("click", pick);
+      g.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          pick();
+        }
+      });
+      svg.appendChild(g);
+    });
+  }
+  function color(t) {
+    const a = [214, 238, 232], b = [19, 60, 85];
+    const k = 0.15 + 0.85 * Math.max(0, Math.min(1, t));
+    const c = a.map((x, i) => Math.round(x + (b[i] - x) * k));
+    return `rgb(${c.join(",")})`;
+  }
+  function openRegion(name) {
+    var _a;
+    const caseMod = METRICS[metric].cases;
+    if (caseMod) {
+      const ids = (caseRows || []).filter((c) => c.module === caseMod && c.region === name && inPeriod(c)).map((c) => c.id);
+      if (!ids.length) {
+        Persons.toast(`${short(name)}: справ немає`);
+        return;
+      }
+      const when = hasPeriod() ? `, ${METRICS[metric].what} ${periodText()}` : "";
+      Cabinet.openPreset(caseMod, ids, `Дашборд: справи ${modName(METRICS[metric])}${when}, ${short(name)} — ${ids.length}`);
+      return;
+    }
+    const { regions } = Persons.ctx();
+    const id = (_a = [...regions].find(([, n]) => n === name)) == null ? void 0 : _a[0];
+    if (!id) return;
+    const st = Filters.getState();
+    st.region_id = [String(id)];
+    Filters.setState(st);
+    document.querySelector('.tab[data-tab="registry"]').click();
+    Persons.toast(`Фільтр: ${name}`);
+  }
+  async function downloadPng() {
+    const map = $("dash-map").cloneNode(true);
+    const [vx, vy, vw, vh] = UA_MAP.viewBox.split(" ").map(Number);
+    const list = fullList();
+    const perCol = Math.ceil(list.length / 3) || 1;
+    const W = 1400, mapH = Math.round(W * vh / vw), head = 150, listH = perCol * 30 + 30, foot = 50, H = head + mapH + listH + foot;
+    const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;");
+    map.querySelectorAll(".map-region").forEach((el) => {
+      el.setAttribute("fill", el.style.fill || "#e3e7ea");
+      el.setAttribute("stroke", "#ffffff");
+      el.setAttribute("stroke-width", el.tagName === "circle" ? 3 : 1.5);
+    });
+    map.querySelectorAll(".map-value").forEach((t) => {
+      t.setAttribute("font-size", "22");
+      t.setAttribute("font-weight", "700");
+      t.setAttribute("text-anchor", "middle");
+      t.setAttribute("font-family", "Arial, sans-serif");
+      t.setAttribute("fill", t.classList.contains("on-dark") ? "#ffffff" : "#16222e");
+    });
+    const inner = map.innerHTML;
+    const cond = METRICS[metric].cases ? "Дані з Кабінету: одна справа — одна людина, область за осередком справи" : selectionText().join("; ") || "Увесь реєстр";
+    const svg = `<svg xmlns="${NS}" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+      <rect width="100%" height="100%" fill="#ffffff"/>
+      <text x="40" y="60" font-family="Arial, sans-serif" font-size="36" font-weight="700" fill="#16222e">${esc($("dash-title").textContent)}</text>
+      <text x="40" y="98" font-family="Arial, sans-serif" font-size="20" fill="#5b6875">${esc(cond).slice(0, 140)}</text>
+      <text x="40" y="128" font-family="Arial, sans-serif" font-size="20" fill="#5b6875">Усього: ${esc($("dash-total").textContent)} · ${(/* @__PURE__ */ new Date()).toLocaleDateString("uk-UA")}</text>
+      <svg x="20" y="${head}" width="${W - 40}" height="${mapH}" viewBox="${UA_MAP.viewBox}">${inner}</svg>
+      ${list.map(([n, v], i) => `<text x="${40 + Math.floor(i / perCol) * 440}" y="${head + mapH + 30 + i % perCol * 30}" font-family="Arial, sans-serif" font-size="20" fill="#16222e">${esc(short(n))} — <tspan font-weight="700">${v}</tspan></text>`).join("")}
+      <text x="40" y="${H - 22}" font-family="Arial, sans-serif" font-size="16" fill="#8a96a1">Реєстр ГО · межі областей © OpenStreetMap</text>
+    </svg>`;
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement("canvas");
+      c.width = W;
+      c.height = H;
+      c.getContext("2d").drawImage(img, 0, 0);
+      const a = document.createElement("a");
+      a.href = c.toDataURL("image/png");
+      a.download = METRICS[metric].cases ? `spravy${METRICS[metric].cases}_${period.from || "all"}_${period.to || "all"}.png` : `karta_${metric}_${(/* @__PURE__ */ new Date()).toISOString().slice(0, 10)}.png`;
+      a.click();
+    };
+    img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+  }
+  return { refresh };
+})();

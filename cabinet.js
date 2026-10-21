@@ -565,7 +565,8 @@ window.Cabinet = (() => {
     // лічильники швидких фільтрів — з урахуванням усіх інших фільтрів (виконавець, статус, осередок, пошук…)
     const base = (() => { const q0 = quick; quick = ''; try { return filtered().filter((c) => !isClosed(c)); } finally { quick = q0; } })();
     const cnt = (f) => base.filter(f).length;
-    const closedN = withClosed ? cases.filter(isClosed).length : closedTotal;
+    // «Завершені»: коли закриті вже завантажені — теж з урахуванням інших фільтрів; до того — загальне число з бази
+    const closedN = withClosed ? (() => { const q0 = quick; quick = 'closed'; try { return filtered().length; } finally { quick = q0; } })() : closedTotal;
     $('cq-closed').textContent = closedN; $('cq-closed-btn').hidden = !closedN && quick !== 'closed';
     $('cq-mine').textContent = cnt((c) => c.executor_id === me);
     $('cq-overdue').textContent = cnt((c) => c.next && c.next.overdue);

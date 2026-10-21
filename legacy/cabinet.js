@@ -800,7 +800,15 @@ window.Cabinet = (() => {
       }
     })();
     const cnt = (f) => base.filter(f).length;
-    const closedN = withClosed ? cases.filter(isClosed).length : closedTotal;
+    const closedN = withClosed ? (() => {
+      const q0 = quick;
+      quick = "closed";
+      try {
+        return filtered().length;
+      } finally {
+        quick = q0;
+      }
+    })() : closedTotal;
     $("cq-closed").textContent = closedN;
     $("cq-closed-btn").hidden = !closedN && quick !== "closed";
     $("cq-mine").textContent = cnt((c) => c.executor_id === me);

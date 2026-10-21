@@ -30,6 +30,9 @@ window.Cabinet = (() => {
   const MODS = Object.keys(MOD_UI);
   const ui = () => MOD_UI[module] || MOD_UI['200'];
   // дата для фільтра періоду: 200 — поховання, 300 — поранення, БЗВ — зникнення, Звільнені з полону — звільнення, Ветерани — народження
+  // Стан проблеми (поле «Стан проблеми» у розділі «Проблеми»): Гостра / Незначна підсвічують справу в списку
+  const probState = (c) => { const v = (c.vals || {}).problem_state; return v === 'Гостра' || v === 'Незначна' ? v : ''; };
+  const hasProblem = (c) => c.status === 'Проблема' || !!probState(c);
   const dateOf = (c) => (ui().val ? (c.vals || {})[ui().val] : c.person[ui().date]) || null;
   const today = () => new Date().toISOString().slice(0, 10);
   const fmt = (iso) => (iso ? iso.slice(0, 10).split('-').reverse().join('.') : '');
@@ -501,7 +504,8 @@ window.Cabinet = (() => {
       { const r = c.person && c.person.region_id; if (rg === 'none' ? r : rg && String(r) !== rg) return false; }
       if (quick === 'mine' && c.executor_id !== me) return false;
       if (quick === 'overdue' && !(c.next && c.next.overdue)) return false;
-      if (quick === 'problem' && c.status !== 'Проблема') return false;
+      if (quick === 'problem' && !hasProblem(c)) return false;
+      if (quick === 'acute' && probState(c) !== 'Гостра') return false;
       if (quick === 'fresh' && !isNew(c)) return false;
       if (quick === 'nocell' && c.cell_id) return false;
       return true;
@@ -562,7 +566,8 @@ window.Cabinet = (() => {
     $('cq-closed').textContent = closedN; $('cq-closed-btn').hidden = !closedN && quick !== 'closed';
     $('cq-mine').textContent = cnt((c) => c.executor_id === me);
     $('cq-overdue').textContent = cnt((c) => c.next && c.next.overdue);
-    $('cq-problem').textContent = cnt((c) => c.status === 'Проблема');
+    $('cq-problem').textContent = cnt(hasProblem);
+    { const n = cnt((c) => probState(c) === 'Гостра'); $('cq-acute').textContent = n; $('cq-acute-btn').hidden = !n && quick !== 'acute'; }
     $('cq-fresh').textContent = cnt(isNew);
     $('cq-fresh-btn').hidden = !cnt(isNew) && quick !== 'fresh';
     $('cq-nocell').textContent = cnt((c) => !c.cell_id);
@@ -625,6 +630,15 @@ window.Cabinet = (() => {
       sp.textContent = c.status || '—';
       const col = statusColor(c.status, color.get(c.status));
       sp.style.setProperty('--st', col); sp.style.color = inkFor(col);
+      { const ps = probState(c);
+        if (ps) {
+          const acute = ps === 'Гостра'; if (acute) tr.classList.add('cab-acute');
+          const pb = document.createElement('span'); pb.className = 'cab-prob ' + (acute ? 'is-acute' : 'is-minor');
+          pb.textContent = acute ? '⚠ Гостра проблема' : 'Незначна проблема';
+          const txt = String(c.vals.problems || '').trim(); if (txt) pb.title = txt;
+          tr.children[5].append(document.createElement('br'), pb);
+          if (acute) { const d = document.createElement('span'); d.className = 'cab-prob-dot'; d.title = 'Гостра проблема' + (txt ? ': ' + txt : ''); tr.children[1].prepend(d); }
+        } }
       tr.children[6].textContent = staff.get(c.executor_id) || (c.vals.executor_legacy ? `(${c.vals.executor_legacy})` : '—');
       { const r = staff.get(c.responsible_id) || (c.vals.responsible ? `(${c.vals.responsible})` : '');
         if (r) { const m = document.createElement('span'); m.className = 'muted cab-resp-line'; m.textContent = 'відп.: ' + r; tr.children[6].append(document.createElement('br'), m); } }
@@ -881,6 +895,8 @@ window.Cabinet = (() => {
           if (d.kind === 'link' && val && !safeUrl(val)) { Persons.toast('Вставте повне посилання, що починається з https://'); el.value = v; return; }
           if (/контакт/i.test(d.label) && !phonesInText(el)) return; saveValue(d.key, val);
         } };
+      if (d.key === 'solutions' && !v && c.vals.problem_state === 'Вирішена') { f.hint = 'Проблему позначено «Вирішена» — опишіть, як вирішено'; f.state = 'is-due'; }
+      if (d.key === 'problem_state' && !v && String(c.vals.problems || '').trim()) { f.hint = 'Оцініть стан проблеми'; f.state = 'is-due'; }
       if (!isClosed(c) && d.remind_after && !v && c.vals[d.remind_after] && /^\d{4}-\d{2}-\d{2}/.test(c.vals[d.remind_after])) {
         const due = addDays(c.vals[d.remind_after].slice(0, 10), d.remind_days || 0);
         f.hint = `Потрібно до ${fmt(due)}`; f.state = due < today() ? 'is-overdue' : 'is-due';

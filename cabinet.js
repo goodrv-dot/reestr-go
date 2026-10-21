@@ -506,6 +506,7 @@ window.Cabinet = (() => {
       if (quick === 'overdue' && !(c.next && c.next.overdue)) return false;
       if (quick === 'problem' && !hasProblem(c)) return false;
       if (quick === 'acute' && probState(c) !== 'Гостра') return false;
+      if (quick === 'minor' && probState(c) !== 'Незначна') return false;
       if (quick === 'fresh' && !isNew(c)) return false;
       if (quick === 'nocell' && c.cell_id) return false;
       return true;
@@ -568,6 +569,7 @@ window.Cabinet = (() => {
     $('cq-overdue').textContent = cnt((c) => c.next && c.next.overdue);
     $('cq-problem').textContent = cnt(hasProblem);
     { const n = cnt((c) => probState(c) === 'Гостра'); $('cq-acute').textContent = n; $('cq-acute-btn').hidden = !n && quick !== 'acute'; }
+    { const n = cnt((c) => probState(c) === 'Незначна'); $('cq-minor').textContent = n; $('cq-minor-btn').hidden = !n && quick !== 'minor'; }
     $('cq-fresh').textContent = cnt(isNew);
     $('cq-fresh-btn').hidden = !cnt(isNew) && quick !== 'fresh';
     $('cq-nocell').textContent = cnt((c) => !c.cell_id);

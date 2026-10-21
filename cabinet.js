@@ -562,7 +562,9 @@ window.Cabinet = (() => {
     const sig = [module, quick, ...['cab-search', 'cab-status', 'cab-exec', 'cab-resp', 'cab-mark', 'cab-cell', 'cab-region', 'cab-from', 'cab-to', 'cab-sort'].map((id) => $(id).value), $('cab-pin').checked, preset ? preset.label : ''].join('|');
     if (sig !== lastSig) { page = 1; lastSig = sig; }
     const pages = Math.max(1, Math.ceil(list.length / PAGE)); if (page > pages) page = pages;
-    const cnt = (f) => cases.filter((c) => !isClosed(c)).filter(f).length;
+    // лічильники швидких фільтрів — з урахуванням усіх інших фільтрів (виконавець, статус, осередок, пошук…)
+    const base = (() => { const q0 = quick; quick = ''; try { return filtered().filter((c) => !isClosed(c)); } finally { quick = q0; } })();
+    const cnt = (f) => base.filter(f).length;
     const closedN = withClosed ? cases.filter(isClosed).length : closedTotal;
     $('cq-closed').textContent = closedN; $('cq-closed-btn').hidden = !closedN && quick !== 'closed';
     $('cq-mine').textContent = cnt((c) => c.executor_id === me);

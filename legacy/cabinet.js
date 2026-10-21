@@ -790,7 +790,16 @@ window.Cabinet = (() => {
     }
     const pages = Math.max(1, Math.ceil(list.length / PAGE));
     if (page > pages) page = pages;
-    const cnt = (f) => cases.filter((c) => !isClosed(c)).filter(f).length;
+    const base = (() => {
+      const q0 = quick;
+      quick = "";
+      try {
+        return filtered().filter((c) => !isClosed(c));
+      } finally {
+        quick = q0;
+      }
+    })();
+    const cnt = (f) => base.filter(f).length;
     const closedN = withClosed ? cases.filter(isClosed).length : closedTotal;
     $("cq-closed").textContent = closedN;
     $("cq-closed-btn").hidden = !closedN && quick !== "closed";

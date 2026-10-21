@@ -2049,6 +2049,7 @@ window.Cabinet = (() => {
   }
   async function openSettings() {
     var _a;
+    loadUnitsEditor();
     const { data } = await db.from("case_stage_defs").select("*").eq("module", module).order("sort");
     const tb = $("cab-set-table").tBodies[0];
     tb.innerHTML = "";
@@ -2111,6 +2112,51 @@ window.Cabinet = (() => {
     (data || []).forEach((d) => tb.appendChild(row(d)));
     tb.appendChild(row({ sort: (((_a = (data || []).slice(-1)[0]) == null ? void 0 : _a.sort) || 0) + 10, active: true }));
     if (!$("cab-settings").open) $("cab-settings").showModal();
+  }
+  async function loadUnitsEditor() {
+    const tb = $("cab-units-table").tBodies[0];
+    tb.innerHTML = "";
+    const { data, error } = await db.from("mp_units").select("id, name, sort, active").order("sort").order("name");
+    if (error) {
+      console.error(error);
+      tb.innerHTML = '<tr><td colspan="4" class="muted">Не вдалося завантажити бригади</td></tr>';
+      return;
+    }
+    const row = (u) => {
+      var _a;
+      const tr = document.createElement("tr");
+      tr.innerHTML = '<td><input data-f="name" placeholder="Назва, напр. 42 ОБрМП"></td><td><input data-f="sort" type="number" style="width:5rem"></td><td><input data-f="active" type="checkbox"></td><td><button type="button" class="btn-link" data-save></button></td>';
+      const q = (f) => tr.querySelector(`[data-f="${f}"]`);
+      q("name").value = u.name || "";
+      q("sort").value = (_a = u.sort) != null ? _a : "";
+      q("active").checked = u.active !== false;
+      const b = tr.querySelector("[data-save]");
+      b.textContent = u.id ? "Зберегти" : "Додати";
+      b.onclick = async () => {
+        if (b.disabled) return;
+        const name = q("name").value.replace(/\s+/g, " ").trim();
+        if (!name) {
+          Persons.toast("Вкажіть назву бригади");
+          return;
+        }
+        const sortN = q("sort").value === "" ? parseInt(name, 10) || 999 : Number(q("sort").value);
+        const rec = { name, sort: sortN, active: q("active").checked };
+        b.disabled = true;
+        const res = u.id ? await db.from("mp_units").update(rec).eq("id", u.id) : await db.from("mp_units").insert(rec);
+        b.disabled = false;
+        if (res.error) {
+          console.error(res.error);
+          Persons.toast(/duplicate|unique/i.test(res.error.message) ? "Така бригада вже є" : "Не вдалося зберегти бригаду");
+          return;
+        }
+        Persons.toast(u.id ? "Бригаду збережено" : "Бригаду додано");
+        await Persons.reloadUnits().catch((e) => console.error(e));
+        loadUnitsEditor();
+      };
+      return tr;
+    };
+    (data || []).forEach((u) => tb.appendChild(row(u)));
+    tb.appendChild(row({ active: true }));
   }
   async function openByJournal(jid) {
     module = /^300/.test(jid) ? "300" : /^БЗВ/i.test(jid) ? "bzv" : /^ПОЛ/i.test(jid) ? "pol" : /^ВЕТ/i.test(jid) ? "vet" : "200";

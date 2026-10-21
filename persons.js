@@ -73,10 +73,7 @@ window.Persons = (() => {
     Filters.init({ regions, cells, programs }, () => { page = 1; loadList(); });
 
     // Підрозділи МП
-    const ures = await db.from('mp_units').select('id, name').eq('active', true).order('name');
-    if (ures.error) throw ures.error;
-    units = ures.data;
-    fillUnitSelect($('f-mp_unit'));
+    await reloadUnits();
 
     // Варіанти з документа керівника
     fillSelect($('f-military_status'), OPT.military_status);
@@ -104,6 +101,13 @@ window.Persons = (() => {
     });
   }
 
+  // Бригади (довідник mp_units) — по порядку з «Налаштування полів → Бригади»
+  async function reloadUnits() {
+    const ures = await db.from('mp_units').select('id, name').eq('active', true).order('sort').order('name');
+    if (ures.error) throw ures.error;
+    units = ures.data;
+    fillUnitSelect($('f-mp_unit'));
+  }
   function fillUnitSelect(sel) {
     sel.innerHTML = '<option value="">Невідомо</option>';
     units.forEach((x) => sel.add(new Option(x.name, x.id)));
@@ -1298,5 +1302,5 @@ window.Persons = (() => {
     return !!$('search').value.trim() || Filters.activeCount() > 0;
   }
 
-  return { init, showList, buildQuery, ctx, toast, resetAll, hasSelection, openForm, levelLabel };
+  return { init, showList, buildQuery, ctx, toast, resetAll, hasSelection, openForm, levelLabel, reloadUnits };
 })();

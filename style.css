@@ -1209,3 +1209,6 @@ body.read-only .sum-cell.is-ro { cursor: default; }
 .cab-prob-dot { display: inline-block; width: .6rem; height: .6rem; margin-right: .35rem; border-radius: 50%; background: #d32f2f; vertical-align: middle; animation: prob-dot 1.4s ease-in-out infinite; }
 @keyframes prob-dot { 0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(211, 47, 47, .6); } 50% { opacity: .35; box-shadow: 0 0 0 4px rgba(211, 47, 47, 0); } }
 @media (prefers-reduced-motion: reduce) { .cab-prob-dot { animation: none; } }
+
+.cab-units { margin-top: 1rem; }
+.cab-units summary { cursor: pointer; padding: .4rem 0; }

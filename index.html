@@ -19,7 +19,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Unbounded:wght@600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=202610211042">
+  <link rel="stylesheet" href="style.css?v=202610211105">
 </head>
 <body>
 
@@ -847,6 +847,7 @@
       <section id="m-fields">
         <h2>Налаштування полів справи (для адміністратора)</h2>
         <p>Кнопка <b>«Налаштування полів»</b> — у Кабінеті, праворуч над списком справ; її бачить лише адміністратор. Тут змінюють поля справи без програміста. Для «200» і «300» налаштування окремі: відкривається той модуль, який зараз вибрано.</p>
+        <p><b>Бригади.</b> Унизу вікна «Налаштування полів» — розділ «Бригади»: довідник для поля «Бригада» (спільний для всіх кабінетів і карток осіб). Нова бригада — в останньому рядку, кнопка «Додати»; з’являється у виборі одразу. «Порядок» — місце в списку (порожньо = за номером із назви). Бригаду, яка вже стоїть у картках, не вимикайте — краще перейменуйте.</p>
         <h3>Що означають стовпчики</h3>
         <ul>
           <li><b>Назва</b> — підпис поля у справі.</li>
@@ -1367,6 +1368,16 @@
         <tbody></tbody>
       </table>
     </div>
+    <details class="cab-units">
+      <summary><b>Бригади</b> — довідник для поля «Бригада» (у справах і в картках осіб)</summary>
+      <p class="muted">Нова бригада — в останньому рядку, «Додати». Порядок — як у списку вибору (порожньо = за номером із назви). Вимкнена бригада зникає зі списку вибору; у картках, де вона вже стоїть, назва не показуватиметься — тож не вимикайте бригаду, яка вже використовується, краще перейменуйте.</p>
+      <div class="table-wrap">
+        <table id="cab-units-table" class="imp-table">
+          <thead><tr><th>Назва</th><th>Порядок</th><th>Активна</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </details>
     <div class="form-actions"><button id="cab-set-close" class="btn-primary" type="button">Готово</button></div>
   </dialog>
 
@@ -1385,6 +1396,6 @@
   </dialog>
   <div id="print-area" class="print-area" aria-hidden="true"></div>
   <!-- скрипти підключає boot.js: сучасні — для нових браузерів, legacy/ — для старіших iPhone (див. tools/build-legacy.mjs) -->
-  <script src="boot.js?v=202610211042"></script>
+  <script src="boot.js?v=202610211105"></script>
 </body>
 </html>

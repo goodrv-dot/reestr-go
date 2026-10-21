@@ -72,10 +72,7 @@ window.Persons = /* @__PURE__ */ (() => {
       page = 1;
       loadList();
     });
-    const ures = await db.from("mp_units").select("id, name").eq("active", true).order("name");
-    if (ures.error) throw ures.error;
-    units = ures.data;
-    fillUnitSelect($("f-mp_unit"));
+    await reloadUnits();
     fillSelect($("f-military_status"), OPT.military_status);
     fillSelect($("f-has_disability"), OPT.yes_no_unknown);
     fillSelect($("f-disability_group"), OPT.disability_group);
@@ -97,6 +94,12 @@ window.Persons = /* @__PURE__ */ (() => {
       label.append(cb, " " + v);
       box.appendChild(label);
     });
+  }
+  async function reloadUnits() {
+    const ures = await db.from("mp_units").select("id, name").eq("active", true).order("sort").order("name");
+    if (ures.error) throw ures.error;
+    units = ures.data;
+    fillUnitSelect($("f-mp_unit"));
   }
   function fillUnitSelect(sel) {
     sel.innerHTML = '<option value="">Невідомо</option>';
@@ -1331,5 +1334,5 @@ window.Persons = /* @__PURE__ */ (() => {
   function hasSelection() {
     return !!$("search").value.trim() || Filters.activeCount() > 0;
   }
-  return { init, showList, buildQuery, ctx, toast, resetAll, hasSelection, openForm, levelLabel };
+  return { init, showList, buildQuery, ctx, toast, resetAll, hasSelection, openForm, levelLabel, reloadUnits };
 })();

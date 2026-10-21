@@ -1194,3 +1194,9 @@ body.read-only .sum-cell.is-ro { cursor: default; }
 .fb-msg-h { font-size: 0.82rem; }
 .fb-msg-b { white-space: pre-wrap; }
 #fb-delete { margin-top: 0.4rem; }
+
+/* Дзвіночок: мерехтить, доки є непереглянуті сповіщення */
+@keyframes bell-ring { 0%, 100% { transform: rotate(0); box-shadow: 0 0 0 0 rgba(255, 196, 0, 0); } 10% { transform: rotate(14deg); } 20% { transform: rotate(-12deg); } 30% { transform: rotate(8deg); } 40% { transform: rotate(-4deg); } 50% { transform: rotate(0); box-shadow: 0 0 0 6px rgba(255, 196, 0, .55); } }
+.bell-btn.bell-ring { animation: bell-ring 1.6s ease-in-out infinite; border-color: #ffc400; }
+@media (prefers-reduced-motion: reduce) { .bell-btn.bell-ring { animation: none; box-shadow: 0 0 0 3px #ffc400; } }
+.bell-mute { float: right; margin-top: -2.1rem; background: none; border: 0; color: var(--muted, #667); font-size: .8rem; cursor: pointer; padding: .2rem; }

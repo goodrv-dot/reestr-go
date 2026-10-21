@@ -2109,13 +2109,17 @@ window.Cabinet = (() => {
     nb.hidden = !notes.length;
     bell.classList.toggle("has-over", cnt("overdue") + cnt("robot") > 0);
     bell.title = notes.length ? `Сповіщень: ${notes.length}` : "Сповіщень немає";
+    ring();
     if (!bellWired) {
       bellWired = true;
       bell.addEventListener("click", (e) => {
         e.stopPropagation();
         const p = $("bell-panel");
         p.hidden = !p.hidden;
-        if (!p.hidden) renderBell();
+        if (!p.hidden) {
+          renderBell();
+          markHeard();
+        }
       });
       document.addEventListener("click", (e) => {
         if (!e.target.closest("#bell-panel")) $("bell-panel").hidden = true;
@@ -2131,6 +2135,63 @@ window.Cabinet = (() => {
       });
     }
     if (!$("bell-panel").hidden) renderBell();
+  }
+  const nkey = (x) => [x.kind, x.case_id || "", x.label || ""].join("|");
+  const lsGet = (k) => {
+    try {
+      return localStorage.getItem(k);
+    } catch (e) {
+      return null;
+    }
+  };
+  const lsSet = (k, v) => {
+    try {
+      localStorage.setItem(k, v);
+    } catch (e) {
+    }
+  };
+  let heard = null, heardFor = null, ringFirst = true, prevFresh = 0;
+  function ring() {
+    if (heardFor !== me) {
+      heardFor = me;
+      try {
+        heard = new Set(JSON.parse(lsGet("bell_heard_" + me) || "[]"));
+      } catch (e) {
+        heard = /* @__PURE__ */ new Set();
+      }
+    }
+    const fresh = notes.filter((x) => !heard.has(nkey(x))).length;
+    $("bell-btn").classList.toggle("bell-ring", fresh > 0);
+    if (!ringFirst && fresh > prevFresh && lsGet("bell_mute") !== "1") beep();
+    ringFirst = false;
+    prevFresh = fresh;
+  }
+  function markHeard() {
+    heard = new Set(notes.map(nkey));
+    lsSet("bell_heard_" + me, JSON.stringify([...heard].slice(0, 500)));
+    prevFresh = 0;
+    $("bell-btn").classList.remove("bell-ring");
+  }
+  function beep() {
+    try {
+      const A = window.AudioContext || window.webkitAudioContext;
+      if (!A) return;
+      const ac = beep.ac || (beep.ac = new A());
+      if (ac.state === "suspended") ac.resume();
+      [[880, 0], [1320, 0.18]].forEach(([f, t]) => {
+        const o = ac.createOscillator(), g = ac.createGain();
+        o.type = "sine";
+        o.frequency.value = f;
+        const t0 = ac.currentTime + t;
+        g.gain.setValueAtTime(1e-4, t0);
+        g.gain.exponentialRampToValueAtTime(0.25, t0 + 0.02);
+        g.gain.exponentialRampToValueAtTime(1e-4, t0 + 0.35);
+        o.connect(g).connect(ac.destination);
+        o.start(t0);
+        o.stop(t0 + 0.4);
+      });
+    } catch (e) {
+    }
   }
   const BASE_TITLE = document.title;
   let favBase = null;
@@ -2176,6 +2237,23 @@ window.Cabinet = (() => {
   function renderBell() {
     const p = $("bell-panel");
     p.innerHTML = "<h2>Сповіщення</h2>";
+    {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "link-btn bell-mute";
+      const lbl = () => {
+        b.textContent = lsGet("bell_mute") === "1" ? "🔕 Звук вимкнено" : "🔔 Звук увімкнено";
+      };
+      lbl();
+      b.title = "Звук при новому сповіщенні";
+      b.onclick = (e) => {
+        e.stopPropagation();
+        lsSet("bell_mute", lsGet("bell_mute") === "1" ? "0" : "1");
+        lbl();
+        if (lsGet("bell_mute") !== "1") beep();
+      };
+      p.appendChild(b);
+    }
     if (!notes.length) {
       p.insertAdjacentHTML("beforeend", '<p class="muted">Нічого нового: прострочених дій, нових справ і відповідей немає.</p>');
       badgeHint(p);

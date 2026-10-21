@@ -1392,15 +1392,44 @@ window.Cabinet = (() => {
     const nb = $('bell-count'); nb.textContent = notes.length > 99 ? '99+' : notes.length; nb.hidden = !notes.length;
     bell.classList.toggle('has-over', cnt('overdue') + cnt('robot') > 0);
     bell.title = notes.length ? `Сповіщень: ${notes.length}` : 'Сповіщень немає';
+    ring();
     if (!bellWired) {
       bellWired = true;
-      bell.addEventListener('click', (e) => { e.stopPropagation(); const p = $('bell-panel'); p.hidden = !p.hidden; if (!p.hidden) renderBell(); });
+      bell.addEventListener('click', (e) => { e.stopPropagation(); const p = $('bell-panel'); p.hidden = !p.hidden; if (!p.hidden) { renderBell(); markHeard(); } });
       document.addEventListener('click', (e) => { if (!e.target.closest('#bell-panel')) $('bell-panel').hidden = true; });
       document.addEventListener('keydown', (e) => { if (e.key === 'Escape') $('bell-panel').hidden = true; });
       setInterval(() => { if (!document.hidden) badge(); }, 5 * 60 * 1000);       // оновлення раз на 5 хв
       document.addEventListener('visibilitychange', () => { if (!document.hidden) badge(); });
     }
     if (!$('bell-panel').hidden) renderBell();
+  }
+  // Мерехтіння й звук: дзвіночок блимає, доки є сповіщення, яких я ще не бачив (відкриття панелі = «побачив»).
+  // Звук — коли під час роботи з’являється нове сповіщення. Без додаткових запитів до бази.
+  const nkey = (x) => [x.kind, x.case_id || '', x.label || ''].join('|');
+  const lsGet = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
+  const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch { /* приватний режим */ } };
+  let heard = null, heardFor = null, ringFirst = true, prevFresh = 0;
+  function ring() {
+    if (heardFor !== me) { heardFor = me; try { heard = new Set(JSON.parse(lsGet('bell_heard_' + me) || '[]')); } catch { heard = new Set(); } }
+    const fresh = notes.filter((x) => !heard.has(nkey(x))).length;
+    $('bell-btn').classList.toggle('bell-ring', fresh > 0);
+    if (!ringFirst && fresh > prevFresh && lsGet('bell_mute') !== '1') beep();
+    ringFirst = false; prevFresh = fresh;
+  }
+  function markHeard() {
+    heard = new Set(notes.map(nkey)); lsSet('bell_heard_' + me, JSON.stringify([...heard].slice(0, 500)));
+    prevFresh = 0; $('bell-btn').classList.remove('bell-ring');
+  }
+  function beep() {
+    try {
+      const A = window.AudioContext || window.webkitAudioContext; if (!A) return;
+      const ac = beep.ac || (beep.ac = new A()); if (ac.state === 'suspended') ac.resume();
+      [[880, 0], [1320, 0.18]].forEach(([f, t]) => {
+        const o = ac.createOscillator(), g = ac.createGain(); o.type = 'sine'; o.frequency.value = f;
+        const t0 = ac.currentTime + t; g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.25, t0 + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.35);
+        o.connect(g).connect(ac.destination); o.start(t0); o.stop(t0 + 0.4);
+      });
+    } catch { /* без звуку */ }
   }
   // Число сповіщень — на ярлику: у назві вкладки, на значку вкладки і (для встановленого застосунку) на іконці
   const BASE_TITLE = document.title;
@@ -1427,6 +1456,10 @@ window.Cabinet = (() => {
 
   function renderBell() {
     const p = $('bell-panel'); p.innerHTML = '<h2>Сповіщення</h2>';
+    { const b = document.createElement('button'); b.type = 'button'; b.className = 'link-btn bell-mute';
+      const lbl = () => { b.textContent = lsGet('bell_mute') === '1' ? '🔕 Звук вимкнено' : '🔔 Звук увімкнено'; };
+      lbl(); b.title = 'Звук при новому сповіщенні'; b.onclick = (e) => { e.stopPropagation(); lsSet('bell_mute', lsGet('bell_mute') === '1' ? '0' : '1'); lbl(); if (lsGet('bell_mute') !== '1') beep(); };
+      p.appendChild(b); }
     if (!notes.length) { p.insertAdjacentHTML('beforeend', '<p class="muted">Нічого нового: прострочених дій, нових справ і відповідей немає.</p>'); badgeHint(p); return; }
     notes.filter((x) => x.kind === 'robot').forEach((x) => {
       const h = document.createElement('h3'); h.className = 'n-over'; h.textContent = '⚠ Робот-дзеркало'; p.appendChild(h);

@@ -56,7 +56,7 @@ window.Cabinet = (() => {
     try { $('cab-pin').checked = localStorage.getItem('cab_pin') !== '0'; } catch { /* ок */ }
     $('cab-pin').addEventListener('change', () => { try { localStorage.setItem('cab_pin', $('cab-pin').checked ? '1' : '0'); } catch { /* ок */ } render(); });
     $('cab-sort').addEventListener('change', () => { try { localStorage.setItem('cab_sort', $('cab-sort').value); } catch { /* ок */ } render(); });
-    ['cab-search', 'cab-status', 'cab-exec', 'cab-resp', 'cab-mark', 'cab-cell', 'cab-from', 'cab-to'].forEach((id) => $(id).addEventListener('input', render));
+    ['cab-search', 'cab-status', 'cab-exec', 'cab-resp', 'cab-mark', 'cab-cell', 'cab-region', 'cab-from', 'cab-to'].forEach((id) => $(id).addEventListener('input', render));
     $('cab-date-clear').addEventListener('click', () => { $('cab-from').value = ''; $('cab-to').value = ''; render(); });
     document.querySelectorAll('.cab-quick').forEach((b) => b.addEventListener('click', () => { quick = quick === b.dataset.q ? '' : b.dataset.q; render(); }));
     $('cab-back').addEventListener('click', closeCase);
@@ -250,6 +250,8 @@ window.Cabinet = (() => {
     fill('cab-resp', [['none', '— без відповідального —'], ...[...staff].map(([id, n]) => [id, n])], 'Усі відповідальні');
     const { cells } = Persons.ctx();
     fill('cab-cell', [['none', '— без осередку —'], ...[...cells].map(([id, n]) => [String(id), n])], 'Усі осередки');
+    { const { regions } = Persons.ctx();
+      fill('cab-region', [['none', '— без регіону —'], ...[...regions].map(([id, n]) => [String(id), n])], 'Усі регіони'); }
     if (isAdmin) {
       const people = [...staff].sort((a, b) => a[1].localeCompare(b[1], 'uk'));
       fill('bk-exec', [['none', '— прибрати виконавця —'], ...people], 'Виконавець: не змінювати');
@@ -377,7 +379,7 @@ window.Cabinet = (() => {
         t.tBodies[0].appendChild(tr);
       });
     };
-    const reset = () => { quick = ''; preset = null; ['cab-search', 'cab-status', 'cab-exec', 'cab-resp', 'cab-mark', 'cab-cell', 'cab-from', 'cab-to'].forEach((id) => { $(id).value = ''; }); };
+    const reset = () => { quick = ''; preset = null; ['cab-search', 'cab-status', 'cab-exec', 'cab-resp', 'cab-mark', 'cab-cell', 'cab-region', 'cab-from', 'cab-to'].forEach((id) => { $(id).value = ''; }); };
     table('cab-load-exec', stat((c) => c.executor_id || ''), (k) => (k ? staff.get(k) || '(невідомий)' : '— без виконавця —'),
       (k) => { reset(); $('cab-exec').value = k || 'none'; render(); }, false);
     table('cab-load-cell', stat((c) => c.cell_id || 0), (k) => (k ? cells.get(k) || '—' : '— без осередку —'),
@@ -421,7 +423,7 @@ window.Cabinet = (() => {
     document.addEventListener('click', (e) => { const d = $('cab-mark-ui'); if (d.open && !d.contains(e.target)) d.open = false; });
     syncMarkFilter();
   }
-  const FILTER_IDS = ['cab-search', 'cab-status', 'cab-exec', 'cab-resp', 'cab-mark', 'cab-cell', 'cab-from', 'cab-to'];
+  const FILTER_IDS = ['cab-search', 'cab-status', 'cab-exec', 'cab-resp', 'cab-mark', 'cab-cell', 'cab-region', 'cab-from', 'cab-to'];
   function clearFilters(silent) {
     FILTER_IDS.forEach((id) => { const el = $(id); if (el) el.value = ''; });
     quick = ''; preset = null; page = 1;
@@ -472,7 +474,7 @@ window.Cabinet = (() => {
   }
   function filtered() {
     const q = $('cab-search').value.trim().toLowerCase();
-    const st = $('cab-status').value, ex = $('cab-exec').value, rs = $('cab-resp').value, ce = $('cab-cell').value;
+    const st = $('cab-status').value, ex = $('cab-exec').value, rs = $('cab-resp').value, ce = $('cab-cell').value, rg = $('cab-region').value;
     const mkf = new Set($('cab-mark').value.split(',').filter(Boolean));
     const from = $('cab-from').value, to = $('cab-to').value;
     const stSel = $('cab-status').value;
@@ -496,6 +498,7 @@ window.Cabinet = (() => {
         if (markColors && isClosed(c) && !hit && !q && !preset && quick !== 'closed' && !statuses.some((s) => s.name === stSel && s.closed)) return false;
       }
       if (ce === 'none' ? c.cell_id : ce && String(c.cell_id) !== ce) return false;
+      { const r = c.person && c.person.region_id; if (rg === 'none' ? r : rg && String(r) !== rg) return false; }
       if (quick === 'mine' && c.executor_id !== me) return false;
       if (quick === 'overdue' && !(c.next && c.next.overdue)) return false;
       if (quick === 'problem' && c.status !== 'Проблема') return false;
@@ -551,7 +554,7 @@ window.Cabinet = (() => {
     syncMarkFilter();
     const list = sorted(filtered());
     lastList = list;
-    const sig = [module, quick, ...['cab-search', 'cab-status', 'cab-exec', 'cab-resp', 'cab-mark', 'cab-cell', 'cab-from', 'cab-to', 'cab-sort'].map((id) => $(id).value), $('cab-pin').checked, preset ? preset.label : ''].join('|');
+    const sig = [module, quick, ...['cab-search', 'cab-status', 'cab-exec', 'cab-resp', 'cab-mark', 'cab-cell', 'cab-region', 'cab-from', 'cab-to', 'cab-sort'].map((id) => $(id).value), $('cab-pin').checked, preset ? preset.label : ''].join('|');
     if (sig !== lastSig) { page = 1; lastSig = sig; }
     const pages = Math.max(1, Math.ceil(list.length / PAGE)); if (page > pages) page = pages;
     const cnt = (f) => cases.filter((c) => !isClosed(c)).filter(f).length;
@@ -616,6 +619,8 @@ window.Cabinet = (() => {
       { const n = String(c.person.comment || '').trim(); const el = tr.children[3].firstChild;
         el.textContent = n; if (n) tr.children[3].title = n; else tr.children[3].innerHTML = '<span class="muted">—</span>'; }
       tr.children[4].textContent = cells.get(c.cell_id) || '—';
+      { const rn = c.person && Persons.ctx().regions.get(c.person.region_id);
+        if (rn && rn !== cells.get(c.cell_id)) { const m = document.createElement('span'); m.className = 'muted cab-date'; m.textContent = 'рег.: ' + rn; tr.children[4].append(document.createElement('br'), m); } }
       const sp = tr.children[5].firstChild;
       sp.textContent = c.status || '—';
       const col = statusColor(c.status, color.get(c.status));
@@ -1478,7 +1483,7 @@ window.Cabinet = (() => {
   // Відкрити кабінет із готовою вибіркою справ (з дашборда)
   function openPreset(mod, ids, label) {
     module = mod; quick = ''; preset = { ids: new Set(ids), label }; withClosed = true; closedFor = mod;
-    ['cab-search', 'cab-status', 'cab-exec', 'cab-resp', 'cab-mark', 'cab-cell', 'cab-from', 'cab-to'].forEach((id) => { $(id).value = ''; });
+    ['cab-search', 'cab-status', 'cab-exec', 'cab-resp', 'cab-mark', 'cab-cell', 'cab-region', 'cab-from', 'cab-to'].forEach((id) => { $(id).value = ''; });
     if (!$('cab-case').hidden) { $('cab-case').hidden = true; $('cab-list').hidden = false; current = null; }
     document.querySelector('.tab[data-tab="cabinet"]').click();
   }

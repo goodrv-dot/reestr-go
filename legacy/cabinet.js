@@ -96,7 +96,7 @@ window.Cabinet = (() => {
       }
       render();
     });
-    ["cab-search", "cab-status", "cab-exec", "cab-resp", "cab-mark", "cab-cell", "cab-from", "cab-to"].forEach((id) => $(id).addEventListener("input", render));
+    ["cab-search", "cab-status", "cab-exec", "cab-resp", "cab-mark", "cab-cell", "cab-region", "cab-from", "cab-to"].forEach((id) => $(id).addEventListener("input", render));
     $("cab-date-clear").addEventListener("click", () => {
       $("cab-from").value = "";
       $("cab-to").value = "";
@@ -368,6 +368,10 @@ window.Cabinet = (() => {
     fill("cab-resp", [["none", "— без відповідального —"], ...[...staff].map(([id, n]) => [id, n])], "Усі відповідальні");
     const { cells } = Persons.ctx();
     fill("cab-cell", [["none", "— без осередку —"], ...[...cells].map(([id, n]) => [String(id), n])], "Усі осередки");
+    {
+      const { regions } = Persons.ctx();
+      fill("cab-region", [["none", "— без регіону —"], ...[...regions].map(([id, n]) => [String(id), n])], "Усі регіони");
+    }
     if (isAdmin) {
       const people = [...staff].sort((a, b) => a[1].localeCompare(b[1], "uk"));
       fill("bk-exec", [["none", "— прибрати виконавця —"], ...people], "Виконавець: не змінювати");
@@ -539,7 +543,7 @@ window.Cabinet = (() => {
     const reset = () => {
       quick = "";
       preset = null;
-      ["cab-search", "cab-status", "cab-exec", "cab-resp", "cab-mark", "cab-cell", "cab-from", "cab-to"].forEach((id) => {
+      ["cab-search", "cab-status", "cab-exec", "cab-resp", "cab-mark", "cab-cell", "cab-region", "cab-from", "cab-to"].forEach((id) => {
         $(id).value = "";
       });
     };
@@ -615,7 +619,7 @@ window.Cabinet = (() => {
     });
     syncMarkFilter();
   }
-  const FILTER_IDS = ["cab-search", "cab-status", "cab-exec", "cab-resp", "cab-mark", "cab-cell", "cab-from", "cab-to"];
+  const FILTER_IDS = ["cab-search", "cab-status", "cab-exec", "cab-resp", "cab-mark", "cab-cell", "cab-region", "cab-from", "cab-to"];
   function clearFilters(silent) {
     FILTER_IDS.forEach((id) => {
       const el = $(id);
@@ -682,7 +686,7 @@ window.Cabinet = (() => {
   }
   function filtered() {
     const q = $("cab-search").value.trim().toLowerCase();
-    const st = $("cab-status").value, ex = $("cab-exec").value, rs = $("cab-resp").value, ce = $("cab-cell").value;
+    const st = $("cab-status").value, ex = $("cab-exec").value, rs = $("cab-resp").value, ce = $("cab-cell").value, rg = $("cab-region").value;
     const mkf = new Set($("cab-mark").value.split(",").filter(Boolean));
     const from = $("cab-from").value, to = $("cab-to").value;
     const stSel = $("cab-status").value;
@@ -712,6 +716,10 @@ window.Cabinet = (() => {
         if (markColors && isClosed(c) && !hit && !q && !preset && quick !== "closed" && !statuses.some((s) => s.name === stSel && s.closed)) return false;
       }
       if (ce === "none" ? c.cell_id : ce && String(c.cell_id) !== ce) return false;
+      {
+        const r = c.person && c.person.region_id;
+        if (rg === "none" ? r : rg && String(r) !== rg) return false;
+      }
       if (quick === "mine" && c.executor_id !== me) return false;
       if (quick === "overdue" && !(c.next && c.next.overdue)) return false;
       if (quick === "problem" && c.status !== "Проблема") return false;
@@ -768,7 +776,7 @@ window.Cabinet = (() => {
     syncMarkFilter();
     const list = sorted(filtered());
     lastList = list;
-    const sig = [module, quick, ...["cab-search", "cab-status", "cab-exec", "cab-resp", "cab-mark", "cab-cell", "cab-from", "cab-to", "cab-sort"].map((id) => $(id).value), $("cab-pin").checked, preset ? preset.label : ""].join("|");
+    const sig = [module, quick, ...["cab-search", "cab-status", "cab-exec", "cab-resp", "cab-mark", "cab-cell", "cab-region", "cab-from", "cab-to", "cab-sort"].map((id) => $(id).value), $("cab-pin").checked, preset ? preset.label : ""].join("|");
     if (sig !== lastSig) {
       page = 1;
       lastSig = sig;
@@ -873,6 +881,15 @@ window.Cabinet = (() => {
         else tr.children[3].innerHTML = '<span class="muted">—</span>';
       }
       tr.children[4].textContent = cells.get(c.cell_id) || "—";
+      {
+        const rn = c.person && Persons.ctx().regions.get(c.person.region_id);
+        if (rn && rn !== cells.get(c.cell_id)) {
+          const m = document.createElement("span");
+          m.className = "muted cab-date";
+          m.textContent = "рег.: " + rn;
+          tr.children[4].append(document.createElement("br"), m);
+        }
+      }
       const sp = tr.children[5].firstChild;
       sp.textContent = c.status || "—";
       const col = statusColor(c.status, color.get(c.status));
@@ -2260,7 +2277,7 @@ window.Cabinet = (() => {
     preset = { ids: new Set(ids), label };
     withClosed = true;
     closedFor = mod;
-    ["cab-search", "cab-status", "cab-exec", "cab-resp", "cab-mark", "cab-cell", "cab-from", "cab-to"].forEach((id) => {
+    ["cab-search", "cab-status", "cab-exec", "cab-resp", "cab-mark", "cab-cell", "cab-region", "cab-from", "cab-to"].forEach((id) => {
       $(id).value = "";
     });
     if (!$("cab-case").hidden) {

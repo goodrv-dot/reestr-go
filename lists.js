@@ -201,12 +201,14 @@ window.Lists = (() => {
     const edit = !ro();
     members.forEach((m, i) => {
       const p = m.person; const tr = document.createElement('tr');
-      tr.innerHTML = `<td>${i + 1}</td><td><button type="button" class="btn-link list-fio"></button><br><span class="muted"></span></td><td class="muted"></td>
+      tr.innerHTML = `<td>${i + 1}</td><td><a class="btn-link list-fio"></a><br><span class="muted"></span></td><td class="muted"></td>
         <td><select data-f="status">${MEMBER_ST.map((s) => `<option>${s}</option>`).join('')}</select></td>
         <td><input data-f="note"></td>${cols.map((c) => `<td><input data-x="${esc(c)}"></td>`).join('')}
         <td><button type="button" class="btn-link list-rm" title="Прибрати зі списку">✕</button></td>`;
       tr.querySelector('.list-fio').textContent = fio(p);
-      tr.querySelector('.list-fio').onclick = () => { window.__cardReturn = 'lists'; document.querySelector('.tab[data-tab="registry"]').click(); Persons.openForm(p.id); };
+      // справжнє посилання: правий клік → «Відкрити в новій вкладці», Ctrl/Cmd + клік чи середня кнопка — теж у новій вкладці
+      { const a = tr.querySelector('.list-fio'); a.href = '?person=' + encodeURIComponent(p.id); a.title = 'Відкрити картку (правий клік — у новій вкладці)';
+        a.onclick = (e) => { if (e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0) return; e.preventDefault(); window.__cardReturn = 'lists'; document.querySelector('.tab[data-tab="registry"]').click(); Persons.openForm(p.id); }; }
       tr.children[1].lastChild.textContent = [fmt(p.birth_date), p.military_status].filter(Boolean).join(' · ');
       tr.children[2].textContent = [rankOf(p), p.military_unit_code, unitOf(p), eventOf(p), kinOf(m)].filter(Boolean).join(' · ');
       const sel = tr.querySelector('[data-f="status"]'); sel.value = m.status; sel.disabled = !edit;

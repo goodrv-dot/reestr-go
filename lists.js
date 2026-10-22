@@ -150,7 +150,7 @@ window.Lists = (() => {
   }
 
   // ---------- Люди в списку ----------
-  const P_COLS = 'id, last_name, first_name, patronymic, birth_date, military_status, death_date, wound_date, military_unit_code, mp_unit_id, mp_unit_other, phone, cell_id, journal';
+  const P_COLS = 'id, last_name, first_name, patronymic, birth_date, military_status, death_date, wound_date, military_unit_code, mp_unit_id, mp_unit_other, phone, cell_id, journal, cases!cases_person_id_fkey(journal_id)';
   async function loadMembers() {
     $('list-status').textContent = 'Завантажуємо…';
     const all = [];
@@ -168,6 +168,9 @@ window.Lists = (() => {
       (data || []).forEach((r) => { if (r.person && !kin.has(r.related_person_id)) kin.set(r.related_person_id, r); });
     }
     members = all.filter((m) => m.person).map((m) => ({ ...m, kin: kin.get(m.person_id) || null }));
+    // по номеру справи (200-0009, 200-0010…), люди без справи — у кінці в порядку додавання
+    const jk = (m) => jidOf(m.person) || '\uffff';
+    members.sort((a, b) => jk(a).localeCompare(jk(b), 'uk', { numeric: true }));
     hiddenCnt = all.length - members.length;   // люди поза вашими справами (спільний список)
     const c = lists.find((x) => x.id === current.id); if (c) c.person_list_members = [{ count: members.length }];
     $('list-status').textContent = '';
@@ -177,13 +180,14 @@ window.Lists = (() => {
   const rankOf = (p) => { const j = p.journal || {}; for (const k of Object.keys(j)) { const v = j[k] && (j[k]['Звання'] || j[k]['звання']); if (v) return String(v); } return ''; };
   const unitOf = (p) => { const u = Persons.ctx().units; return p.mp_unit_id ? (u.get(p.mp_unit_id) || '') : (p.mp_unit_other || ''); };
   const eventOf = (p) => (p.death_date ? `загибель ${fmt(p.death_date)}` : p.wound_date ? `поранення ${fmt(p.wound_date)}` : '');
+  const jidOf = (p) => ((p && p.cases) || []).map((c) => c.journal_id).filter(Boolean).sort().join(', ');
   const kinOf = (m) => (m.kin ? `${m.kin.relation_degree}: ${fio(m.kin.person)}${m.kin.person.phone ? ', ' + V.formatPhone(m.kin.person.phone) : ''}` : '');
 
   // усі колонки для друку / Excel; key → [заголовок, значення]
   function columnsAll() {
     const cells = Persons.ctx().cells;
     const base = [
-      ['fio', 'ПІБ', (m) => fio(m.person)], ['bd', 'Дата народження', (m) => fmt(m.person.birth_date)],
+      ['case', 'Справа', (m) => jidOf(m.person)], ['fio', 'ПІБ', (m) => fio(m.person)], ['bd', 'Дата народження', (m) => fmt(m.person.birth_date)],
       ['mstat', 'Статус особи', (m) => m.person.military_status || ''], ['rank', 'Звання', (m) => rankOf(m.person)],
       ['vch', 'В/ч', (m) => m.person.military_unit_code || ''], ['unit', 'Бригада', (m) => unitOf(m.person)],
       ['event', 'Подія', (m) => eventOf(m.person)], ['cell', 'Осередок', (m) => cells.get(m.person.cell_id) || ''],
@@ -196,12 +200,12 @@ window.Lists = (() => {
   function renderMembers() {
     const cols = current.columns || [];
     const head = $('list-members').tHead.rows[0];
-    head.innerHTML = '<th>№</th><th>ПІБ</th><th>Відомості</th><th>Статус у списку</th><th>Примітка</th>' + cols.map((c) => `<th>${esc(c)}</th>`).join('') + '<th></th>';
+    head.innerHTML = '<th>№</th><th>Справа</th><th>ПІБ</th><th>Відомості</th><th>Статус у списку</th><th>Примітка</th>' + cols.map((c) => `<th>${esc(c)}</th>`).join('') + '<th></th>';
     const tb = $('list-members').tBodies[0]; tb.innerHTML = '';
     const edit = !ro();
     members.forEach((m, i) => {
       const p = m.person; const tr = document.createElement('tr');
-      tr.innerHTML = `<td>${i + 1}</td><td><a class="btn-link list-fio"></a><br><span class="muted"></span></td><td class="muted"></td>
+      tr.innerHTML = `<td>${i + 1}</td><td class="list-jid"></td><td><a class="btn-link list-fio"></a><br><span class="muted"></span></td><td class="muted"></td>
         <td><select data-f="status">${MEMBER_ST.map((s) => `<option>${s}</option>`).join('')}</select></td>
         <td><input data-f="note"></td>${cols.map((c) => `<td><input data-x="${esc(c)}"></td>`).join('')}
         <td><button type="button" class="btn-link list-rm" title="Прибрати зі списку">✕</button></td>`;
@@ -209,8 +213,13 @@ window.Lists = (() => {
       // справжнє посилання: правий клік → «Відкрити в новій вкладці», Ctrl/Cmd + клік чи середня кнопка — теж у новій вкладці
       { const a = tr.querySelector('.list-fio'); a.href = '?person=' + encodeURIComponent(p.id); a.title = 'Відкрити картку (правий клік — у новій вкладці)';
         a.onclick = (e) => { if (e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0) return; e.preventDefault(); window.__cardReturn = 'lists'; document.querySelector('.tab[data-tab="registry"]').click(); Persons.openForm(p.id); }; }
-      tr.children[1].lastChild.textContent = [fmt(p.birth_date), p.military_status].filter(Boolean).join(' · ');
-      tr.children[2].textContent = [rankOf(p), p.military_unit_code, unitOf(p), eventOf(p), kinOf(m)].filter(Boolean).join(' · ');
+      { const td = tr.querySelector('.list-jid'); const jids = ((p.cases) || []).map((c) => c.journal_id).filter(Boolean).sort();
+        if (!jids.length) td.innerHTML = '<span class="muted">—</span>';
+        jids.forEach((j, k) => { const a = document.createElement('a'); a.className = 'btn-link'; a.textContent = j; a.href = '?case=' + encodeURIComponent(j); a.title = 'Відкрити справу (правий клік — у новій вкладці)';
+          a.onclick = (e) => { if (e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0) return; e.preventDefault(); document.querySelector('.tab[data-tab="cabinet"]').click(); Cabinet.openByJournal(j); };
+          if (k) td.append(document.createElement('br')); td.append(a); }); }
+      tr.children[2].lastChild.textContent = [fmt(p.birth_date), p.military_status].filter(Boolean).join(' · ');
+      tr.children[3].textContent = [rankOf(p), p.military_unit_code, unitOf(p), eventOf(p), kinOf(m)].filter(Boolean).join(' · ');
       const sel = tr.querySelector('[data-f="status"]'); sel.value = m.status; sel.disabled = !edit;
       sel.onchange = () => saveMember(m, { status: sel.value });
       const note = tr.querySelector('[data-f="note"]'); note.value = m.note || ''; note.disabled = !edit;

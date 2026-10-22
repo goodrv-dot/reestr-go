@@ -1228,3 +1228,5 @@ body.read-only .sum-cell.is-ro { cursor: default; }
 .ql-form input[type=url], .ql-form input[name=t] { width: 100%; }
 .ql-shared { font-size: 0.82rem; color: var(--muted); display: flex; gap: 0.35rem; align-items: center; }
 .ql-form .btn-primary { align-self: flex-start; }
+
+.fb-link { color: var(--sea); text-decoration: underline; word-break: break-all; }

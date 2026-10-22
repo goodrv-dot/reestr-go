@@ -1,5 +1,36 @@
 // АВТОМАТИЧНО з feedback.js (tools/build-legacy.mjs) — не редагувати вручну
 window.Feedback = /* @__PURE__ */ (() => {
+  function linkify(el, text) {
+    el.textContent = "";
+    const re = /\b(https?:\/\/[^\s<>"«»]+|www\.[^\s<>"«»]+)/gi;
+    let last = 0, m;
+    const s = String(text || "");
+    while (m = re.exec(s)) {
+      let url = m[0];
+      const trail = url.match(/[.,;:!?)\]]+$/);
+      if (trail) url = url.slice(0, -trail[0].length);
+      if (m.index > last) el.append(s.slice(last, m.index));
+      const href = /^www\./i.test(url) ? "https://" + url : url;
+      let ok = false;
+      try {
+        ok = /^https?:$/.test(new URL(href).protocol);
+      } catch (e) {
+        ok = false;
+      }
+      if (ok) {
+        const a = document.createElement("a");
+        a.href = href;
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        a.textContent = url;
+        a.className = "fb-link";
+        el.append(a);
+      } else el.append(url);
+      last = m.index + url.length;
+      re.lastIndex = last;
+    }
+    if (last < s.length) el.append(s.slice(last));
+  }
   const $ = (id) => document.getElementById(id);
   const STATUSES = ["Нове", "В роботі", "Зроблено", "Відхилено"];
   const ST_CLS = { "Нове": "fb-st-new", "В роботі": "fb-st-work", "Зроблено": "fb-st-done", "Відхилено": "fb-st-no" };
@@ -222,7 +253,7 @@ window.Feedback = /* @__PURE__ */ (() => {
     $("fb-view-thread").hidden = false;
     $("fb-th-title").textContent = t.title || (t.kind === "idea" ? "Пропозиція щодо програми" : "Повідомлення");
     $("fb-th-meta").textContent = `${t.author_id === me ? "Ви" : t.author} → ${toLabel(t)} · ${fmt(t.created_at)}`;
-    $("fb-th-body").textContent = t.body;
+    linkify($("fb-th-body"), t.body);
     const rs = recipients(t);
     const chips = $("fb-th-members");
     chips.innerHTML = "";
@@ -249,7 +280,7 @@ window.Feedback = /* @__PURE__ */ (() => {
       d.innerHTML = '<div class="fb-msg-h"><b></b> <span class="muted"></span></div><div class="fb-msg-b"></div>';
       d.querySelector("b").textContent = x.user_id === me ? "Ви" : x.author || "Співробітник";
       d.querySelector(".muted").textContent = fmt(x.created_at);
-      d.querySelector(".fb-msg-b").textContent = x.body;
+      linkify(d.querySelector(".fb-msg-b"), x.body);
       box.appendChild(d);
     });
     if (!(data || []).length) box.innerHTML = '<p class="muted">Відповідей ще немає.</p>';

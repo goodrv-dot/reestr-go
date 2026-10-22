@@ -1212,3 +1212,19 @@ body.read-only .sum-cell.is-ro { cursor: default; }
 
 .cab-units { margin-top: 1rem; }
 .cab-units summary { cursor: pointer; padding: .4rem 0; }
+
+/* Швидкий доступ (скріпка) */
+.topbar-user .ql-btn { margin-right: 0.5rem; }
+.ql-panel { width: min(22rem, 92vw); }
+.ql-h { margin: 0.7rem 0 0.25rem; font-size: 0.72rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.ql-row { display: flex; align-items: center; gap: 0.3rem; }
+.ql-link { flex: 1; display: flex; align-items: center; gap: 0.55rem; padding: 0.35rem 0.5rem; border-radius: 6px; color: var(--sea); text-decoration: none; font-size: 0.92rem; }
+.ql-link:hover { background: #e7f0f7; text-decoration: underline; }
+.ql-ico { width: 1.3rem; text-align: center; }
+.ql-del { border: 0; background: none; color: var(--muted); cursor: pointer; padding: 0.2rem 0.4rem; border-radius: 4px; }
+.ql-del:hover { background: #fde7e7; color: #b71c1c; }
+.ql-panel hr { border: 0; border-top: 1px solid var(--line); margin: 0.7rem 0; }
+.ql-form { display: flex; flex-direction: column; gap: 0.4rem; }
+.ql-form input[type=url], .ql-form input[name=t] { width: 100%; }
+.ql-shared { font-size: 0.82rem; color: var(--muted); display: flex; gap: 0.35rem; align-items: center; }
+.ql-form .btn-primary { align-self: flex-start; }

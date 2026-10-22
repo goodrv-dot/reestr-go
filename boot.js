@@ -16,7 +16,7 @@
   window.__legacy = !modern;
 
   var APP = ['config.js', 'options.js', 'ui.js', 'validation.js', 'filters.js', 'segments.js', 'picker.js', 'merge.js', 'persons.js',
-    'export.js', 'import.js', 'mfa.js', 'staff.js', 'ua-map.js', 'dashboard.js', 'cabinet.js', 'lists.js', 'presence.js',
+    'export.js', 'import.js', 'mfa.js', 'staff.js', 'ua-map.js', 'dashboard.js', 'cabinet.js', 'lists.js', 'presence.js', 'quicklinks.js',
     'feedback.js', 'nav.js', 'app.js'];
   var list = ['polyfills.js'];
   if (needDialog) list.push('vendor/dialog-polyfill-0.5.6.js');

@@ -7,6 +7,13 @@ window.Staff = /* @__PURE__ */ (() => {
   let me = null;
   let mfaStatus = {};
   function init(client, userId) {
+    {
+      const b = document.getElementById("exp-log-btn");
+      if (b && !b.dataset.w) {
+        b.dataset.w = "1";
+        b.addEventListener("click", loadExports);
+      }
+    }
     db = client;
     me = userId;
     $("staff-add-btn").addEventListener("click", () => {
@@ -93,6 +100,42 @@ window.Staff = /* @__PURE__ */ (() => {
     }
     return data;
   }
+  async function loadExports() {
+    const box = $("exp-log");
+    if (!box) return;
+    box.innerHTML = '<p class="muted">Завантажуємо…</p>';
+    const { data, error } = await db.from("export_log").select("created_at, user_id, kind, channel, row_count, filters_note").order("created_at", { ascending: false }).limit(100);
+    if (error) {
+      console.error(error);
+      box.innerHTML = '<p class="muted">Не вдалося завантажити журнал.</p>';
+      return;
+    }
+    if (!data.length) {
+      box.innerHTML = '<p class="muted">Вивантажень ще не було.</p>';
+      return;
+    }
+    const names = new Map(Persons.ctx().staff);
+    const t = document.createElement("table");
+    t.className = "imp-table";
+    t.innerHTML = "<thead><tr><th>Коли</th><th>Хто</th><th>Що</th><th>Рядків</th><th>Деталі</th></tr></thead><tbody></tbody>";
+    data.forEach((r) => {
+      const tr = document.createElement("tr");
+      [
+        new Date(r.created_at).toLocaleString("uk-UA", { dateStyle: "short", timeStyle: "short" }),
+        names.get(r.user_id) || "—",
+        [r.kind, r.channel].filter(Boolean).join(" · "),
+        String(r.row_count),
+        r.filters_note || ""
+      ].forEach((v) => {
+        const td = document.createElement("td");
+        td.textContent = v;
+        tr.append(td);
+      });
+      t.tBodies[0].append(tr);
+    });
+    box.innerHTML = "";
+    box.append(t);
+  }
   async function load() {
     const { data, error } = await db.from("operators").select("user_id, full_name, email, role, can_export, can_registry, can_import, can_cab200, can_cab300, cab_modules, can_lists, cell_ids, active, must_change_password, created_at, no_login, aliases, read_only").order("active", { ascending: false }).order("full_name");
     const tbody = $("staff-table").tBodies[0];
@@ -137,7 +180,7 @@ window.Staff = /* @__PURE__ */ (() => {
     else if (o.role === "admin") tdExp.innerHTML = '<span class="muted">усе (адміністратор)</span>';
     else {
       const cells = Persons.ctx().cells;
-      const parts = [o.read_only && "👁 Лише перегляд", o.can_registry && "Реєстр", o.can_registry && o.can_export && "Експорт", o.can_registry && o.can_import && "Імпорт", o.can_lists && "Списки", o.can_cab200 && "Кабінет 200", o.can_cab300 && "Кабінет 300", ...(o.cab_modules || []).map((m) => MOD_NAMES[m]).filter(Boolean)].filter(Boolean);
+      const parts = [o.read_only && "👁 Лише перегляд", o.can_registry && "Реєстр", o.can_export && "Експорт", o.can_registry && o.can_import && "Імпорт", o.can_lists && "Списки", o.can_cab200 && "Кабінет 200", o.can_cab300 && "Кабінет 300", ...(o.cab_modules || []).map((m) => MOD_NAMES[m]).filter(Boolean)].filter(Boolean);
       const cn = (o.cell_ids || []).map((id) => cells.get(id)).filter(Boolean);
       const sum = document.createElement("div");
       sum.className = "acc-sum";
@@ -213,7 +256,8 @@ window.Staff = /* @__PURE__ */ (() => {
       box.appendChild(l);
     });
     const sync = () => {
-      f.export.disabled = !f.registry.checked;
+      f.export.disabled = !(f.registry.checked || f.lists.checked);
+      if (f.export.disabled) f.export.checked = false;
       f.lists.disabled = !(f.registry.checked || anyCab()) || f.readonly.checked;
       if (f.lists.disabled) f.lists.checked = false;
       f.import.disabled = !f.registry.checked || f.readonly.checked;
@@ -265,7 +309,7 @@ window.Staff = /* @__PURE__ */ (() => {
       const { error } = await db.rpc("set_operator_access", {
         p_user: o.user_id,
         p_registry: f.registry.checked,
-        p_export: f.registry.checked && f.export.checked,
+        p_export: f.export.checked && !f.export.disabled,
         p_import: f.registry.checked && f.import.checked && !f.readonly.checked,
         p_cab200: f.cab200.checked,
         p_cab300: f.cab300.checked,

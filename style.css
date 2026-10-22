@@ -1230,3 +1230,6 @@ body.read-only .sum-cell.is-ro { cursor: default; }
 .ql-form .btn-primary { align-self: flex-start; }
 
 .fb-link { color: var(--sea); text-decoration: underline; word-break: break-all; }
+
+.exp-log-wrap { margin: 1rem 0; }
+.exp-log-wrap summary { cursor: pointer; }

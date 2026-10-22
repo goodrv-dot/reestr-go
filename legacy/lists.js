@@ -157,6 +157,7 @@ window.Lists = /* @__PURE__ */ (() => {
     });
     if (!box.children.length) box.innerHTML = '<p class="muted">Немає інших співробітників із доступом «Списки».</p>';
     $("list-delete").hidden = !canShare(l) || ro();
+    $("list-excel").hidden = !Persons.ctx().operator.can_export;
     $("list-add").hidden = ro();
     $("list-add-q").value = "";
     $("list-add-res").innerHTML = "";
@@ -462,6 +463,7 @@ window.Lists = /* @__PURE__ */ (() => {
     area.querySelector("h1").textContent = l.name;
     area.querySelector(".print-sub").textContent = [l.description, l.due_date && `Термін: ${fmt(l.due_date)}`, `Осіб: ${members.length}`].filter(Boolean).join(" · ");
     document.body.classList.add("print-mode");
+    logExport("Друк", members.length);
     setTimeout(() => window.print(), 50);
   }
   function excel() {
@@ -477,6 +479,12 @@ window.Lists = /* @__PURE__ */ (() => {
     XLSX.utils.book_append_sheet(wb, ws, "Список");
     const safe = current.name.replace(/[\\/?*[\]:"<>|]/g, " ").slice(0, 60).trim() || "spysok";
     XLSX.writeFile(wb, `${safe}.xlsx`);
+    logExport("Excel", members.length);
+  }
+  function logExport(kind, n) {
+    db.from("export_log").insert({ kind, channel: "Список", row_count: n, filters_note: "Список: " + current.name }).then(({ error }) => {
+      if (error) console.warn("export_log", error);
+    });
   }
   let pending = null;
   async function addDialog(opts) {

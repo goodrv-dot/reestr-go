@@ -119,6 +119,7 @@ window.Lists = (() => {
     });
     if (!box.children.length) box.innerHTML = '<p class="muted">Немає інших співробітників із доступом «Списки».</p>';
     $('list-delete').hidden = !canShare(l) || ro();
+    $('list-excel').hidden = !Persons.ctx().operator.can_export;   // Excel — лише з правом «Експорт»
     $('list-add').hidden = ro();
     $('list-add-q').value = ''; $('list-add-res').innerHTML = '';
     await loadMembers();
@@ -308,6 +309,7 @@ window.Lists = (() => {
     area.querySelector('h1').textContent = l.name;
     area.querySelector('.print-sub').textContent = [l.description, l.due_date && `Термін: ${fmt(l.due_date)}`, `Осіб: ${members.length}`].filter(Boolean).join(' · ');
     document.body.classList.add('print-mode');
+    logExport('Друк', members.length);
     setTimeout(() => window.print(), 50);
   }
 
@@ -320,6 +322,11 @@ window.Lists = (() => {
     const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Список');
     const safe = current.name.replace(/[\\/?*[\]:"<>|]/g, ' ').slice(0, 60).trim() || 'spysok';
     XLSX.writeFile(wb, `${safe}.xlsx`);
+    logExport('Excel', members.length);
+  }
+  // кожне вивантаження й друк — у журнал (адміністратор бачить у «Співробітниках»)
+  function logExport(kind, n) {
+    db.from('export_log').insert({ kind, channel: 'Список', row_count: n, filters_note: 'Список: ' + current.name }).then(({ error }) => { if (error) console.warn('export_log', error); });
   }
 
   // ---------- «➕ До списку» з картки особи або з «Осіб» (усі за фільтром) ----------

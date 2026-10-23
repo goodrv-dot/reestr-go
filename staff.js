@@ -13,6 +13,7 @@ window.Staff = (() => {
 
   function init(client, userId) {
     { const b = document.getElementById('exp-log-btn'); if (b && !b.dataset.w) { b.dataset.w = '1'; b.addEventListener('click', loadExports); } }
+    { const b = document.getElementById('trash-btn'); if (b && !b.dataset.w) { b.dataset.w = '1'; b.addEventListener('click', loadTrash); } }
     db = client;
     me = userId;
     $('staff-add-btn').addEventListener('click', () => {
@@ -99,6 +100,38 @@ window.Staff = (() => {
       [new Date(r.created_at).toLocaleString('uk-UA', { dateStyle: 'short', timeStyle: 'short' }), names.get(r.user_id) || '—',
         [r.kind, r.channel].filter(Boolean).join(' · '), String(r.row_count), r.filters_note || ''].forEach((v) => { const td = document.createElement('td'); td.textContent = v; tr.append(td); });
       t.tBodies[0].append(tr);
+    });
+    box.innerHTML = ''; box.append(t);
+  }
+
+  // Кошик: видалені особи (з їхніми справами) — 5 днів можна відновити
+  async function loadTrash() {
+    const box = $('trash-list'); if (!box) return;
+    box.innerHTML = '<p class="muted">Завантажуємо…</p>';
+    const { data, error } = await db.from('deleted_items').select('id, label, journal_ids, deleted_by, deleted_at').order('deleted_at', { ascending: false }).limit(200);
+    if (error) { console.error(error); box.innerHTML = '<p class="muted">Не вдалося завантажити кошик.</p>'; return; }
+    if (!data.length) { box.innerHTML = '<p class="muted">Кошик порожній.</p>'; return; }
+    const names = new Map(Persons.ctx().staff);
+    const t = document.createElement('table'); t.className = 'imp-table';
+    t.innerHTML = '<thead><tr><th>Особа</th><th>Справи</th><th>Хто видалив</th><th>Коли</th><th>Зникне</th><th></th></tr></thead><tbody></tbody>';
+    data.forEach((r) => {
+      const tr = document.createElement('tr');
+      const gone = new Date(new Date(r.deleted_at).getTime() + 5 * 864e5);
+      const left = Math.max(0, Math.ceil((gone - Date.now()) / 864e5));
+      [r.label || '—', r.journal_ids || '—', names.get(r.deleted_by) || (r.deleted_by ? '—' : 'база (SQL)'),
+        new Date(r.deleted_at).toLocaleString('uk-UA', { dateStyle: 'short', timeStyle: 'short' }),
+        left ? `через ${left} дн.` : 'сьогодні вночі'].forEach((v) => { const td = document.createElement('td'); td.textContent = v; tr.append(td); });
+      const td = document.createElement('td'); const b = document.createElement('button');
+      b.type = 'button'; b.className = 'btn-secondary btn-small'; b.textContent = '↩ Відновити';
+      b.onclick = async () => {
+        if (!confirm(`Відновити «${r.label}»${r.journal_ids ? ' (' + r.journal_ids + ')' : ''} разом зі справами, історією, дітьми, зв’язками й списками?`)) return;
+        b.disabled = true;
+        const { error: e } = await db.rpc('restore_deleted', { p_id: r.id });
+        if (e) { console.error(e); b.disabled = false; Persons.toast('Не вдалося відновити: ' + (e.message || '')); return; }
+        Persons.toast(`Відновлено: ${r.label}`); tr.remove();
+        if (!t.tBodies[0].rows.length) box.innerHTML = '<p class="muted">Кошик порожній.</p>';
+      };
+      td.append(b); tr.append(td); t.tBodies[0].append(tr);
     });
     box.innerHTML = ''; box.append(t);
   }

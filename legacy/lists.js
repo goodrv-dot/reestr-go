@@ -377,7 +377,10 @@ window.Lists = /* @__PURE__ */ (() => {
     box.innerHTML = "";
     if (q.length < 3) return;
     let query = db.from("persons").select("id, last_name, first_name, patronymic, birth_date, military_status, death_date, phone");
-    q.split(/\s+/).filter(Boolean).forEach((w) => {
+    const words = q.split(/\s+/).filter(Boolean);
+    if (words.length >= 2 && words.length <= 3 && words.every((w) => !/\d/.test(w))) {
+      query = query.or(Persons.namesOr(words, await Persons.countNames(words, true) > 0));
+    } else words.forEach((w) => {
       query = query.or(`last_name.ilike.%${w}%,first_name.ilike.%${w}%,patronymic.ilike.%${w}%`);
     });
     const { data, error } = await query.order("last_name").limit(15);

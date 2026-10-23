@@ -510,6 +510,30 @@ window.Persons = /* @__PURE__ */ (() => {
   function currentSearch() {
     return $("search").value.trim().replace(/[,()%*\\]/g, " ").trim();
   }
+  const NAME_F = ["last_name", "first_name", "patronymic"];
+  function namesOr(words, exact) {
+    const cond = (f, w) => exact ? `${f}.ilike.${w}` : `or(${f}.ilike.${w}%,${f}.ilike.% ${w}%,${f}.ilike.%-${w}%)`;
+    const out = [];
+    const walk = (i, used, acc) => {
+      if (i === words.length) {
+        out.push(acc.length > 1 ? `and(${acc.join(",")})` : acc[0]);
+        return;
+      }
+      NAME_F.forEach((f) => {
+        if (!used.includes(f)) walk(i + 1, [...used, f], [...acc, cond(f, words[i])]);
+      });
+    };
+    walk(0, [], []);
+    return out.join(",");
+  }
+  async function countNames(words, exact) {
+    const { count, error } = await db.from("persons").select("id", { count: "exact", head: true }).or(namesOr(words, exact));
+    if (error) {
+      console.error(error);
+      return 0;
+    }
+    return count || 0;
+  }
   async function buildQuery(columns, opts, skip) {
     let query = db.from("persons_view").select(columns, opts);
     const q = currentSearch();
@@ -520,7 +544,11 @@ window.Persons = /* @__PURE__ */ (() => {
       const digitsAll = q.replace(/\D/g, "");
       const isPhone = digitsAll.length >= 9 && !/[a-zа-яіїєґ]/i.test(q);
       const words = isPhone ? [q] : q.split(/\s+/).filter(Boolean);
-      for (const w of words) {
+      const nameWords = !isPhone && words.length >= 2 && words.length <= 3 && words.every((w) => !/\d/.test(w));
+      if (nameWords) {
+        const exact = await countNames(words, true);
+        query = query.or(namesOr(words, exact > 0));
+      } else for (const w of words) {
         const parts = [`last_name.ilike.%${w}%`, `first_name.ilike.%${w}%`, `patronymic.ilike.%${w}%`];
         const digits = w.replace(/\D/g, "");
         if (digits.length >= 3) parts.push(`phone.ilike.%${digits}%`);
@@ -1316,14 +1344,15 @@ window.Persons = /* @__PURE__ */ (() => {
     const name = $("form-title").textContent;
     if (!confirm(`Видалити «${name}» з реєстру?
 
-Разом з особою буде видалено її статуси, пов’язаних осіб і дітей. Відновити неможливо.`)) return;
+Разом з особою буде видалено її справи, статуси, зв’язки з рідними й дітей.
+Протягом 5 днів адміністратор може відновити все з «Співробітники» → «🗑 Кошик».`)) return;
     const { data, error } = await db.from("persons").delete().eq("id", editingId).select("id");
     if (error || !data.length) {
       console.error(error);
       setFormError("Не вдалося видалити. Можливо, у вас немає прав на видалення.");
       return;
     }
-    toast("Особу видалено");
+    toast("Особу видалено — 5 днів її можна відновити з Кошика");
     closeForm();
   }
   function setHint(name, error, warning) {
@@ -1375,5 +1404,5 @@ window.Persons = /* @__PURE__ */ (() => {
   function hasSelection() {
     return !!$("search").value.trim() || Filters.activeCount() > 0;
   }
-  return { init, showList, buildQuery, ctx, toast, resetAll, hasSelection, openForm, levelLabel, reloadUnits };
+  return { init, showList, buildQuery, ctx, toast, resetAll, hasSelection, openForm, levelLabel, reloadUnits, namesOr, countNames };
 })();

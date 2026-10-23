@@ -679,15 +679,34 @@ window.Cabinet = (() => {
     if ($("cab-mark").value) render();
   }
   const norm = (t) => String(t || "").toLowerCase().replace(/[’'ʼ`]/g, "").replace(/\s+/g, " ");
+  const tokens = (p) => norm(fio(p)).split(/[\s-]+/).filter(Boolean);
+  function fits(words, toks, exact, used = []) {
+    if (!words.length) return true;
+    const [w, ...rest] = words;
+    return toks.some((t, i) => !used.includes(i) && (exact ? t === w : t.startsWith(w)) && fits(rest, toks, exact, [...used, i]));
+  }
+  function matchCase(c, words, exact) {
+    const names = [], other = [];
+    words.forEach((w) => (/\d/.test(w) ? other : names).push(w));
+    const phones = [c.person.phone, ...c.kin.map((k) => k.person.phone)].filter(Boolean).join(" ");
+    const jid = norm(c.journal_id);
+    if (!other.every((w) => {
+      const d = w.replace(/\D/g, "");
+      return jid.includes(w) || d.length >= 3 && d.length === w.replace(/[\s()+-]/g, "").length && phones.includes(d);
+    })) return false;
+    if (!names.length) return true;
+    return [c.person, ...c.kin.map((k) => k.person)].some((p) => p && fits(names, tokens(p), exact));
+  }
+  let exactMemo = { q: null, n: -1, v: false };
   function matchSearch(c, q) {
     const words = norm(q).split(" ").filter(Boolean);
-    const text = norm([fio(c.person), c.journal_id, ...c.kin.map((k) => fio(k.person))].join(" "));
-    const phones = [c.person.phone, ...c.kin.map((k) => k.person.phone)].filter(Boolean).join(" ");
-    return words.every((w) => {
-      const d = w.replace(/\D/g, "");
-      if (d.length >= 3 && d.length === w.replace(/[\s()+-]/g, "").length) return phones.includes(d) || text.includes(w);
-      return text.includes(w);
-    });
+    if (words.length === 1 && !/\d/.test(words[0])) {
+      const w = words[0];
+      return norm(c.journal_id).includes(w) || [c.person, ...c.kin.map((k) => k.person)].some((p) => p && norm(fio(p)).includes(w));
+    }
+    if (words.length === 1) return matchCase(c, words, false);
+    if (exactMemo.q !== q || exactMemo.n !== cases.length) exactMemo = { q, n: cases.length, v: cases.some((x) => matchCase(x, words, true)) };
+    return matchCase(c, words, exactMemo.v);
   }
   function filtered() {
     const q = $("cab-search").value.trim().toLowerCase();

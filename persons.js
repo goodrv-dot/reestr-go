@@ -509,6 +509,26 @@ window.Persons = (() => {
     return $('search').value.trim().replace(/[,()%*\\]/g, ' ').trim();
   }
 
+  // Умова PostgREST: кожне слово — на окремій частині ПІБ (будь-який порядок).
+  // exact — збіг цілого слова (без урахування регістру), інакше — початок слова
+  // (у т. ч. друга частина подвійного прізвища: «Петренко-Іваненко», «Марія Анна»).
+  const NAME_F = ['last_name', 'first_name', 'patronymic'];
+  function namesOr(words, exact) {
+    const cond = (f, w) => (exact ? `${f}.ilike.${w}` : `or(${f}.ilike.${w}%,${f}.ilike.% ${w}%,${f}.ilike.%-${w}%)`);
+    const out = [];
+    const walk = (i, used, acc) => {
+      if (i === words.length) { out.push(acc.length > 1 ? `and(${acc.join(',')})` : acc[0]); return; }
+      NAME_F.forEach((f) => { if (!used.includes(f)) walk(i + 1, [...used, f], [...acc, cond(f, words[i])]); });
+    };
+    walk(0, [], []);
+    return out.join(',');
+  }
+  async function countNames(words, exact) {
+    const { count, error } = await db.from('persons').select('id', { count: 'exact', head: true }).or(namesOr(words, exact));
+    if (error) { console.error(error); return 0; }
+    return count || 0;
+  }
+
   // Запит з урахуванням пошуку і фільтрів (для списку та експорту)
   // Повертає { query } (див. коментар у Filters.apply)
   async function buildQuery(columns, opts, skip) {
@@ -522,7 +542,13 @@ window.Persons = (() => {
       const digitsAll = q.replace(/\D/g, '');
       const isPhone = digitsAll.length >= 9 && !/[a-zа-яіїєґ]/i.test(q);
       const words = isPhone ? [q] : q.split(/\s+/).filter(Boolean);
-      for (const w of words) {
+      const nameWords = !isPhone && words.length >= 2 && words.length <= 3 && words.every((w) => !/\d/.test(w));
+      if (nameWords) {
+        // «Богдан Олександр Олександрович» — слова мають лягти на РІЗНІ частини ПІБ однієї людини;
+        // спершу шукаємо точний збіг, якщо його немає — за початком слів
+        const exact = await countNames(words, true);
+        query = query.or(namesOr(words, exact > 0));
+      } else for (const w of words) {
         const parts = [`last_name.ilike.%${w}%`, `first_name.ilike.%${w}%`, `patronymic.ilike.%${w}%`];
         const digits = w.replace(/\D/g, '');
         if (digits.length >= 3) parts.push(`phone.ilike.%${digits}%`);
@@ -1269,7 +1295,7 @@ window.Persons = (() => {
   async function removePerson() {
     if (!editingId || !isAdmin) return;
     const name = $('form-title').textContent;
-    if (!confirm(`Видалити «${name}» з реєстру?\n\nРазом з особою буде видалено її статуси, пов’язаних осіб і дітей. Відновити неможливо.`)) return;
+    if (!confirm(`Видалити «${name}» з реєстру?\n\nРазом з особою буде видалено її справи, статуси, зв’язки з рідними й дітей.\nПротягом 5 днів адміністратор може відновити все з «Співробітники» → «🗑 Кошик».`)) return;
 
     const { data, error } = await db.from('persons').delete().eq('id', editingId).select('id');
     if (error || !data.length) {
@@ -1277,7 +1303,7 @@ window.Persons = (() => {
       setFormError('Не вдалося видалити. Можливо, у вас немає прав на видалення.');
       return;
     }
-    toast('Особу видалено');
+    toast('Особу видалено — 5 днів її можна відновити з Кошика');
     closeForm();
   }
 
@@ -1332,5 +1358,5 @@ window.Persons = (() => {
     return !!$('search').value.trim() || Filters.activeCount() > 0;
   }
 
-  return { init, showList, buildQuery, ctx, toast, resetAll, hasSelection, openForm, levelLabel, reloadUnits };
+  return { init, showList, buildQuery, ctx, toast, resetAll, hasSelection, openForm, levelLabel, reloadUnits, namesOr, countNames };
 })();

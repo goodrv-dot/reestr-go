@@ -19,7 +19,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Unbounded:wght@600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=202610231204">
+  <link rel="stylesheet" href="style.css?v=202610231211">
 </head>
 <body>
 
@@ -407,6 +407,7 @@
             <label>по <input id="cab-to" type="date" aria-label="Дата до"></label>
             <button id="cab-date-clear" type="button" class="btn-link" hidden>скинути</button>
           </span>
+          <button id="cab-reset" type="button" class="btn-link reset-all" hidden title="Прибрати пошук, усі фільтри й швидкий відбір">✕ Скинути фільтри</button>
         </div>
         <div class="qchips" role="group" aria-label="Швидкі фільтри">
           <button type="button" class="qchip cab-quick" data-q="mine" aria-pressed="false">Мої <b id="cq-mine">0</b></button>
@@ -827,7 +828,7 @@
         <ul>
           <li>Всередині одного фільтра — <b>«АБО»</b>: «УБД» або «Учасник війни».</li>
           <li>Між різними фільтрами — <b>«І»</b>: УБД <i>і</i> Родина МП <i>і</i> Полтавська область.</li>
-          <li>Список оновлюється сам. Кнопка «Скинути всі фільтри» повертає повний список.</li>
+          <li>Список оновлюється сам. Щойно вибрано будь-який фільтр, пошук чи швидкий відбір — поруч із датами з’являється червона кнопка <b>«✕ Скинути фільтри»</b>: одне натискання повертає повний список (сторінку оновлювати не треба).</li>
           <li>«Є дитина віком 11–14» — знайде людей, у яких хоча б одна дитина цього віку.</li>
           <li><b>Модуль: 200 / 300 / Діти МП</b> — кнопки над таблицею, без відкриття фільтрів (це той самий фільтр «Програми ГО»). Це швидкий фільтр — лише один модуль (повторне натискання або «Усі» знімає вибір); кілька модулів одразу — через «Фільтри» → «Програми ГО». Числа на кнопках (у кольоровій «пігулці») враховують інші фільтри й «Основні / Зв’язані / Усі»: напр., «Основні» + «200» — самі загиблі, «Усі» + «200» — загиблі разом із рідними.</li>
           <li><b>Період</b> — над таблицею: оберіть, яка дата (додано в реєстр, загибелі / смерті, поховання, поранення, народження), і вкажіть «з» та/або «по». «✕ скинути» прибирає період. Люди без цієї дати в період не потрапляють. Період зберігається в сегменті разом з іншими фільтрами.</li>
@@ -1440,6 +1441,6 @@
   </dialog>
   <div id="print-area" class="print-area" aria-hidden="true"></div>
   <!-- скрипти підключає boot.js: сучасні — для нових браузерів, legacy/ — для старіших iPhone (див. tools/build-legacy.mjs) -->
-  <script src="boot.js?v=202610231204"></script>
+  <script src="boot.js?v=202610231211"></script>
 </body>
 </html>

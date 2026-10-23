@@ -933,6 +933,7 @@ window.Persons = (() => {
     const tl = $('person-tolist'); tl.hidden = !(id && A.lists && !A.readOnly);
     tl.onclick = () => Lists.addDialog({ ids: [id], label: 'Особа: ' + $('form-title').textContent, after: () => showLists(id) });
     showLists(id);
+    showCases(id);
     loadOtherKin(id).catch((e) => console.error(e));
     Ui.paint($('person-form'));
     await showQuality(id);
@@ -943,6 +944,35 @@ window.Persons = (() => {
     if (!history.state || history.state.view !== 'card') history.pushState({ view: 'card' }, '');
     window.scrollTo(0, 0);
     $('f-last_name').focus();
+  }
+
+  // Номер справи над карткою: своя справа (загиблий / поранений) або справа, де людина — родич
+  async function showCases(id) {
+    const el = $('form-cases'); el.hidden = true; el.textContent = '';
+    if (!id) return;
+    const [own, rel] = await Promise.all([
+      db.from('cases').select('journal_id, status').eq('person_id', id),
+      db.from('military_relations').select('relation_degree, related_person_id').eq('person_id', id)
+    ]);
+    let kin = [];
+    const relIds = (rel.data || []).map((r) => r.related_person_id).filter(Boolean);
+    if (relIds.length) {
+      const k = await db.from('cases').select('journal_id, status, person_id').in('person_id', relIds);
+      kin = (k.data || []).map((c) => ({ ...c, deg: ((rel.data || []).find((r) => r.related_person_id === c.person_id) || {}).relation_degree }));
+    }
+    if (editingId !== id) return;
+    const items = [...(own.data || []).map((c) => ({ ...c, deg: null })), ...kin].sort((a, b) => a.journal_id.localeCompare(b.journal_id));
+    if (!items.length) return;
+    el.append(document.createTextNode(items.length > 1 ? 'Справи: ' : 'Справа: '));
+    items.forEach((c, i) => {
+      if (i) el.append(', ');
+      const a = document.createElement('a'); a.href = '?case=' + encodeURIComponent(c.journal_id); a.className = 'form-case-link';
+      a.textContent = c.journal_id; a.title = 'Відкрити справу (правий клік — у новій вкладці)';
+      a.onclick = (e) => { if (e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0) return; e.preventDefault(); document.querySelector('.tab[data-tab="cabinet"]').click(); Cabinet.openByJournal(c.journal_id); };
+      el.append(a);
+      const s = document.createElement('span'); s.className = 'muted'; s.textContent = ` (${[c.deg && 'родич: ' + c.deg.toLowerCase(), c.status].filter(Boolean).join(', ')})`; el.append(s);
+    });
+    el.hidden = false;
   }
 
   async function showLists(id) {

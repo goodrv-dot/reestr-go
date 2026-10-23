@@ -104,7 +104,7 @@ window.Staff = (() => {
     box.innerHTML = ''; box.append(t);
   }
 
-  // Кошик: видалені особи (з їхніми справами) — 5 днів можна відновити
+  // Кошик: видалені особи (з їхніми справами) — 30 днів можна відновити
   async function loadTrash() {
     const box = $('trash-list'); if (!box) return;
     box.innerHTML = '<p class="muted">Завантажуємо…</p>';
@@ -116,7 +116,7 @@ window.Staff = (() => {
     t.innerHTML = '<thead><tr><th>Особа</th><th>Справи</th><th>Хто видалив</th><th>Коли</th><th>Зникне</th><th></th></tr></thead><tbody></tbody>';
     data.forEach((r) => {
       const tr = document.createElement('tr');
-      const gone = new Date(new Date(r.deleted_at).getTime() + 5 * 864e5);
+      const gone = new Date(new Date(r.deleted_at).getTime() + 30 * 864e5);
       const left = Math.max(0, Math.ceil((gone - Date.now()) / 864e5));
       [r.label || '—', r.journal_ids || '—', names.get(r.deleted_by) || (r.deleted_by ? '—' : 'база (SQL)'),
         new Date(r.deleted_at).toLocaleString('uk-UA', { dateStyle: 'short', timeStyle: 'short' }),

@@ -1345,14 +1345,14 @@ window.Persons = /* @__PURE__ */ (() => {
     if (!confirm(`Видалити «${name}» з реєстру?
 
 Разом з особою буде видалено її справи, статуси, зв’язки з рідними й дітей.
-Протягом 5 днів адміністратор може відновити все з «Співробітники» → «🗑 Кошик».`)) return;
+Протягом 30 днів адміністратор може відновити все з «Співробітники» → «🗑 Кошик».`)) return;
     const { data, error } = await db.from("persons").delete().eq("id", editingId).select("id");
     if (error || !data.length) {
       console.error(error);
       setFormError("Не вдалося видалити. Можливо, у вас немає прав на видалення.");
       return;
     }
-    toast("Особу видалено — 5 днів її можна відновити з Кошика");
+    toast("Особу видалено — 30 днів її можна відновити з Кошика");
     closeForm();
   }
   function setHint(name, error, warning) {

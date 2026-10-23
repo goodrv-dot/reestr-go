@@ -66,7 +66,8 @@ window.Cabinet = (() => {
     $('cab-back2').addEventListener('click', closeCase);   // унизу довгої справи (зручно на телефоні)
     $('cab-pager').addEventListener('click', (e) => { const b = e.target.closest('.pg-btn'); if (!b || b.disabled) return; page = Number(b.dataset.page); render(); $('cab-table').scrollIntoView({ block: 'start' }); });
     $('cab-settings-btn').hidden = !isAdmin;
-    if (isAdmin) { mirrorStatus(); initBulk(); }
+    if (isAdmin) mirrorStatus();
+    initBulk();
     $('cab-mark-ui').hidden = false; initMarkFilter();   // особисті мітки — у всіх (кожен бачить свої)
     $('cab-settings-btn').addEventListener('click', openSettings);
     $('cab-new-btn').addEventListener('click', openNew);
@@ -266,11 +267,18 @@ window.Cabinet = (() => {
     }
   }
 
-  // ---------- Масові дії (адміністратор): кілька справ одразу ----------
+  // ---------- Масові дії: кілька справ одразу (мітки — усі; виконавець/осередок/статус — адміністратор) ----------
   let bulkMode = false, lastList = [];
   const picked = new Set();
   function initBulk() {
     $('cab-bulk-btn').hidden = false;
+    document.querySelector('#cab-bulk .bk-admin').hidden = !isAdmin;
+    { const m = $('bk-mark'); m.innerHTML = '';
+      const o = (v, t) => { const x = document.createElement('option'); x.value = v; x.textContent = t; m.append(x); };
+      o('', 'Мітка: не змінювати');
+      MARK_NAMES.forEach((n, i) => o('+' + (i + 1), '+ ' + n));
+      MARK_NAMES.forEach((n, i) => o('-' + (i + 1), '− зняти ' + n.replace(/а$/, 'у').replace(/я$/, 'ю')));
+      o('clear', '− зняти всі мої мітки'); }
     $('cab-bulk-btn').addEventListener('click', () => {
       bulkMode = !bulkMode; picked.clear(); bulkDisarm(); bkMsg('');
       $('cab-bulk-btn').setAttribute('aria-pressed', String(bulkMode));
@@ -284,7 +292,8 @@ window.Cabinet = (() => {
     $('cab-bulk-none').addEventListener('click', () => { picked.clear(); render(); });
     $('bk-apply').addEventListener('click', applyBulk);
     $('bk-cancel').addEventListener('click', () => { bulkDisarm(); bkMsg(''); });
-    ['bk-exec', 'bk-resp', 'bk-cell', 'bk-status'].forEach((id) => $(id).addEventListener('change', () => { bulkDisarm(); bkMsg(''); }));
+    ['bk-mark', 'bk-exec', 'bk-resp', 'bk-cell', 'bk-status'].forEach((id) => $(id).addEventListener('change', () => { bulkDisarm(); bkMsg(''); }));
+    if (!isAdmin) return;
     $('cab-load-btn').hidden = false;
     $('cab-load-btn').addEventListener('click', openLoad);
     $('cab-load-close').addEventListener('click', () => $('cab-load').close());
@@ -310,6 +319,29 @@ window.Cabinet = (() => {
       if (onStep) onStep(Math.min(i + 100, ids.length), ids.length);
     }
   }
+  // мої мітки для багатьох справ: «+3» — додати жовту, «-3» — зняти, «clear» — зняти всі
+  async function bulkMarks(ids, mk, onStep) {
+    const up = [], del = [];
+    ids.forEach((id) => {
+      const cur = new Set(marks.get(id) || []);
+      if (mk === 'clear') cur.clear(); else { const n = Number(mk.slice(1)); mk[0] === '+' ? cur.add(n) : cur.delete(n); }
+      const colors = [...cur].sort();
+      if (colors.length) up.push({ case_id: id, user_id: me, colors, updated_at: new Date().toISOString() }); else if (marks.has(id)) del.push(id);
+    });
+    let done = 0;
+    for (let i = 0; i < up.length; i += 200) {
+      const part = up.slice(i, i + 200);
+      const { error } = await withTimeout(db.from('case_marks').upsert(part));
+      if (error) throw error;
+      part.forEach((r) => marks.set(r.case_id, r.colors)); done += part.length; if (onStep) onStep(done, ids.length);
+    }
+    for (let i = 0; i < del.length; i += 200) {
+      const part = del.slice(i, i + 200);
+      const { error } = await withTimeout(db.from('case_marks').delete().eq('user_id', me).in('case_id', part));
+      if (error) throw error;
+      part.forEach((id) => marks.delete(id)); done += part.length; if (onStep) onStep(done, ids.length);
+    }
+  }
   // Підтвердження — прямо на панелі (без вікна браузера: Chrome інколи тихо блокує такі вікна,
   // і тоді здається, що кнопка «залипла»). Кожен крок пише, що відбувається.
   let bulkArmed = null;
@@ -330,11 +362,12 @@ window.Cabinet = (() => {
   async function applyBulk() {
     const btn = $('bk-apply');
     if (!picked.size) { bkMsg('Спершу позначте справи галочками зліва (або «усі на сторінці»).', true); return; }
-    const patch = bulkPatch();
-    if (!Object.keys(patch).length) { bkMsg('Оберіть, що змінити: виконавця, відповідального, осередок чи статус.', true); return; }
-    const key = JSON.stringify(patch) + '|' + [...picked].sort().join(',');
+    const patch = isAdmin ? bulkPatch() : {};
+    const mk = $('bk-mark').value;
+    if (!Object.keys(patch).length && !mk) { bkMsg(isAdmin ? 'Оберіть, що змінити: мітку, виконавця, відповідального, осередок чи статус.' : 'Оберіть мітку: поставити чи зняти колір.', true); return; }
+    const key = JSON.stringify(patch) + mk + '|' + [...picked].sort().join(',');
     if (bulkArmed !== key) {
-      const what = [patch.executor_id !== undefined && 'виконавця', patch.responsible_id !== undefined && 'відповідального', patch.cell_id !== undefined && 'осередок', patch.status && 'статус'].filter(Boolean).join(', ');
+      const what = [mk && 'мітку', patch.executor_id !== undefined && 'виконавця', patch.responsible_id !== undefined && 'відповідального', patch.cell_id !== undefined && 'осередок', patch.status && 'статус'].filter(Boolean).join(', ');
       bulkArmed = key;
       btn.textContent = `Так, змінити (${picked.size})`; $('bk-cancel').hidden = false;
       bkMsg(`Змінити ${what} у ${picked.size} справах? Натисніть «Так, змінити» ще раз.`);
@@ -345,11 +378,11 @@ window.Cabinet = (() => {
     const n = picked.size;
     bkMsg(`Надсилаємо зміни: 0 з ${n}…`);
     try {
-      await updateCases([...picked], patch, (d, t) => { bkMsg(`Збережено ${d} з ${t}…`); });
-      picked.clear(); ['bk-exec', 'bk-resp', 'bk-cell', 'bk-status'].forEach((id) => { $(id).value = ''; });
-      bkMsg(`✓ Оновлено справ: ${n}. Оновлюємо список…`);
+      if (mk) await bulkMarks([...picked], mk, (d, t) => { bkMsg(`Мітки: ${d} з ${t}…`); });
+      if (Object.keys(patch).length) await updateCases([...picked], patch, (d, t) => { bkMsg(`Збережено ${d} з ${t}…`); });
+      picked.clear(); ['bk-mark', 'bk-exec', 'bk-resp', 'bk-cell', 'bk-status'].forEach((id) => { $(id).value = ''; });
       Persons.toast(`Оновлено справ: ${n}`);
-      await load();
+      if (Object.keys(patch).length) { bkMsg(`✓ Оновлено справ: ${n}. Оновлюємо список…`); await load(); } else render();
       bkMsg(`✓ Оновлено справ: ${n}.`);
     } catch (e) {
       console.error(e);

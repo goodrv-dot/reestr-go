@@ -121,8 +121,10 @@ window.Cabinet = (() => {
       $("cab-table").scrollIntoView({ block: "start" });
     });
     $("cab-settings-btn").hidden = !isAdmin;
-    if (isAdmin) mirrorStatus();
-    initBulk();
+    if (isAdmin) {
+      mirrorStatus();
+      initBulk();
+    }
     $("cab-mark-ui").hidden = false;
     initMarkFilter();
     $("cab-settings-btn").addEventListener("click", openSettings);

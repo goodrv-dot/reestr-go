@@ -66,8 +66,7 @@ window.Cabinet = (() => {
     $('cab-back2').addEventListener('click', closeCase);   // унизу довгої справи (зручно на телефоні)
     $('cab-pager').addEventListener('click', (e) => { const b = e.target.closest('.pg-btn'); if (!b || b.disabled) return; page = Number(b.dataset.page); render(); $('cab-table').scrollIntoView({ block: 'start' }); });
     $('cab-settings-btn').hidden = !isAdmin;
-    if (isAdmin) mirrorStatus();
-    initBulk();
+    if (isAdmin) { mirrorStatus(); initBulk(); }   // «Кілька справ» — лише адміністратор
     $('cab-mark-ui').hidden = false; initMarkFilter();   // особисті мітки — у всіх (кожен бачить свої)
     $('cab-settings-btn').addEventListener('click', openSettings);
     $('cab-new-btn').addEventListener('click', openNew);
@@ -267,7 +266,7 @@ window.Cabinet = (() => {
     }
   }
 
-  // ---------- Масові дії: кілька справ одразу (мітки — усі; виконавець/осередок/статус — адміністратор) ----------
+  // ---------- Масові дії (адміністратор): кілька справ одразу ----------
   let bulkMode = false, lastList = [];
   const picked = new Set();
   function initBulk() {

@@ -11,7 +11,9 @@ window.QuickLinks = (() => {
       ['💬', 'WhatsApp', 'https://web.whatsapp.com/'], ['📹', 'Google Meet', 'https://meet.google.com/']]],
     ['Робота з матеріалами', [['🎓', 'Google Classroom', 'https://classroom.google.com/'], ['📝', 'Google Keep', 'https://keep.google.com/'],
       ['📁', 'Google Drive', 'https://drive.google.com/'], ['📊', 'Google Таблиці', 'https://docs.google.com/spreadsheets/']]],
-    ['Інше', [['🎙️', 'Fathom', 'https://fathom.video/'], ['✨', 'Gemini', 'https://gemini.google.com/']]]
+    ['Інше', [['🎙️', 'Fathom', 'https://fathom.video/'], ['✨', 'Gemini', 'https://gemini.google.com/']]],
+    ['Безпека (2FA)', [['🔐', 'Google Authenticator — Android', 'https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2&hl=uk'],
+      ['🔐', 'Google Authenticator — iPhone', 'https://apps.apple.com/app/google-authenticator/id388497605']]]
   ];
   // «📁 Назва» → ['📁', 'Назва']; без емодзі — 🔗
   const split = (t) => { const m = String(t).match(/^(\p{Extended_Pictographic}️?)\s*(.+)$/u); return m ? [m[1], m[2]] : ['🔗', String(t)]; };

@@ -15,7 +15,11 @@ window.QuickLinks = /* @__PURE__ */ (() => {
       ["📁", "Google Drive", "https://drive.google.com/"],
       ["📊", "Google Таблиці", "https://docs.google.com/spreadsheets/"]
     ]],
-    ["Інше", [["🎙️", "Fathom", "https://fathom.video/"], ["✨", "Gemini", "https://gemini.google.com/"]]]
+    ["Інше", [["🎙️", "Fathom", "https://fathom.video/"], ["✨", "Gemini", "https://gemini.google.com/"]]],
+    ["Безпека (2FA)", [
+      ["🔐", "Google Authenticator — Android", "https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2&hl=uk"],
+      ["🔐", "Google Authenticator — iPhone", "https://apps.apple.com/app/google-authenticator/id388497605"]
+    ]]
   ];
   const split = (t) => {
     const m = String(t).match(/^(\p{Extended_Pictographic}️?)\s*(.+)$/u);

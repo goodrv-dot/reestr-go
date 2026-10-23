@@ -19,7 +19,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Unbounded:wght@600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=202610221322">
+  <link rel="stylesheet" href="style.css?v=202610230655">
 </head>
 <body>
 
@@ -1073,6 +1073,7 @@
           <li>Перевірити копію: відкрийте сторінку <a href="restore.html" target="_blank" rel="noopener">«Розшифрувати копію»</a>, оберіть файл, введіть фразу-пароль — побачите, скільки рядків у кожній таблиці. Файл розшифровується лише у вашому браузері.</li>
           <li>Раз на місяць перевіряйте одну копію — так ви знатимете, що відновлення справді можливе.</li>
           <li>Облікові записи для входу (паролі, 2FA) у копію не входять — їх зберігає Supabase окремо.</li>
+          <li><b>Щотижнева перевірка копії.</b> Щонеділі ввечері робот бере найновішу копію, розшифровує її, розпаковує і звіряє: чи всі таблиці на місці й чи кількість рядків відповідає базі. Базу при цьому не змінює. Якщо копія пошкоджена, не розшифровується або перевірка давно не запускалась — адміністратор побачить попередження в дзвіночку.</li>
         </ul>
       </section>
 
@@ -1425,6 +1426,6 @@
   </dialog>
   <div id="print-area" class="print-area" aria-hidden="true"></div>
   <!-- скрипти підключає boot.js: сучасні — для нових браузерів, legacy/ — для старіших iPhone (див. tools/build-legacy.mjs) -->
-  <script src="boot.js?v=202610221322"></script>
+  <script src="boot.js?v=202610230655"></script>
 </body>
 </html>

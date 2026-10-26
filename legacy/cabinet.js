@@ -2112,9 +2112,20 @@ window.Cabinet = (() => {
       return;
     }
     if (badName(g("ln"), g("fn"), g("pn"))) return;
-    const full = [g("ln"), g("fn")].join(" ").toLowerCase();
-    const dup = cases.find((c) => fio(c.person).toLowerCase().startsWith(full));
-    if (dup && !confirm(`У кабінеті вже є справа ${dup.journal_id}: ${fio(dup.person)}. Усе одно створити нову?`)) return;
+    let dups = [];
+    {
+      const r = await db.rpc("find_case_duplicates", { p_module: module, p_last: nm(g("ln")), p_first: nm(g("fn")), p_patr: g("pn") ? nm(g("pn")) : "" });
+      if (!r.error) dups = r.data || [];
+      else {
+        const full = [g("ln"), g("fn")].join(" ").toLowerCase();
+        dups = cases.filter((c) => fio(c.person).toLowerCase().startsWith(full)).map((c) => c.journal_id);
+      }
+    }
+    if (dups.length && !confirm(`Справа з таким ПІБ уже є: ${dups.join(", ")}.
+
+Скоріше за все, це та сама людина — відкрийте наявну справу (пошук за номером), а не створюйте нову.
+
+Створити ще одну справу все одно (лише якщо це точно інша людина — повний тезка)?`)) return;
     if (creating) return;
     creating = true;
     const btn = f.querySelector('button[type="submit"]');

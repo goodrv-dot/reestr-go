@@ -1376,9 +1376,12 @@ window.Cabinet = (() => {
     e.preventDefault(); const f = e.target; const g = (n) => f.elements[n].value.trim();
     if (!g('ln') || !g('fn')) { Persons.toast('Вкажіть прізвище та ім’я'); return; }
     if (badName(g('ln'), g('fn'), g('pn'))) return;
-    const full = [g('ln'), g('fn')].join(' ').toLowerCase();
-    const dup = cases.find((c) => fio(c.person).toLowerCase().startsWith(full));
-    if (dup && !confirm(`У кабінеті вже є справа ${dup.journal_id}: ${fio(dup.person)}. Усе одно створити нову?`)) return;
+    // двійники: база шукає серед УСІХ справ модуля (і завершених, і чужих осередків) — повертає лише номери справ
+    let dups = [];
+    { const r = await db.rpc('find_case_duplicates', { p_module: module, p_last: nm(g('ln')), p_first: nm(g('fn')), p_patr: g('pn') ? nm(g('pn')) : '' });
+      if (!r.error) dups = r.data || [];
+      else { const full = [g('ln'), g('fn')].join(' ').toLowerCase(); dups = cases.filter((c) => fio(c.person).toLowerCase().startsWith(full)).map((c) => c.journal_id); } }
+    if (dups.length && !confirm(`Справа з таким ПІБ уже є: ${dups.join(', ')}.\n\nСкоріше за все, це та сама людина — відкрийте наявну справу (пошук за номером), а не створюйте нову.\n\nСтворити ще одну справу все одно (лише якщо це точно інша людина — повний тезка)?`)) return;
     // одне натискання — одна справа: кнопка блокується до відповіді сервера
     if (creating) return;
     creating = true;

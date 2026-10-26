@@ -133,11 +133,16 @@ window.Cabinet = (() => {
     $("cab-new-cancel").addEventListener("click", () => $("cab-new").close());
     $("cab-set-close").addEventListener("click", () => {
       $("cab-settings").close();
-      load();
+      load({ full: true });
     });
     window.addEventListener("popstate", () => {
       if (!$("cab-case").hidden) closeCase(true);
     });
+    const auto = () => {
+      if (!document.hidden && !$("cabinet-view").hidden && syncAt) load();
+    };
+    setInterval(auto, 3 * 60 * 1e3);
+    document.addEventListener("visibilitychange", auto);
     $("cab-case").addEventListener("focusout", () => {
       if (stagesPending) setTimeout(() => {
         if (stagesPending && !editingInCase()) renderStages();
@@ -146,8 +151,64 @@ window.Cabinet = (() => {
   }
   let loadSeq = 0;
   let withClosed = false, closedTotal = 0, closedFor = "";
-  async function load() {
+  let lastFull = 0, syncAt = "", loadedKey = "", fullSeq = 0;
+  const extraDone = /* @__PURE__ */ new Set();
+  const CASE_SEL = "*, person:persons!cases_person_id_fkey(id, last_name, first_name, patronymic, military_status, death_date, burial_date, wounded, wound_date, birth_date, callsign, burial_place, military_unit_code, mp_unit_id, region_id, settlement, phone, comment), case_values(stage_key, value)";
+  async function fetchKin(pids) {
+    const kin = /* @__PURE__ */ new Map();
+    const chunks = [];
+    for (let i = 0; i < pids.length; i += 150) chunks.push(pids.slice(i, i + 150));
+    for (let i = 0; i < chunks.length; i += 4) {
+      const res = await Promise.all(chunks.slice(i, i + 4).map((part) => db.from("military_relations").select("id, related_person_id, relation_degree, created_at, person:persons!military_relations_person_id_fkey(id, last_name, first_name, patronymic, phone, settlement)").in("related_person_id", part).order("created_at")));
+      res.forEach(({ data }) => (data || []).forEach((r) => {
+        if (r.person) kin.set(r.related_person_id, [...kin.get(r.related_person_id) || [], r]);
+      }));
+    }
+    return kin;
+  }
+  function prep(c, kin) {
+    c.vals = Object.fromEntries((c.case_values || []).map((v) => [v.stage_key, v.value]));
+    c.kin = kin.get(c.person_id) || [];
+    c.next = nextAction(c);
+  }
+  const maxUpd = (list, from) => list.reduce((m, c) => c.updated_at && c.updated_at > m ? c.updated_at : m, from || "");
+  async function refresh() {
     const my = ++loadSeq;
+    const since = new Date(Date.parse(syncAt) - 12e4).toISOString();
+    const { data, error } = await db.from("cases").select(CASE_SEL).eq("module", module).gt("updated_at", since).order("updated_at").limit(1e3);
+    if (error) {
+      console.error(error);
+      return;
+    }
+    if (my !== loadSeq) return;
+    if (data.length >= 1e3) return load({ full: true });
+    const byId = new Map(cases.map((c) => [c.id, c]));
+    const fresh = data.filter((c) => {
+      const o = byId.get(c.id);
+      return !o || o.updated_at !== c.updated_at;
+    });
+    syncAt = maxUpd(data, syncAt);
+    if (!fresh.length) return;
+    const kin = await fetchKin([...new Set(fresh.map((c) => c.person_id))]);
+    if (my !== loadSeq) return;
+    fresh.forEach((c) => {
+      const o = byId.get(c.id);
+      if (o) {
+        Object.assign(o, c);
+        prep(o, kin);
+        return;
+      }
+      if (isClosed(c) && !withClosed) return;
+      prep(c, kin);
+      cases.push(c);
+    });
+    if ($("cab-case").hidden) render();
+    badge();
+  }
+  async function load(opts = {}) {
+    if (!opts.full && syncAt && loadedKey === module + "|" + (withClosed ? 1 : 0) && Date.now() - lastFull < 30 * 60 * 1e3) return refresh();
+    const my = ++loadSeq;
+    fullSeq++;
     const A = acc();
     if (!MOD_UI[module] || !A["cab" + module]) module = MODS.find((m) => A["cab" + m]) || "200";
     document.querySelectorAll(".cab-mod").forEach((b) => {
@@ -180,7 +241,7 @@ window.Cabinet = (() => {
     }
     const list = [];
     for (let from = 0; ; from += 1e3) {
-      let q = db.from("cases").select("*, person:persons!cases_person_id_fkey(id, last_name, first_name, patronymic, military_status, death_date, burial_date, wounded, wound_date, birth_date, callsign, burial_place, military_unit_code, mp_unit_id, region_id, settlement, phone, comment), case_values(stage_key, value)").eq("module", module);
+      let q = db.from("cases").select(CASE_SEL).eq("module", module);
       if (skipClosed) q = q.or(`status.is.null,status.not.in.${inList}`);
       const { data, error } = await q.order("journal_id").range(from, from + 999);
       if (error) {
@@ -192,16 +253,7 @@ window.Cabinet = (() => {
       list.push(...data);
       if (data.length < 1e3) break;
     }
-    const ids = list.map((c) => c.person_id);
-    const kin = /* @__PURE__ */ new Map();
-    const chunks = [];
-    for (let i = 0; i < ids.length; i += 150) chunks.push(ids.slice(i, i + 150));
-    for (let i = 0; i < chunks.length; i += 4) {
-      const res = await Promise.all(chunks.slice(i, i + 4).map((part) => db.from("military_relations").select("id, related_person_id, relation_degree, created_at, person:persons!military_relations_person_id_fkey(id, last_name, first_name, patronymic, phone, settlement)").in("related_person_id", part).order("created_at")));
-      res.forEach(({ data }) => (data || []).forEach((r) => {
-        if (r.person) kin.set(r.related_person_id, [...kin.get(r.related_person_id) || [], r]);
-      }));
-    }
+    const kin = await fetchKin(list.map((c) => c.person_id));
     if (!skipClosed) closedTotal = 0;
     const sn = await db.from("case_seen").select("case_id, seen_at");
     const mk = /* @__PURE__ */ new Map();
@@ -220,11 +272,11 @@ window.Cabinet = (() => {
     marks = mk;
     cases = list;
     seen = new Map((sn.data || []).map((r) => [r.case_id, r.seen_at]));
-    cases.forEach((c) => {
-      c.vals = Object.fromEntries((c.case_values || []).map((v) => [v.stage_key, v.value]));
-      c.kin = kin.get(c.person_id) || [];
-      c.next = nextAction(c);
-    });
+    cases.forEach((c) => prep(c, kin));
+    loadedKey = module + "|" + (withClosed ? 1 : 0);
+    lastFull = Date.now();
+    syncAt = maxUpd(list) || (/* @__PURE__ */ new Date(0)).toISOString();
+    extraDone.clear();
     fillFilters();
     $("cab-status-line").textContent = "";
     render();
@@ -767,6 +819,55 @@ window.Cabinet = (() => {
     if (exactMemo.q !== q || exactMemo.n !== cases.length) exactMemo = { q, n: cases.length, v: cases.some((x) => matchCase(x, words, true)) };
     return matchCase(c, words, exactMemo.v);
   }
+  let closedTimer = null;
+  function wantClosed(q, withMarks) {
+    clearTimeout(closedTimer);
+    closedTimer = setTimeout(async () => {
+      const seq = fullSeq, ids = /* @__PURE__ */ new Set();
+      const nq = norm(q);
+      const qk = module + "|q|" + nq;
+      if (nq && (/\d/.test(nq) || nq.replace(/\s/g, "").length >= 2) && !extraDone.has(qk)) {
+        extraDone.add(qk);
+        const { data, error } = await db.rpc("search_closed_cases", { p_module: module, p_q: q });
+        if (error) {
+          console.error(error);
+          extraDone.delete(qk);
+        }
+        (data || []).forEach((r) => ids.add(typeof r === "string" ? r : Object.values(r)[0]));
+      }
+      const mk = module + "|marks|" + marks.size;
+      if (withMarks && !extraDone.has(mk)) {
+        extraDone.add(mk);
+        marks.forEach((_, id) => ids.add(id));
+      }
+      if (seq !== fullSeq) return;
+      const have = new Set(cases.map((c) => c.id));
+      const need = [...ids].filter((id) => !have.has(id));
+      if (need.length) await addCases(need);
+    }, 300);
+  }
+  async function addCases(ids) {
+    const seq = fullSeq, got = [];
+    for (let i = 0; i < ids.length; i += 150) {
+      const { data, error } = await db.from("cases").select(CASE_SEL).eq("module", module).in("id", ids.slice(i, i + 150));
+      if (error) {
+        console.error(error);
+        return;
+      }
+      got.push(...data || []);
+    }
+    if (seq !== fullSeq || !got.length) return;
+    const kin = await fetchKin([...new Set(got.map((c) => c.person_id))]);
+    if (seq !== fullSeq) return;
+    const have = new Set(cases.map((c) => c.id));
+    got.forEach((c) => {
+      if (!have.has(c.id)) {
+        prep(c, kin);
+        cases.push(c);
+      }
+    });
+    if ($("cab-case").hidden) render();
+  }
   function filtered() {
     const q = $("cab-search").value.trim().toLowerCase();
     const st = $("cab-status").value, ex = $("cab-exec").value, rs = $("cab-resp").value, ce = $("cab-cell").value, rg = $("cab-region").value, un = $("cab-unit").value;
@@ -776,9 +877,11 @@ window.Cabinet = (() => {
     const markColors = [...mkf].some((x) => x !== "none");
     const showClosed = !!preset || quick === "closed" || !!q || markColors || statuses.some((s) => s.name === stSel && s.closed);
     if (showClosed && !withClosed && closedTotal) {
-      withClosed = true;
-      $("cab-status-line").textContent = "Довантажуємо закриті справи…";
-      load();
+      if (quick === "closed" || statuses.some((s) => s.name === stSel && s.closed)) {
+        withClosed = true;
+        $("cab-status-line").textContent = "Довантажуємо закриті справи…";
+        load();
+      } else wantClosed($("cab-search").value.trim(), markColors);
     }
     return cases.filter((c) => {
       if (preset && !preset.ids.has(c.id)) return false;
@@ -2077,6 +2180,7 @@ window.Cabinet = (() => {
       if (!error && Object.keys(rest).length) ({ error } = await db.from("cases").update(rest).eq("id", c.id));
       if (!error && patch.cell_id && !mine) {
         Object.assign(c, patch);
+        cases = cases.filter((x) => x.id !== c.id);
         Persons.toast("Справу передано в інший осередок");
         closeCase();
         load();
@@ -2248,10 +2352,12 @@ window.Cabinet = (() => {
     module = /^300/.test(jid) ? "300" : /^БЗВ/i.test(jid) ? "bzv" : /^ПОЛ/i.test(jid) ? "pol" : /^ВЕТ/i.test(jid) ? "vet" : "200";
     await load();
     let c = cases.find((x) => x.journal_id === jid);
-    if (!c && !withClosed) {
-      withClosed = true;
-      await load();
-      c = cases.find((x) => x.journal_id === jid);
+    if (!c) {
+      const { data } = await db.from("cases").select("id").eq("journal_id", jid).maybeSingle();
+      if (data) {
+        await addCases([data.id]);
+        c = cases.find((x) => x.journal_id === jid);
+      }
     }
     if (c) openCase(c.id);
     else Persons.toast(`Справу ${jid} не знайдено або немає доступу`);
@@ -2263,7 +2369,20 @@ window.Cabinet = (() => {
     assigned: ["Вам призначено справу", "n-new"]
   };
   let notes = [], bellWired = false;
-  async function badge() {
+  let badgeAt = 0, badgeTimer = null;
+  function badge() {
+    const wait = badgeAt + 2e4 - Date.now();
+    if (wait > 0) {
+      if (!badgeTimer) badgeTimer = setTimeout(() => {
+        badgeTimer = null;
+        badge();
+      }, wait);
+      return Promise.resolve();
+    }
+    badgeAt = Date.now();
+    return badgeNow();
+  }
+  async function badgeNow() {
     const tabEl = document.querySelector('.tab[data-tab="cabinet"]');
     if (!tabEl || !db) return;
     const { data, error } = await db.rpc("my_notifications");
@@ -2279,7 +2398,7 @@ window.Cabinet = (() => {
     if (window.Feedback) {
       const fb = await Feedback.counts().catch(() => ({ fresh: 0 }));
       if (fb.fresh) notes.push({ kind: "fb", label: `Нове в чаті / задачах: ${fb.fresh}` });
-      Feedback.refreshDot();
+      Feedback.refreshDot(fb);
     }
     appBadge(notes.length);
     const cnt = (k) => notes.filter((x) => x.kind === k).length;

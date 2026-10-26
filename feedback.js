@@ -48,7 +48,7 @@ window.Feedback = (() => {
     $('fb-to-admins').addEventListener('change', syncTo);
     $('fb-to-q').addEventListener('input', renderOps);
     refreshDot();
-    setInterval(() => { if (!document.hidden) refreshDot(); }, 5 * 60 * 1000);
+    setInterval(() => { const b = $('bell-btn'); if (!document.hidden && (!b || b.hidden)) refreshDot(); }, 5 * 60 * 1000);   // з кабінетом це робить дзвіночок
   }
 
   // для дзвіночка: fresh — нові/непрочитані розмови, replies — мої відкриті задачі (Нове / В роботі)
@@ -57,8 +57,8 @@ window.Feedback = (() => {
     const { data } = await db.rpc('chat_unread');
     return { fresh: (data && data.unread) || 0, replies: 0, todo: (data && data.todo) || 0 };
   }
-  async function refreshDot() {
-    const c = await counts().catch(() => ({ fresh: 0, todo: 0 }));
+  async function refreshDot(known) {
+    const c = known || await counts().catch(() => ({ fresh: 0, todo: 0 }));
     const dot = $('fb-count'); dot.textContent = c.fresh > 99 ? '99+' : c.fresh; dot.hidden = !c.fresh;
     $('fb-btn').title = 'Чат / Задачі' + (c.fresh ? ` — нового: ${c.fresh}` : '') + (c.todo ? ` · мої відкриті задачі: ${c.todo}` : '');
     return c;

@@ -45,3 +45,13 @@ document.addEventListener('click', (e) => {
   const h = target.querySelector('h2') || target;
   h.setAttribute('tabindex', '-1'); h.focus({ preventScroll: true });
 });
+
+// «⟳ Оновити» під назвою — як F5: спершу просимо свіжу сторінку (повз кеш браузера), потім перезавантажуємо
+{
+  const rb = document.getElementById('app-reload');
+  if (rb) rb.addEventListener('click', async () => {
+    rb.disabled = true; rb.textContent = '⟳ Оновлюємо…';
+    try { await fetch(location.pathname, { cache: 'reload' }); } catch { /* без мережі — просто перезавантажимо */ }
+    location.reload();
+  });
+}

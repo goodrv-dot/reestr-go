@@ -46,3 +46,15 @@ document.addEventListener("click", (e) => {
   h.setAttribute("tabindex", "-1");
   h.focus({ preventScroll: true });
 });
+{
+  const rb = document.getElementById("app-reload");
+  if (rb) rb.addEventListener("click", async () => {
+    rb.disabled = true;
+    rb.textContent = "⟳ Оновлюємо…";
+    try {
+      await fetch(location.pathname, { cache: "reload" });
+    } catch (e) {
+    }
+    location.reload();
+  });
+}

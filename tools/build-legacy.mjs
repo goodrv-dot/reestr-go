@@ -3,9 +3,11 @@
 //   npm i --no-save esbuild && node tools/build-legacy.mjs
 // Сам код не змінюється — лише переписуються новіші конструкції (?. ?? ||= …) на старі.
 import { transform } from 'esbuild';
+import { buildCabinet } from './build-cabinet.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 
+{ const r = buildCabinet(); console.log(`cabinet.js: зібрано з ${r.parts} частин src/cabinet/`); }   // спершу — збірка кабінету з частин
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const boot = fs.readFileSync(path.join(root, 'boot.js'), 'utf8');
 const app = JSON.parse(boot.match(/var APP = (\[[\s\S]*?\]);/)[1].replace(/'/g, '"'));

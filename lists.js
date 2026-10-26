@@ -212,8 +212,15 @@ window.Lists = (() => {
         <td><button type="button" class="btn-link list-rm" title="Прибрати зі списку">✕</button></td>`;
       tr.querySelector('.list-fio').textContent = fio(p);
       // справжнє посилання: правий клік → «Відкрити в новій вкладці», Ctrl/Cmd + клік чи середня кнопка — теж у новій вкладці
-      { const a = tr.querySelector('.list-fio'); a.href = '?person=' + encodeURIComponent(p.id); a.title = 'Відкрити картку (правий клік — у новій вкладці)';
-        a.onclick = (e) => { if (e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0) return; e.preventDefault(); window.__cardReturn = 'lists'; document.querySelector('.tab[data-tab="registry"]').click(); Persons.openForm(p.id); }; }
+      // клік по ПІБ — відкриває СПРАВУ в кабінеті (як працюють оператори); якщо справи немає — картку особи
+      { const a = tr.querySelector('.list-fio'); const jid = ((p.cases) || []).map((c) => c.journal_id).filter(Boolean).sort()[0];
+        if (jid) {
+          a.href = '?case=' + encodeURIComponent(jid); a.title = `Відкрити справу ${jid} у кабінеті (правий клік — у новій вкладці)`;
+          a.onclick = (e) => { if (e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0) return; e.preventDefault(); document.querySelector('.tab[data-tab="cabinet"]').click(); Cabinet.openByJournal(jid); };
+        } else {
+          a.href = '?person=' + encodeURIComponent(p.id); a.title = 'Відкрити картку особи (правий клік — у новій вкладці)';
+          a.onclick = (e) => { if (e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0) return; e.preventDefault(); window.__cardReturn = 'lists'; document.querySelector('.tab[data-tab="registry"]').click(); Persons.openForm(p.id); };
+        } }
       { const td = tr.querySelector('.list-jid'); const jids = ((p.cases) || []).map((c) => c.journal_id).filter(Boolean).sort();
         if (!jids.length) td.innerHTML = '<span class="muted">—</span>';
         jids.forEach((j, k) => { const a = document.createElement('a'); a.className = 'btn-link'; a.textContent = j; a.href = '?case=' + encodeURIComponent(j); a.title = 'Відкрити справу (правий клік — у новій вкладці)';

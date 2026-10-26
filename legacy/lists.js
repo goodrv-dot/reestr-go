@@ -294,15 +294,27 @@ window.Lists = /* @__PURE__ */ (() => {
       tr.querySelector(".list-fio").textContent = fio(p);
       {
         const a = tr.querySelector(".list-fio");
-        a.href = "?person=" + encodeURIComponent(p.id);
-        a.title = "Відкрити картку (правий клік — у новій вкладці)";
-        a.onclick = (e) => {
-          if (e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0) return;
-          e.preventDefault();
-          window.__cardReturn = "lists";
-          document.querySelector('.tab[data-tab="registry"]').click();
-          Persons.openForm(p.id);
-        };
+        const jid = (p.cases || []).map((c) => c.journal_id).filter(Boolean).sort()[0];
+        if (jid) {
+          a.href = "?case=" + encodeURIComponent(jid);
+          a.title = `Відкрити справу ${jid} у кабінеті (правий клік — у новій вкладці)`;
+          a.onclick = (e) => {
+            if (e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0) return;
+            e.preventDefault();
+            document.querySelector('.tab[data-tab="cabinet"]').click();
+            Cabinet.openByJournal(jid);
+          };
+        } else {
+          a.href = "?person=" + encodeURIComponent(p.id);
+          a.title = "Відкрити картку особи (правий клік — у новій вкладці)";
+          a.onclick = (e) => {
+            if (e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0) return;
+            e.preventDefault();
+            window.__cardReturn = "lists";
+            document.querySelector('.tab[data-tab="registry"]').click();
+            Persons.openForm(p.id);
+          };
+        }
       }
       {
         const td = tr.querySelector(".list-jid");

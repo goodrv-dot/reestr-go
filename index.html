@@ -19,7 +19,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Unbounded:wght@600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=202610270725">
+  <link rel="stylesheet" href="style.css?v=202610270916">
 </head>
 <body>
 
@@ -310,8 +310,8 @@
                 </select></div>
             </div>
             <div class="checks">
-              <label class="check"><input type="checkbox" name="consent_pd"> Згода на обробку персональних даних <span id="consent-date" class="muted"></span></label>
-              <label class="check"><input type="checkbox" name="consent_messages"> Згода на повідомлення в месенджерах</label>
+              <label class="check"><input type="checkbox" name="consent_pd" checked> Згода на обробку персональних даних <span id="consent-date" class="muted"></span></label>
+              <label class="check"><input type="checkbox" name="consent_messages" checked> Згода на повідомлення в месенджерах</label>
               <label class="check"><input type="checkbox" name="unsubscribed"> Відписався від розсилок</label>
             </div>
           </fieldset>
@@ -978,7 +978,7 @@
           <li>Якщо в комірці лише ім’я («Наталія») або лише «батько» — картку створено з тимчасовим ПІБ (прізвище загиблого) і <b>червоною позначкою «ПІБ неповне»</b>. Уточніть ПІБ і збережіть картку — позначка зникне.</li>
           <li>Якщо замість отримувача написано коментар («Дані про родину відсутні…») — створюється <b>картка самого загиблого</b> з коментарем; коли знайдуться рідні, додайте їх.</li>
           <li><b>300</b>: у реєстр потрапляє <b>сам поранений</b>, а кожен родич з колонки «Контакти родичів» — <b>окремою особою</b> зі зв’язком. Якщо в родича лише ім’я, прізвище береться у військового — перевірте його (жовта позначка). Якщо в примітках є «помер» чи «загинув», статус стає «Статус уточнюється».</li>
-          <li>Згода на обробку ПД для 200 і 300 ставиться автоматично: реєстри надходять з бази ГО з підтвердженою згодою. Згоду на повідомлення уточнюйте окремо.</li>
+          <li><b>Згоди — за замовчуванням «так»</b> (рішення ГО від 27.10.2026): згода на обробку ПД і згода на повідомлення ставляться автоматично всім — і наявним карткам, і новим (кабінет, родичі, імпорт, анкета). Якщо людина попросила не писати їй — поставте в її картці <b>«Відписався від розсилок»</b>: такі люди ніколи не потрапляють у розсилки й CSV.</li>
         </ul>
       </section>
 
@@ -1450,6 +1450,6 @@
   </dialog>
   <div id="print-area" class="print-area" aria-hidden="true"></div>
   <!-- скрипти підключає boot.js: сучасні — для нових браузерів, legacy/ — для старіших iPhone (див. tools/build-legacy.mjs) -->
-  <script src="boot.js?v=202610270725"></script>
+  <script src="boot.js?v=202610270916"></script>
 </body>
 </html>

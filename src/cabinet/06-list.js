@@ -215,7 +215,8 @@
       { const g = gaps(c); const q = document.createElement('span'); q.className = 'cab-q';
         if (!g.crit && !g.soft) q.innerHTML = '<span class="q-ok" title="Усе заповнено">✓</span>';
         else q.innerHTML = (g.crit ? `<span class="q-pill q-pill-crit" title="Потрібно заповнити: ${g.crit}">${g.crit}</span>` : '') + (g.soft ? `<span class="q-pill q-pill-warn" title="Бажано заповнити: ${g.soft}">${g.soft}</span>` : '');
-        tr.children[0].append(document.createElement('br'), q); }
+        tr.children[0].append(document.createElement('br'), q);
+        const cr = createdOf(c); if (cr) { const s = document.createElement('span'); s.className = 'cab-created muted'; s.textContent = cr.short; s.title = cr.full; tr.children[0].append(document.createElement('br'), s); } }
       tr.children[1].textContent = fio(c.person);
       { const p = c.person; const lines = [];
         // 200: народження й загибель — одним рядком, поховання — окремим

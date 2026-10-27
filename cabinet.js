@@ -37,6 +37,14 @@ window.Cabinet = (() => {
   const dateOf = (c) => (ui().val ? (c.vals || {})[ui().val] : c.person[ui().date]) || null;
   const today = () => new Date().toISOString().slice(0, 10);
   const fmt = (iso) => (iso ? iso.slice(0, 10).split('-').reverse().join('.') : '');
+  // Коли створено справу: заведені в програмі — точна дата й час; перенесені з журналів (імпорт) — лише проміжок
+  const createdOf = (c) => {
+    if (c.person && c.person.import_batch_id) return { short: 'з журналу', full: 'створено: квітень – 23.10.2026 (перенесено з журналу)' };
+    if (!c.created_at) return null;
+    const d = new Date(c.created_at);
+    const t = d.toLocaleString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).replace(',', '');
+    return { short: 'ств. ' + t.slice(0, 5) + t.slice(10), full: 'створено ' + t };
+  };
   const fio = (p) => [p.last_name, p.first_name, p.patronymic].filter(Boolean).join(' ');
   // Кольори статусів: з бази, з уточненнями; текст темний на світлому тлі
   const STATUS_OVERRIDE = {};   // кольори беруться з налаштувань статусів у базі
@@ -95,7 +103,7 @@ window.Cabinet = (() => {
   // а між тим — лише ті, що змінились (updated_at; база сама позначає справу зміненою при правці особи чи рідних)
   let lastFull = 0, syncAt = '', loadedKey = '', fullSeq = 0;
   const extraDone = new Set();   // які довантаження завершених справ уже зроблено (пошук, мітки)
-  const CASE_SEL = '*, person:persons!cases_person_id_fkey(id, last_name, first_name, patronymic, military_status, death_date, burial_date, wounded, wound_date, birth_date, callsign, burial_place, military_unit_code, mp_unit_id, region_id, settlement, phone, comment), case_values(stage_key, value)';
+  const CASE_SEL = '*, person:persons!cases_person_id_fkey(id, last_name, first_name, patronymic, military_status, death_date, burial_date, wounded, wound_date, birth_date, callsign, burial_place, military_unit_code, mp_unit_id, region_id, settlement, phone, comment, import_batch_id), case_values(stage_key, value)';
   async function fetchKin(pids) {
     const kin = new Map();
     const chunks = []; for (let i = 0; i < pids.length; i += 150) chunks.push(pids.slice(i, i + 150));
@@ -749,7 +757,8 @@ window.Cabinet = (() => {
       { const g = gaps(c); const q = document.createElement('span'); q.className = 'cab-q';
         if (!g.crit && !g.soft) q.innerHTML = '<span class="q-ok" title="Усе заповнено">✓</span>';
         else q.innerHTML = (g.crit ? `<span class="q-pill q-pill-crit" title="Потрібно заповнити: ${g.crit}">${g.crit}</span>` : '') + (g.soft ? `<span class="q-pill q-pill-warn" title="Бажано заповнити: ${g.soft}">${g.soft}</span>` : '');
-        tr.children[0].append(document.createElement('br'), q); }
+        tr.children[0].append(document.createElement('br'), q);
+        const cr = createdOf(c); if (cr) { const s = document.createElement('span'); s.className = 'cab-created muted'; s.textContent = cr.short; s.title = cr.full; tr.children[0].append(document.createElement('br'), s); } }
       tr.children[1].textContent = fio(c.person);
       { const p = c.person; const lines = [];
         // 200: народження й загибель — одним рядком, поховання — окремим
@@ -932,6 +941,7 @@ window.Cabinet = (() => {
     $('case-title').textContent = fio(p) + (p.callsign ? ` «${p.callsign}»` : '');
     const sub = $('case-sub');
     sub.textContent = `${c.journal_id} · ${ui().word}`;
+    { const cr = createdOf(c); if (cr) sub.append(' · ' + cr.full); }
     if (p.death_date) { const d = document.createElement('b'); d.className = 'death-date'; d.textContent = `дата смерті ${fmt(p.death_date)}`; sub.append(' · ', d); }
     sub.append((p.burial_date ? ` · поховання ${fmt(p.burial_date)}` : '') +
       (p.wound_date ? ` · поранення ${fmt(p.wound_date)}` : '') + (c.next ? ` · далі: ${c.next.label}, ${dueText(c.next)}` : ''));

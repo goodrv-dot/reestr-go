@@ -38,6 +38,14 @@ window.Cabinet = (() => {
   const dateOf = (c) => (ui().val ? (c.vals || {})[ui().val] : c.person[ui().date]) || null;
   const today = () => new Date().toISOString().slice(0, 10);
   const fmt = (iso) => (iso ? iso.slice(0, 10).split('-').reverse().join('.') : '');
+  // Коли створено справу: заведені в програмі — точна дата й час; перенесені з журналів (імпорт) — лише проміжок
+  const createdOf = (c) => {
+    if (c.person && c.person.import_batch_id) return { short: 'з журналу', full: 'створено: квітень – 23.10.2026 (перенесено з журналу)' };
+    if (!c.created_at) return null;
+    const d = new Date(c.created_at);
+    const t = d.toLocaleString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).replace(',', '');
+    return { short: 'ств. ' + t.slice(0, 5) + t.slice(10), full: 'створено ' + t };
+  };
   const fio = (p) => [p.last_name, p.first_name, p.patronymic].filter(Boolean).join(' ');
   // Кольори статусів: з бази, з уточненнями; текст темний на світлому тлі
   const STATUS_OVERRIDE = {};   // кольори беруться з налаштувань статусів у базі

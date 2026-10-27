@@ -115,6 +115,7 @@
     $('case-title').textContent = fio(p) + (p.callsign ? ` «${p.callsign}»` : '');
     const sub = $('case-sub');
     sub.textContent = `${c.journal_id} · ${ui().word}`;
+    { const cr = createdOf(c); if (cr) sub.append(' · ' + cr.full); }
     if (p.death_date) { const d = document.createElement('b'); d.className = 'death-date'; d.textContent = `дата смерті ${fmt(p.death_date)}`; sub.append(' · ', d); }
     sub.append((p.burial_date ? ` · поховання ${fmt(p.burial_date)}` : '') +
       (p.wound_date ? ` · поранення ${fmt(p.wound_date)}` : '') + (c.next ? ` · далі: ${c.next.label}, ${dueText(c.next)}` : ''));

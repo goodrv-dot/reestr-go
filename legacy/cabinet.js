@@ -42,6 +42,13 @@ window.Cabinet = (() => {
   const dateOf = (c) => (ui().val ? (c.vals || {})[ui().val] : c.person[ui().date]) || null;
   const today = () => (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
   const fmt = (iso) => iso ? iso.slice(0, 10).split("-").reverse().join(".") : "";
+  const createdOf = (c) => {
+    if (c.person && c.person.import_batch_id) return { short: "з журналу", full: "створено: квітень – 23.10.2026 (перенесено з журналу)" };
+    if (!c.created_at) return null;
+    const d = new Date(c.created_at);
+    const t = d.toLocaleString("uk-UA", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }).replace(",", "");
+    return { short: "ств. " + t.slice(0, 5) + t.slice(10), full: "створено " + t };
+  };
   const fio = (p) => [p.last_name, p.first_name, p.patronymic].filter(Boolean).join(" ");
   const STATUS_OVERRIDE = {};
   const statusColor = (name, fromDb) => STATUS_OVERRIDE[name] || fromDb || "#8a96a1";
@@ -153,7 +160,7 @@ window.Cabinet = (() => {
   let withClosed = false, closedTotal = 0, closedFor = "";
   let lastFull = 0, syncAt = "", loadedKey = "", fullSeq = 0;
   const extraDone = /* @__PURE__ */ new Set();
-  const CASE_SEL = "*, person:persons!cases_person_id_fkey(id, last_name, first_name, patronymic, military_status, death_date, burial_date, wounded, wound_date, birth_date, callsign, burial_place, military_unit_code, mp_unit_id, region_id, settlement, phone, comment), case_values(stage_key, value)";
+  const CASE_SEL = "*, person:persons!cases_person_id_fkey(id, last_name, first_name, patronymic, military_status, death_date, burial_date, wounded, wound_date, birth_date, callsign, burial_place, military_unit_code, mp_unit_id, region_id, settlement, phone, comment, import_batch_id), case_values(stage_key, value)";
   async function fetchKin(pids) {
     const kin = /* @__PURE__ */ new Map();
     const chunks = [];
@@ -1065,6 +1072,14 @@ window.Cabinet = (() => {
         if (!g.crit && !g.soft) q.innerHTML = '<span class="q-ok" title="Усе заповнено">✓</span>';
         else q.innerHTML = (g.crit ? `<span class="q-pill q-pill-crit" title="Потрібно заповнити: ${g.crit}">${g.crit}</span>` : "") + (g.soft ? `<span class="q-pill q-pill-warn" title="Бажано заповнити: ${g.soft}">${g.soft}</span>` : "");
         tr.children[0].append(document.createElement("br"), q);
+        const cr = createdOf(c);
+        if (cr) {
+          const s = document.createElement("span");
+          s.className = "cab-created muted";
+          s.textContent = cr.short;
+          s.title = cr.full;
+          tr.children[0].append(document.createElement("br"), s);
+        }
       }
       tr.children[1].textContent = fio(c.person);
       {
@@ -1381,6 +1396,10 @@ window.Cabinet = (() => {
     $("case-title").textContent = fio(p) + (p.callsign ? ` «${p.callsign}»` : "");
     const sub = $("case-sub");
     sub.textContent = `${c.journal_id} · ${ui().word}`;
+    {
+      const cr = createdOf(c);
+      if (cr) sub.append(" · " + cr.full);
+    }
     if (p.death_date) {
       const d = document.createElement("b");
       d.className = "death-date";

@@ -1,5 +1,5 @@
 // Перемикання вкладок + системна кнопка «Назад» (історія браузера)
-const VIEWS = { registry: 'registry-view', cabinet: 'cabinet-view', dashboard: 'dashboard-view', import: 'import-view', lists: 'lists-view', staff: 'staff-view', manual: 'manual-view' };
+const VIEWS = { registry: 'registry-view', cabinet: 'cabinet-view', dashboard: 'dashboard-view', import: 'import-view', lists: 'lists-view', staff: 'staff-view', notes: 'notes-view', manual: 'manual-view' };
 
 function showTab(tab) {
   const lt = document.querySelector('.tab[data-tab="lists"]');
@@ -16,6 +16,7 @@ function showTab(tab) {
   if (tab === 'dashboard') Dashboard.refresh();
   if (tab === 'cabinet') Cabinet.load();
   if (tab === 'lists') Lists.load();
+  if (tab === 'notes' && window.Notes) Notes.load();
 }
 
 document.querySelectorAll('.tab[data-tab]').forEach((btn) => {

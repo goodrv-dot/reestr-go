@@ -19,7 +19,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Unbounded:wght@600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=202610270925">
+  <link rel="stylesheet" href="style.css?v=202610271454">
 </head>
 <body>
 
@@ -64,6 +64,7 @@
           <button type="button" class="tab" data-tab="lists" hidden>Списки</button>
           <button type="button" class="tab" data-tab="staff" id="staff-tab" hidden>Співробітники</button>
           <a id="erp-link" class="tab tab-ext" target="_blank" rel="noopener" hidden title="Відкрити ERP у новій вкладці">ERP ↗</a>
+          <button type="button" class="tab" data-tab="notes">Нотатки</button>
           <button type="button" class="tab" data-tab="manual">Мануал</button>
         </nav>
       </div>
@@ -557,6 +558,29 @@
       </div>
     </main>
 
+    <main id="notes-view" class="app-main notes" hidden>
+      <div class="list-head"><h1>Нотатки</h1></div>
+      <div class="qchips" role="group" aria-label="Частина нотаток">
+        <button type="button" class="qchip notes-part" data-part="shared" aria-pressed="true">📌 Загальні</button>
+        <button type="button" class="qchip notes-part" data-part="mine" aria-pressed="false">🗂 Мої</button>
+      </div>
+      <p id="notes-lead" class="muted"></p>
+      <div class="notes-bar">
+        <input id="notes-q" type="search" placeholder="Пошук у нотатках: назва, телефон, текст…" aria-label="Пошук у нотатках">
+        <button id="notes-add" class="btn-primary btn-small" type="button" hidden>+ Запис</button>
+        <button id="notes-tab-add" class="btn-secondary btn-small" type="button" hidden>+ Вкладка</button>
+      </div>
+      <p id="notes-status" class="muted" role="status"></p>
+      <div id="notes-tabs" class="qchips notes-tabs" role="tablist" aria-label="Вкладки"></div>
+      <div id="notes-tab-tools" class="notes-tab-tools" hidden>
+        <button id="notes-tab-left" class="btn-link" type="button" title="Вкладку лівіше">←</button>
+        <button id="notes-tab-right" class="btn-link" type="button" title="Вкладку правіше">→</button>
+        <button id="notes-tab-rename" class="btn-link" type="button">Перейменувати вкладку</button>
+        <button id="notes-tab-del" class="btn-link btn-link-danger" type="button">Видалити вкладку</button>
+      </div>
+      <div id="notes-list" class="notes-list"></div>
+    </main>
+
     <main id="lists-view" class="app-main" hidden>
       <div id="lists-index">
         <button id="lists-to-cab" class="btn-link" type="button" hidden>← Назад</button>
@@ -852,6 +876,7 @@
           <li><b>Завершені справи.</b> Зі статусом «Документи ✅», «Не беремо в роботу» (200) або «Архів» терміни й нагадування вимикаються: справа не потрапляє в «Прострочені» і в блок термінових дій. Такі справи <b>приховані з основного списку</b>: щоб кабінет відкривався швидко, вони завантажуються лише на вимогу: кнопка <b>«Завершені»</b> або вибір такого статусу у фільтрі — усі; <b>пошук</b> — лише знайдені завершені справи (шукає база, за тими самими правилами); перехід до справи за посиланням чи з дзвіночка (на мить видно «Довантажуємо закриті справи…»). Справу в архіві можна відкривати й редагувати як завжди; повернули статус «В роботі» — вона знову в основному списку, і терміни діють.</li>
           <li><b>Дзвіночок</b> угорі праворуч — сповіщення саме для вас як виконавця: прострочені дії, дії на сьогодні, нові справи у вашому осередку, справи, які вам призначили, і «💬 Чат / Задачі» (нові повідомлення, відповіді, змінені статуси); адміністратору — ще збій робота-дзеркала чи резервної копії. Число на дзвіночку — скільки всього; червоний дзвіночок — є прострочене. Натисніть на рядок — відкриється справа. Оновлюється саме раз на 5 хвилин і після кожної вашої дії.</li>
           <li><b>Стан проблеми.</b> У справі 200 / 300, розділ «Проблеми», поле «Стан проблеми»: <b>Гостра</b>, <b>Незначна</b>, <b>Вирішена</b>, <b>Відсутня</b> (проблем немає). Гостра — у списку червона смужка зліва, мерехтлива червона крапка біля ПІБ і червона плашка «⚠ Гостра проблема» під статусом; Незначна — лише помаранчева плашка; Вирішена, Відсутня або порожньо — без підсвітки. Наведіть мишку на плашку — побачите текст проблеми. Швидкі фільтри: «Проблеми» (статус «Проблема» або стан Гостра / Незначна) «⚠ Гострі» і «Незначні» (кнопки видно, коли такі справи є). Числа на швидких фільтрах («Мої», «Прострочені», «Проблеми», «Гострі»…) рахуються з урахуванням інших вибраних фільтрів: обрали виконавця, статус, осередок чи пошук — числа одразу показують лише його справи. Якщо поставили «Вирішена», а «Вирішення проблем» порожнє — програма підсвітить це поле. Старі справи (21.10.2026): де було заповнено «Вирішення проблем» — «Вирішена», де ні — «Гостра»; перегляньте й змініть вручну.</li>
+          <li><b>Нотатки</b> (вкладка вгорі) — дві частини. <b>📌 Загальні</b>: посилання на сайти й документи та довідник (телефони служб, адреси, інструкції), розкладені по вкладках; веде лише адміністратор, бачать усі. <b>🗂 Мої</b>: ваші власні вкладки — посилання, телефони, нагадування; бачите й правите лише ви. Запис буває трьох видів: 🔗 посилання (відкривається в новій вкладці), 📞 довідник (телефон з кнопкою «копіювати»), 📝 текст. Пошук шукає по всіх вкладках частини. Порядок — стрілками ↑ ↓ (записи) і ← → (вкладки).</li>
           <li><b>📎 Швидкий доступ</b> (скріпка вгорі праворуч) — посилання на робочі сервіси: Gmail, Календар, WhatsApp, Meet, Classroom, Keep, Диск, Таблиці, Fathom, Gemini. Внизу панелі — додати своє посилання (назва, можна з емодзі на початку, і адреса https://…); бачите його лише ви, прибрати — ✕. Адміністратор може додати посилання «для всіх співробітників» — воно з’явиться в розділі «Від адміністратора». Посилання відкриваються в новій вкладці.</li>
           <li><b>⟳ Оновити</b> (під словом «Реєстр» угорі ліворуч) — перезавантажити програму, те саме, що F5. Знадобиться, коли адміністратор попросить оновитись після змін у програмі. Вхід і відкрита вкладка зберігаються.</li>
           <li><b>Пошук за номером справи.</b> «200 3150», «200-3150», «пол 12» — шукається саме ця справа. Якщо ввести лише цифри («3150»), знайдеться і справа з таким номером, і ті, де в телефоні є ці цифри.</li>
@@ -1222,6 +1247,21 @@
   </dialog>
 
   <!-- Чат / Задачі -->
+  <dialog id="notes-dialog" class="dialog" aria-labelledby="notes-dlg-title">
+    <h2 id="notes-dlg-title">Новий запис</h2>
+    <form id="notes-form" novalidate>
+      <div class="field"><label for="notes-tab-sel">Вкладка</label><select id="notes-tab-sel"></select></div>
+      <div class="field"><label for="notes-kind">Що це</label>
+        <select id="notes-kind"><option value="link">🔗 Посилання (сайт, документ, таблиця)</option><option value="contact">📞 Довідник (телефон, служба, контакт)</option><option value="text">📝 Текст (інструкція, нагадування)</option></select></div>
+      <div class="field"><label for="notes-title-in">Назва</label><input id="notes-title-in" name="title" maxlength="200" placeholder="Напр., «Бланк заяви на допомогу», «ТЦК Запоріжжя», «Як оформити довідку»"></div>
+      <div class="field" id="notes-url-wrap"><label for="notes-url">Посилання</label><input id="notes-url" name="url" type="url" maxlength="2000" placeholder="https://…"></div>
+      <div class="field" id="notes-phone-wrap" hidden><label for="notes-phone">Телефон(и)</label><input id="notes-phone" name="phone" maxlength="100" placeholder="напр., 061 123 45 67, 0800 500 335"></div>
+      <div class="field"><label for="notes-body" id="notes-body-label">Примітка (необов’язково)</label><textarea id="notes-body" name="body" rows="4" maxlength="4000" placeholder="Години роботи, адреса, до кого звертатись…"></textarea></div>
+      <p id="notes-err" class="form-error" role="alert" hidden></p>
+      <div class="form-actions"><button class="btn-primary" type="submit">Зберегти</button><button id="notes-cancel" class="btn-secondary" type="button">Скасувати</button></div>
+    </form>
+  </dialog>
+
   <dialog id="fb-dialog" class="dialog dialog-wide fb-dialog" aria-labelledby="fb-title">
     <h2 id="fb-title">💬 Чат / Задачі</h2>
     <span id="fb-status" class="muted" role="status"></span>
@@ -1453,6 +1493,6 @@
   </dialog>
   <div id="print-area" class="print-area" aria-hidden="true"></div>
   <!-- скрипти підключає boot.js: сучасні — для нових браузерів, legacy/ — для старіших iPhone (див. tools/build-legacy.mjs) -->
-  <script src="boot.js?v=202610270925"></script>
+  <script src="boot.js?v=202610271454"></script>
 </body>
 </html>

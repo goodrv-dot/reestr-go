@@ -1245,3 +1245,20 @@ body.read-only .sum-cell.is-ro { cursor: default; }
 .form-case-link { color: var(--sea); }
 
 .cab-created { font-size: 0.72rem; white-space: nowrap; }
+
+/* ---------- Нотатки ---------- */
+.notes-bar { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin: 0.5rem 0; }
+.notes-bar input[type="search"] { flex: 1 1 18rem; font: inherit; padding: 0.45rem 0.6rem; border: 1px solid var(--line); border-radius: var(--radius-field); }
+.notes-tabs { margin-top: 0.25rem; }
+.notes-tab-tools { display: flex; flex-wrap: wrap; gap: 0.8rem; margin: 0.3rem 0 0.6rem; font-size: 0.9rem; }
+.notes-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr)); gap: 0.7rem; margin-top: 0.5rem; }
+.note-card { border: 1px solid var(--line); border-radius: 10px; padding: 0.6rem 0.8rem; background: var(--white, #fff); border-left: 4px solid #1d5fa0; }
+.note-card.note-contact { border-left-color: #2f6b4e; }
+.note-card.note-text { border-left-color: #c8a04a; }
+.note-h { display: flex; gap: 0.4rem; align-items: baseline; flex-wrap: wrap; }
+.note-title a { color: var(--sea, #1d5fa0); }
+.note-in { font-size: 0.85rem; }
+.note-tools { margin-left: auto; display: inline-flex; gap: 0.5rem; }
+.note-tools .btn-link { margin: 0; }
+.note-phone { margin-top: 0.3rem; font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+.note-body { margin-top: 0.3rem; white-space: pre-wrap; font-size: 0.93rem; color: var(--ink-2, #444); }

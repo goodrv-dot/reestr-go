@@ -1,5 +1,5 @@
 // АВТОМАТИЧНО з nav.js (tools/build-legacy.mjs) — не редагувати вручну
-const VIEWS = { registry: "registry-view", cabinet: "cabinet-view", dashboard: "dashboard-view", import: "import-view", lists: "lists-view", staff: "staff-view", manual: "manual-view" };
+const VIEWS = { registry: "registry-view", cabinet: "cabinet-view", dashboard: "dashboard-view", import: "import-view", lists: "lists-view", staff: "staff-view", notes: "notes-view", manual: "manual-view" };
 function showTab(tab) {
   const lt = document.querySelector('.tab[data-tab="lists"]');
   const lit = tab === "lists" && lt && lt.hidden ? window.__listsFrom || (document.querySelector('.tab[data-tab="cabinet"]').hidden ? "registry" : "cabinet") : tab;
@@ -20,6 +20,7 @@ function showTab(tab) {
   if (tab === "dashboard") Dashboard.refresh();
   if (tab === "cabinet") Cabinet.load();
   if (tab === "lists") Lists.load();
+  if (tab === "notes" && window.Notes) Notes.load();
 }
 document.querySelectorAll(".tab[data-tab]").forEach((btn) => {
   btn.addEventListener("click", () => {

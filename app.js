@@ -54,6 +54,7 @@ function showApp(operator, userId) {
       Cabinet.init(db, userId, operator.role === 'admin');
       Feedback.init(db, userId, operator.role === 'admin');
       try { QuickLinks.init(db, userId, operator.role === 'admin'); } catch (e) { console.error(e); }
+      try { Notes.init(db, userId, operator.role === 'admin'); } catch (e) { console.error(e); }
       if (A.lists) Lists.init(db, userId, operator.role === 'admin');
       window.__exp = true;
     }

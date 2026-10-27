@@ -56,6 +56,11 @@ function showApp(operator, userId) {
       } catch (e) {
         console.error(e);
       }
+      try {
+        Notes.init(db, userId, operator.role === "admin");
+      } catch (e) {
+        console.error(e);
+      }
       if (A.lists) Lists.init(db, userId, operator.role === "admin");
       window.__exp = true;
     }

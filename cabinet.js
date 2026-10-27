@@ -565,8 +565,11 @@ window.Cabinet = (() => {
     if (!names.length) return true;
     return [c.person, ...c.kin.map((k) => k.person)].some((p) => p && fits(names, tokens(p), exact));
   }
+  // «200 3150», «200-3150», «пол 12» — це номер справи: шукаємо лише його (не телефони з тими цифрами)
+  const jidQuery = (q) => { const m = String(q || '').trim().match(/^(200|300|бзв|пол|вет)\s*[-–—\s]\s*(\d{1,4})$/i); return m ? `${m[1].toUpperCase()}-${m[2].padStart(4, '0')}` : null; };
   let exactMemo = { q: null, n: -1, v: false };
   function matchSearch(c, q) {
+    const jq = jidQuery(q); if (jq) return String(c.journal_id).toUpperCase() === jq;
     const words = norm(q).split(' ').filter(Boolean);
     if (words.length === 1 && !/\d/.test(words[0])) {   // одне слово — частина будь-якого ПІБ
       const w = words[0];
@@ -587,7 +590,7 @@ window.Cabinet = (() => {
       const qk = module + '|q|' + nq;
       if (nq && (/\d/.test(nq) || nq.replace(/\s/g, '').length >= 2) && !extraDone.has(qk)) {
         extraDone.add(qk);
-        const { data, error } = await db.rpc('search_closed_cases', { p_module: module, p_q: q });
+        const { data, error } = await db.rpc('search_closed_cases', { p_module: module, p_q: jidQuery(q) || q });
         if (error) { console.error(error); extraDone.delete(qk); }
         (data || []).forEach((r) => ids.add(typeof r === 'string' ? r : Object.values(r)[0]));
       }

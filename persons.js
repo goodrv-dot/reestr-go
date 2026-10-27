@@ -489,10 +489,10 @@ window.Persons = (() => {
     return ids;
   }
   // ID справи кабінету («200-2773», «300-0012», «200 2773») → загиблий/поранений і його рідні
-  const CASE_ID = /^(200|300)[-\s]?(\d{1,4})$/;
+  const CASE_ID = /^(200|300|БЗВ|ПОЛ|ВЕТ)\s*[-–—\s]?\s*(\d{1,4})$/i;
   async function caseOwners(q) {
     const m = q.match(CASE_ID); if (!m) return null;
-    const jid = `${m[1]}-${m[2].padStart(4, '0')}`;
+    const jid = `${m[1].toUpperCase()}-${m[2].padStart(4, '0')}`;
     const hit = childCache.get('case:' + jid);
     if (hit && Date.now() - hit.t < 15000) return hit.ids;
     const { data } = await db.from('cases').select('person_id, contact_person_id').eq('journal_id', jid).limit(5);

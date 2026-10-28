@@ -16,6 +16,8 @@
       const q = (f) => row.querySelector(`[data-f="${f}"]`);
       row.children[0].textContent = fio(k.person); row.children[0].onclick = () => openPerson(k.person.id);
       q('deg').value = k.relation_degree; q('phone').value = V.formatPhone(k.person.phone) || ''; q('settlement').value = k.person.settlement || '';
+      { const cl = callLink(k.person.phone); const lab = q('phone').parentElement;   // «Телефон 📞» над полем
+        if (cl) { const h = document.createElement('span'); h.append('Телефон ', cl); lab.replaceChild(h, lab.firstChild); } }
       const radio = row.querySelector('[type=radio]'); radio.checked = contact === k;
       radio.onchange = async () => { await saveCase({ contact_person_id: k.person.id }); renderHead(); };
       q('deg').onchange = async () => {

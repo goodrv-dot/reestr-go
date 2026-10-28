@@ -135,6 +135,7 @@
     box.children[1].onclick = () => openPerson(k.person.id);
     box.children[2].textContent = `(${k.relation_degree})`;
     box.children[3].textContent = k.person.phone ? V.formatPhone(k.person.phone) : 'без телефону';
+    { const cl = callLink(k.person.phone); if (cl) box.children[3].after(' ', cl); }
     docsLink();
   }
 

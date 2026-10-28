@@ -42,6 +42,18 @@ window.Cabinet = (() => {
   const dateOf = (c) => (ui().val ? (c.vals || {})[ui().val] : c.person[ui().date]) || null;
   const today = () => (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
   const fmt = (iso) => iso ? iso.slice(0, 10).split("-").reverse().join(".") : "";
+  function callLink(phone) {
+    const n = String(phone || "").replace(/[^\d+]/g, "");
+    if (n.replace(/\D/g, "").length < 9) return null;
+    const a = document.createElement("a");
+    a.className = "call-btn";
+    a.href = "tel:" + n;
+    a.textContent = "📞";
+    a.title = "Подзвонити " + V.formatPhone(phone) + " (з комп’ютера — через «Зв’язок із телефоном»)";
+    a.setAttribute("aria-label", a.title);
+    a.addEventListener("click", (e) => e.stopPropagation());
+    return a;
+  }
   const createdOf = (c) => {
     if (c.person && c.person.import_batch_id) return { short: "з журналу", full: "створено: квітень – 23.10.2026 (перенесено з журналу)" };
     if (!c.created_at) return null;
@@ -1116,6 +1128,10 @@ window.Cabinet = (() => {
       if (rec) {
         tr.children[2].firstChild.textContent = `${rec.relation_degree}: ${fio(rec.person)}` + (c.kin.length > 1 ? ` (+${c.kin.length - 1})` : "");
         tr.children[2].lastChild.textContent = V.formatPhone(rec.person.phone) || "без телефону";
+        {
+          const cl = callLink(rec.person.phone);
+          if (cl) tr.children[2].append(" ", cl);
+        }
       }
       {
         const n = String(c.person.comment || "").trim();
@@ -1438,6 +1454,10 @@ window.Cabinet = (() => {
     box.children[1].onclick = () => openPerson(k.person.id);
     box.children[2].textContent = `(${k.relation_degree})`;
     box.children[3].textContent = k.person.phone ? V.formatPhone(k.person.phone) : "без телефону";
+    {
+      const cl = callLink(k.person.phone);
+      if (cl) box.children[3].after(" ", cl);
+    }
     docsLink();
   }
   function renderHelpers() {
@@ -1933,6 +1953,15 @@ window.Cabinet = (() => {
       q("deg").value = k.relation_degree;
       q("phone").value = V.formatPhone(k.person.phone) || "";
       q("settlement").value = k.person.settlement || "";
+      {
+        const cl = callLink(k.person.phone);
+        const lab = q("phone").parentElement;
+        if (cl) {
+          const h = document.createElement("span");
+          h.append("Телефон ", cl);
+          lab.replaceChild(h, lab.firstChild);
+        }
+      }
       const radio = row.querySelector("[type=radio]");
       radio.checked = contact === k;
       radio.onchange = async () => {

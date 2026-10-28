@@ -232,6 +232,7 @@
       if (rec) {
         tr.children[2].firstChild.textContent = `${rec.relation_degree}: ${fio(rec.person)}` + (c.kin.length > 1 ? ` (+${c.kin.length - 1})` : '');
         tr.children[2].lastChild.textContent = V.formatPhone(rec.person.phone) || 'без телефону';
+        { const cl = callLink(rec.person.phone); if (cl) tr.children[2].append(' ', cl); }
       }
       { const n = String(c.person.comment || '').trim(); const el = tr.children[3].firstChild;
         el.textContent = n; if (n) tr.children[3].title = n; else tr.children[3].innerHTML = '<span class="muted">—</span>'; }

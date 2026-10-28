@@ -67,6 +67,10 @@
       const d = document.createElement('div'); d.className = 'sum-cell' + (state ? ' ' + state : '') + (f.wide ? ' sum-wide' : '') + (f.id === 'p-death_date' ? ' is-death' : '');
       d.innerHTML = '<span class="sum-l"></span><span class="sum-v"></span>';
       d.firstChild.textContent = f.label; d.lastChild.textContent = f.text !== undefined ? (f.text || '—') : showVal(f);
+      if (f.text === undefined && isFilled(f)) {   // 📞 біля телефонів (і телефонів у тексті)
+        if (f.kind === 'phone') { const cl = V.callLink(f.value); if (cl) d.lastChild.after(' ', cl); }
+        else if (f.kind === 'line' || f.kind === 'text') d.append(V.callLinks(String(f.value)));
+      }
       if (f.readonly || (window.ACCESS && window.ACCESS.readOnly)) { d.classList.add('is-ro'); grid.appendChild(d); return d; }
       const open = () => {
         if (d.classList.contains('is-edit')) return;

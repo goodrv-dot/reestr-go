@@ -38,15 +38,7 @@ window.Cabinet = (() => {
   const dateOf = (c) => (ui().val ? (c.vals || {})[ui().val] : c.person[ui().date]) || null;
   const today = () => new Date().toISOString().slice(0, 10);
   const fmt = (iso) => (iso ? iso.slice(0, 10).split('-').reverse().join('.') : '');
-  // 📞 — подзвонити: на телефоні відкриває набір номера, на комп’ютері — «Зв’язок із телефоном» (дзвінок іде з телефону)
-  function callLink(phone) {
-    const n = String(phone || '').replace(/[^\d+]/g, '');
-    if (n.replace(/\D/g, '').length < 9) return null;
-    const a = document.createElement('a'); a.className = 'call-btn'; a.href = 'tel:' + n; a.textContent = '📞';
-    a.title = 'Подзвонити ' + V.formatPhone(phone) + ' (з комп’ютера — через «Зв’язок із телефоном»)'; a.setAttribute('aria-label', a.title);
-    a.addEventListener('click', (e) => e.stopPropagation());   // клік по 📞 у рядку не відкриває справу
-    return a;
-  }
+  const callLink = (phone) => V.callLink(phone);   // 📞 (validation.js)
   // Коли створено справу: заведені в програмі — точна дата й час; перенесені з журналів (імпорт) — лише проміжок
   const createdOf = (c) => {
     if (c.person && c.person.import_batch_id) return { short: 'з журналу', full: 'створено: квітень – 23.10.2026 (перенесено з журналу)' };

@@ -37,15 +37,7 @@ window.Cabinet = (() => {
   const dateOf = (c) => (ui().val ? (c.vals || {})[ui().val] : c.person[ui().date]) || null;
   const today = () => new Date().toISOString().slice(0, 10);
   const fmt = (iso) => (iso ? iso.slice(0, 10).split('-').reverse().join('.') : '');
-  // 📞 — подзвонити: на телефоні відкриває набір номера, на комп’ютері — «Зв’язок із телефоном» (дзвінок іде з телефону)
-  function callLink(phone) {
-    const n = String(phone || '').replace(/[^\d+]/g, '');
-    if (n.replace(/\D/g, '').length < 9) return null;
-    const a = document.createElement('a'); a.className = 'call-btn'; a.href = 'tel:' + n; a.textContent = '📞';
-    a.title = 'Подзвонити ' + V.formatPhone(phone) + ' (з комп’ютера — через «Зв’язок із телефоном»)'; a.setAttribute('aria-label', a.title);
-    a.addEventListener('click', (e) => e.stopPropagation());   // клік по 📞 у рядку не відкриває справу
-    return a;
-  }
+  const callLink = (phone) => V.callLink(phone);   // 📞 (validation.js)
   // Коли створено справу: заведені в програмі — точна дата й час; перенесені з журналів (імпорт) — лише проміжок
   const createdOf = (c) => {
     if (c.person && c.person.import_batch_id) return { short: 'з журналу', full: 'створено: квітень – 23.10.2026 (перенесено з журналу)' };
@@ -1025,6 +1017,9 @@ window.Cabinet = (() => {
     else control = `<textarea id="${id}" rows="1"></textarea>`;
     wrap.innerHTML = `<label for="${id}"></label>${control}<p class="stage-hint"></p>`;
     wrap.querySelector('label').textContent = f.label;
+    { const lab = wrap.querySelector('label');
+      if (f.kind === 'phone') { const cl = V.callLink(v); if (cl) lab.append(' ', cl); }
+      else if ((f.kind === 'line' || f.kind === 'text') && v) lab.append(V.callLinks(v)); }
     const el = wrap.querySelector('#' + id);
     if (f.kind !== 'date') el.value = f.kind === 'phone' ? (V.formatPhone(v) || '') : String(v);
     if (f.kind === 'link') { const a = wrap.querySelector('.link-open'); if (safeUrl(v)) { a.href = v; a.hidden = false; } }
@@ -1194,6 +1189,10 @@ window.Cabinet = (() => {
       const d = document.createElement('div'); d.className = 'sum-cell' + (state ? ' ' + state : '') + (f.wide ? ' sum-wide' : '') + (f.id === 'p-death_date' ? ' is-death' : '');
       d.innerHTML = '<span class="sum-l"></span><span class="sum-v"></span>';
       d.firstChild.textContent = f.label; d.lastChild.textContent = f.text !== undefined ? (f.text || '—') : showVal(f);
+      if (f.text === undefined && isFilled(f)) {   // 📞 біля телефонів (і телефонів у тексті)
+        if (f.kind === 'phone') { const cl = V.callLink(f.value); if (cl) d.lastChild.after(' ', cl); }
+        else if (f.kind === 'line' || f.kind === 'text') d.append(V.callLinks(String(f.value)));
+      }
       if (f.readonly || (window.ACCESS && window.ACCESS.readOnly)) { d.classList.add('is-ro'); grid.appendChild(d); return d; }
       const open = () => {
         if (d.classList.contains('is-edit')) return;

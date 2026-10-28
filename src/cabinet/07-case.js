@@ -186,6 +186,9 @@
     else control = `<textarea id="${id}" rows="1"></textarea>`;
     wrap.innerHTML = `<label for="${id}"></label>${control}<p class="stage-hint"></p>`;
     wrap.querySelector('label').textContent = f.label;
+    { const lab = wrap.querySelector('label');
+      if (f.kind === 'phone') { const cl = V.callLink(v); if (cl) lab.append(' ', cl); }
+      else if ((f.kind === 'line' || f.kind === 'text') && v) lab.append(V.callLinks(v)); }
     const el = wrap.querySelector('#' + id);
     if (f.kind !== 'date') el.value = f.kind === 'phone' ? (V.formatPhone(v) || '') : String(v);
     if (f.kind === 'link') { const a = wrap.querySelector('.link-open'); if (safeUrl(v)) { a.href = v; a.hidden = false; } }

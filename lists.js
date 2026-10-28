@@ -228,6 +228,8 @@ window.Lists = (() => {
           if (k) td.append(document.createElement('br')); td.append(a); }); }
       tr.children[2].lastChild.textContent = [fmt(p.birth_date), p.military_status].filter(Boolean).join(' · ');
       tr.children[3].textContent = [rankOf(p), p.military_unit_code, unitOf(p), eventOf(p), kinOf(m)].filter(Boolean).join(' · ');
+      { const own = V.callLink(p.phone), kin = m.kin ? V.callLink(m.kin.person.phone) : null;   // 📞 людині / родині
+        if (own) tr.children[2].append(' ', own); if (kin) tr.children[3].append(' ', kin); }
       const sel = tr.querySelector('[data-f="status"]'); sel.value = m.status; sel.disabled = !edit;
       sel.onchange = () => saveMember(m, { status: sel.value });
       const note = tr.querySelector('[data-f="note"]'); note.value = m.note || ''; note.disabled = !edit;

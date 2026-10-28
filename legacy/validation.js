@@ -150,5 +150,27 @@ window.V = /* @__PURE__ */ (() => {
     if ((now - d) / 315576e5 > 110) return { error: "Перевірте рік народження" };
     return { value: v };
   }
-  return { normalizePhone, extractPhones, formatPhone, normalizeName, normalizeEmail, checkBirthDate };
+  function callLink(phone) {
+    const n = String(phone || "").replace(/[^\d+]/g, "");
+    if (n.replace(/\D/g, "").length < 9 || typeof document === "undefined") return null;
+    const a = document.createElement("a");
+    a.className = "call-btn";
+    a.href = "tel:" + n;
+    a.textContent = "📞";
+    a.title = "Подзвонити " + (formatPhone(phone) || phone);
+    a.setAttribute("aria-label", a.title);
+    a.addEventListener("click", (e) => e.stopPropagation());
+    a.addEventListener("keydown", (e) => e.stopPropagation());
+    return a;
+  }
+  function callLinks(text) {
+    const frag = typeof document === "undefined" ? null : document.createDocumentFragment();
+    if (!frag || !text) return frag;
+    extractPhones(text).phones.slice(0, 5).forEach((p) => {
+      const a = callLink(p.value);
+      if (a) frag.append(" ", a);
+    });
+    return frag;
+  }
+  return { normalizePhone, extractPhones, formatPhone, normalizeName, normalizeEmail, checkBirthDate, callLink, callLinks };
 })();

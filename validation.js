@@ -124,5 +124,23 @@ window.V = (() => {
     return { value: v };
   }
 
-  return { normalizePhone, extractPhones, formatPhone, normalizeName, normalizeEmail, checkBirthDate };
+  // 📞 — подзвонити: на телефоні відкриває набір номера, на комп’ютері — програму дзвінків
+  // («Зв’язок із телефоном» або Chrome → Android), дзвінок іде з телефону. Клік не «проскакує» в рядок/картку.
+  function callLink(phone) {
+    const n = String(phone || '').replace(/[^\d+]/g, '');
+    if (n.replace(/\D/g, '').length < 9 || typeof document === 'undefined') return null;
+    const a = document.createElement('a'); a.className = 'call-btn'; a.href = 'tel:' + n; a.textContent = '📞';
+    a.title = 'Подзвонити ' + (formatPhone(phone) || phone); a.setAttribute('aria-label', a.title);
+    a.addEventListener('click', (e) => e.stopPropagation());
+    a.addEventListener('keydown', (e) => e.stopPropagation());
+    return a;
+  }
+  // усі телефони з довільного тексту («ТЦК: 061 123 45 67, черговий 050…») — 📞 на кожен
+  function callLinks(text) {
+    const frag = typeof document === 'undefined' ? null : document.createDocumentFragment();
+    if (!frag || !text) return frag;
+    extractPhones(text).phones.slice(0, 5).forEach((p) => { const a = callLink(p.value); if (a) frag.append(' ', a); });
+    return frag;
+  }
+  return { normalizePhone, extractPhones, formatPhone, normalizeName, normalizeEmail, checkBirthDate, callLink, callLinks };
 })();

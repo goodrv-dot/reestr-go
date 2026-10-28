@@ -42,18 +42,7 @@ window.Cabinet = (() => {
   const dateOf = (c) => (ui().val ? (c.vals || {})[ui().val] : c.person[ui().date]) || null;
   const today = () => (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
   const fmt = (iso) => iso ? iso.slice(0, 10).split("-").reverse().join(".") : "";
-  function callLink(phone) {
-    const n = String(phone || "").replace(/[^\d+]/g, "");
-    if (n.replace(/\D/g, "").length < 9) return null;
-    const a = document.createElement("a");
-    a.className = "call-btn";
-    a.href = "tel:" + n;
-    a.textContent = "📞";
-    a.title = "Подзвонити " + V.formatPhone(phone) + " (з комп’ютера — через «Зв’язок із телефоном»)";
-    a.setAttribute("aria-label", a.title);
-    a.addEventListener("click", (e) => e.stopPropagation());
-    return a;
-  }
+  const callLink = (phone) => V.callLink(phone);
   const createdOf = (c) => {
     if (c.person && c.person.import_batch_id) return { short: "з журналу", full: "створено: квітень – 23.10.2026 (перенесено з журналу)" };
     if (!c.created_at) return null;
@@ -1510,6 +1499,13 @@ window.Cabinet = (() => {
     else control = `<textarea id="${id}" rows="1"></textarea>`;
     wrap.innerHTML = `<label for="${id}"></label>${control}<p class="stage-hint"></p>`;
     wrap.querySelector("label").textContent = f.label;
+    {
+      const lab = wrap.querySelector("label");
+      if (f.kind === "phone") {
+        const cl = V.callLink(v);
+        if (cl) lab.append(" ", cl);
+      } else if ((f.kind === "line" || f.kind === "text") && v) lab.append(V.callLinks(v));
+    }
     const el = wrap.querySelector("#" + id);
     if (f.kind !== "date") el.value = f.kind === "phone" ? V.formatPhone(v) || "" : String(v);
     if (f.kind === "link") {
@@ -1796,6 +1792,12 @@ window.Cabinet = (() => {
       d.innerHTML = '<span class="sum-l"></span><span class="sum-v"></span>';
       d.firstChild.textContent = f.label;
       d.lastChild.textContent = f.text !== void 0 ? f.text || "—" : showVal(f);
+      if (f.text === void 0 && isFilled(f)) {
+        if (f.kind === "phone") {
+          const cl = V.callLink(f.value);
+          if (cl) d.lastChild.after(" ", cl);
+        } else if (f.kind === "line" || f.kind === "text") d.append(V.callLinks(String(f.value)));
+      }
       if (f.readonly || window.ACCESS && window.ACCESS.readOnly) {
         d.classList.add("is-ro");
         grid.appendChild(d);

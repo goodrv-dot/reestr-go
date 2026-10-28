@@ -128,7 +128,7 @@ window.Notes = (() => {
       const s = document.createElement('span'); s.textContent = x.phone; p.append(s);
       const c = document.createElement('button'); c.type = 'button'; c.className = 'btn-link'; c.textContent = 'копіювати'; c.title = 'Скопіювати номер';
       c.onclick = async () => { try { await navigator.clipboard.writeText(x.phone); toast('Скопійовано'); } catch { toast('Не вдалося скопіювати — виділіть номер вручну'); } };
-      p.append(' ', c); d.append(p);
+      p.append(V.callLinks(x.phone), ' ', c); d.append(p);
     }
     if (x.kind === 'link' && x.url && !url) { const w = document.createElement('div'); w.className = 'muted'; w.textContent = 'Посилання некоректне — змініть запис'; d.append(w); }
     if (x.body) { const b = document.createElement('div'); b.className = 'note-body'; linkify(b, x.body); d.append(b); }

@@ -243,6 +243,7 @@ window.Persons = (() => {
       li.querySelector('.kin-deg').textContent = rel.relation_degree + ' —';
       li.querySelector('.kin-open').textContent = name;
       li.querySelector('.kin-phone').textContent = V.formatPhone(pr.phone) || 'без телефону';
+      { const cl = V.callLink(pr.phone); if (cl) li.querySelector('.kin-phone').after(' ', cl); }
       li.querySelector('.kin-open').addEventListener('click', () => openForm(pr.id));
       if (suggested) {
         const b = document.createElement('button');
@@ -755,6 +756,7 @@ window.Persons = (() => {
       const ph = document.createElement('td');
       ph.className = 'cell-phone';
       ph.textContent = V.formatPhone(p.phone) || '—';
+      { const cl = V.callLink(p.phone); if (cl) ph.append(' ', cl); }
       const nx = (p.extra_phones || []).length;
       if (nx) {
         const more = document.createElement('span');
@@ -907,6 +909,7 @@ window.Persons = (() => {
   async function openForm(id, opts = {}) {
     const f = $('person-form');
     f.reset();
+    f.querySelectorAll('label .call-btn').forEach((x) => x.remove());   // 📞 від попередньої картки
     clearHints();
     setFormError('');
     editingId = id;
@@ -1018,6 +1021,12 @@ window.Persons = (() => {
     const ex = p.extra_phones || [];
     f.phone2.value = V.formatPhone(ex[0] || '');
     f.phone3.value = V.formatPhone(ex[1] || '');
+    // 📞 біля підписів полів телефонів
+    [['f-phone', p.phone], ['f-phone2', ex[0]], ['f-phone3', ex[1]]].forEach(([id, val]) => {
+      const lab = document.querySelector(`label[for="${id}"]`); if (!lab) return;
+      lab.querySelectorAll('.call-btn').forEach((x) => x.remove());
+      const cl = V.callLink(val); if (cl) lab.append(' ', cl);
+    });
     extraKeep = ex.slice(2);   // якщо з імпорту прийшло більше трьох — не губимо
     f.touchpoint.value = p.touchpoint ?? '';
     f.region_id.value = p.region_id ?? '';

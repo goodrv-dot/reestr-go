@@ -225,6 +225,10 @@ window.Persons = /* @__PURE__ */ (() => {
       li.querySelector(".kin-deg").textContent = rel.relation_degree + " —";
       li.querySelector(".kin-open").textContent = name;
       li.querySelector(".kin-phone").textContent = V.formatPhone(pr.phone) || "без телефону";
+      {
+        const cl = V.callLink(pr.phone);
+        if (cl) li.querySelector(".kin-phone").after(" ", cl);
+      }
       li.querySelector(".kin-open").addEventListener("click", () => openForm(pr.id));
       if (suggested) {
         const b = document.createElement("button");
@@ -751,6 +755,10 @@ window.Persons = /* @__PURE__ */ (() => {
       const ph = document.createElement("td");
       ph.className = "cell-phone";
       ph.textContent = V.formatPhone(p.phone) || "—";
+      {
+        const cl = V.callLink(p.phone);
+        if (cl) ph.append(" ", cl);
+      }
       const nx = (p.extra_phones || []).length;
       if (nx) {
         const more = document.createElement("span");
@@ -897,6 +905,7 @@ window.Persons = /* @__PURE__ */ (() => {
   async function openForm(id, opts = {}) {
     const f = $("person-form");
     f.reset();
+    f.querySelectorAll("label .call-btn").forEach((x) => x.remove());
     clearHints();
     setFormError("");
     editingId = id;
@@ -1033,6 +1042,13 @@ window.Persons = /* @__PURE__ */ (() => {
     const ex = p.extra_phones || [];
     f.phone2.value = V.formatPhone(ex[0] || "");
     f.phone3.value = V.formatPhone(ex[1] || "");
+    [["f-phone", p.phone], ["f-phone2", ex[0]], ["f-phone3", ex[1]]].forEach(([id, val]) => {
+      const lab = document.querySelector(`label[for="${id}"]`);
+      if (!lab) return;
+      lab.querySelectorAll(".call-btn").forEach((x) => x.remove());
+      const cl = V.callLink(val);
+      if (cl) lab.append(" ", cl);
+    });
     extraKeep = ex.slice(2);
     f.touchpoint.value = (_a = p.touchpoint) != null ? _a : "";
     f.region_id.value = (_b = p.region_id) != null ? _b : "";

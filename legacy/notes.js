@@ -201,7 +201,7 @@ window.Notes = /* @__PURE__ */ (() => {
           toast("Не вдалося скопіювати — виділіть номер вручну");
         }
       };
-      p.append(" ", c);
+      p.append(V.callLinks(x.phone), " ", c);
       d.append(p);
     }
     if (x.kind === "link" && x.url && !url) {

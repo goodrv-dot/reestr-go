@@ -15,6 +15,7 @@ const ROLE_LABELS = { admin: 'Адміністратор', operator: 'Опера
 let currentOperator = null;
 let currentUserId = null;
 let mfaRequiredForMe = false;
+let iAmAdmin = false;   // вимкнути власну 2FA може лише адміністратор
 
 Mfa.init(db);
 
@@ -131,6 +132,7 @@ async function enterWithSession(session) {
 
     // 4. Обов'язкова 2FA, а її ще не підключено
     mfaRequiredForMe = acc.mfa_required === 'all' || (acc.mfa_required === 'admins' && acc.role === 'admin');
+    iAmAdmin = acc.role === 'admin';
     if (mfaRequiredForMe && aal.currentLevel !== 'aal2') {
       Mfa.showEnrollScreen(() => continueEntry());
       return;
@@ -303,9 +305,10 @@ async function renderMfaStatus() {
   $('pf-mfa-status').textContent = on ? 'Увімкнено' : 'Вимкнено';
   $('pf-mfa-status').className = 'mfa-state ' + (on ? 'is-on' : 'is-off');
   $('pf-mfa-on').hidden = on;
-  $('pf-mfa-off').hidden = !on || mfaRequiredForMe;
+  $('pf-mfa-off').hidden = !on || mfaRequiredForMe || !iAmAdmin;
   $('pf-mfa-note').textContent = mfaRequiredForMe
     ? 'Для вашої ролі 2FA обов’язкова — вимкнути її не можна.'
+    : on && !iAmAdmin ? 'При кожному вході після пароля система попросить код із додатку. Вимкнути 2FA може лише адміністратор; змінили або загубили телефон — напишіть адміністратору, він натисне «Скинути 2FA», і ви підключите її заново.'
     : on ? 'При кожному вході після пароля система попросить код із додатку.'
          : 'Рекомендуємо увімкнути: навіть якщо пароль стане відомий іншим, без вашого телефона увійти не вийде.';
 }
@@ -320,6 +323,7 @@ $('pf-mfa-on').addEventListener('click', () => {
 });
 
 $('pf-mfa-off').addEventListener('click', async () => {
+  if (!iAmAdmin) return;
   if (!confirm('Вимкнути двофакторний вхід? Обліковий запис буде захищено лише паролем.')) return;
   try {
     await Mfa.disable();

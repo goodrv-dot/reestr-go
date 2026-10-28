@@ -2040,19 +2040,48 @@ window.Cabinet = (() => {
     if (btn.disabled) return;
     btn.disabled = true;
     try {
-      const kinRec = { last_name: nm(g("ln")), first_name: nm(g("fn")), patronymic: g("pn") ? nm(g("pn")) : null, phone: ph.value, settlement: g("st") || null };
-      const { data: res, error } = await db.rpc("add_case_kin", {
-        p_case: c.id,
-        p_last: kinRec.last_name,
-        p_first: kinRec.first_name,
-        p_patr: kinRec.patronymic || "",
-        p_degree: g("deg"),
-        p_phone: ph.value || "",
-        p_settlement: kinRec.settlement || ""
-      });
+      let kinRec = { last_name: nm(g("ln")), first_name: nm(g("fn")), patronymic: g("pn") ? nm(g("pn")) : null, phone: ph.value, settlement: g("st") || null };
+      let ex = null;
+      if (ph.value) {
+        const r0 = await db.rpc("case_kin_by_phone", { p_case: c.id, p_phone: ph.value });
+        if (r0.error) {
+          console.error(r0.error);
+          Persons.toast("Не вдалося перевірити телефон");
+          return;
+        }
+        ex = r0.data;
+      }
+      let res, error;
+      if (ex) {
+        if (ex.self) {
+          Persons.toast("Це телефон самої особи справи");
+          return;
+        }
+        if (ex.already) {
+          Persons.toast(`${ex.name} уже є в родині цієї справи`);
+          return;
+        }
+        if (!confirm(`Людина з таким телефоном уже є в реєстрі:
+${ex.name}
+
+Додати її до цієї справи як «${g("deg")}»?
+(Нову картку не буде створено — буде прив’язано наявну.)`)) return;
+        ({ data: res, error } = await db.rpc("link_case_kin", { p_case: c.id, p_person: ex.person_id, p_degree: g("deg") }));
+        kinRec = { last_name: ex.last_name, first_name: ex.first_name, patronymic: ex.patronymic, phone: ex.phone, settlement: ex.settlement };
+      } else {
+        ({ data: res, error } = await db.rpc("add_case_kin", {
+          p_case: c.id,
+          p_last: kinRec.last_name,
+          p_first: kinRec.first_name,
+          p_patr: kinRec.patronymic || "",
+          p_degree: g("deg"),
+          p_phone: ph.value || "",
+          p_settlement: kinRec.settlement || ""
+        }));
+      }
       if (error) {
         console.error(error);
-        Persons.toast(error.code === "23505" ? "Людина з таким телефоном уже є в реєстрі — зверніться до адміністратора, щоб пов’язати картки" : "Не вдалося додати родича");
+        Persons.toast(error.code === "23505" ? "Людина з таким телефоном уже є в реєстрі — оновіть сторінку і спробуйте ще раз" : "Не вдалося додати родича");
         return;
       }
       const np = { id: res.person_id, ...kinRec };
@@ -2063,7 +2092,7 @@ window.Cabinet = (() => {
         $("case-status").value = "В роботі";
       }
       form.reset();
-      Persons.toast("Родича додано");
+      Persons.toast(ex ? "Наявну картку прив’язано до справи" : "Родича додано");
       renderHead();
       refreshStages();
     } finally {

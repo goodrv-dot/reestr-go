@@ -8,7 +8,8 @@
 window.Notes = (() => {
   const $ = (id) => document.getElementById(id);
   let db = null, me = null, isAdmin = false, wired = false;
-  let part = 'shared', tabs = [], notes = [], tabId = null, editing = null;
+  let part = 'shared', tabs = [], notes = [], tabId = null, editing = null, staffList = null, tabEditing = null;
+  const tabPicked = new Set();
   const KIND = { link: '🔗 Посилання', contact: '📞 Довідник', text: '📝 Текст' };
   const safeUrl = (u) => { try { const x = new URL(String(u).trim()); return x.protocol === 'https:' ? x.href : null; } catch { return null; } };
   const toast = (t) => Persons.toast(t);
@@ -34,16 +35,20 @@ window.Notes = (() => {
     $('notes-form').addEventListener('submit', save);
     $('notes-cancel').addEventListener('click', () => $('notes-dialog').close());
     $('notes-kind').addEventListener('change', syncKind);
+    $('notes-tab-form').addEventListener('submit', saveTabDialog);
+    $('notes-tab-cancel').addEventListener('click', () => $('notes-tab-dialog').close());
+    document.querySelectorAll('input[name="notes-aud"]').forEach((r) => r.addEventListener('change', syncAud));
+    $('notes-aud-q').addEventListener('input', renderStaffPick);
   }
 
   async function load() {
     document.querySelectorAll('.notes-part').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.part === part)));
     $('notes-lead').textContent = part === 'shared'
-      ? (isAdmin ? 'Загальні нотатки бачать усі співробітники. Додавати й правити їх можете лише ви (адміністратор).' : 'Посилання й довідник від адміністратора. Змінює їх лише адміністратор.')
+      ? (isAdmin ? 'Загальні нотатки ведете лише ви (адміністратор). Для кожної вкладки можна обрати, хто її бачить: усі співробітники або лише обрані (позначка 👥).' : 'Посилання й довідник від адміністратора. Змінює їх лише адміністратор.')
       : 'Ваші особисті вкладки: посилання, телефони, нагадування. Бачите й правите лише ви.';
     $('notes-status').textContent = 'Завантажуємо…';
     const shared = part === 'shared';
-    let tq = db.from('note_tabs').select('id, name, sort, shared, user_id').eq('shared', shared).order('sort').order('id');
+    let tq = db.from('note_tabs').select('id, name, sort, shared, user_id, audience').eq('shared', shared).order('sort').order('id');
     if (!shared) tq = tq.eq('user_id', me);
     const t = await tq;
     if (t.error) { console.error(t.error); $('notes-status').textContent = 'Не вдалося завантажити нотатки'; return; }
@@ -69,6 +74,11 @@ window.Notes = (() => {
       b.setAttribute('aria-pressed', String(!q && t.id === tabId));
       const cnt = notes.filter((x) => x.tab_id === t.id).length;
       b.innerHTML = '<span></span> <b></b>'; b.firstChild.textContent = t.name; b.lastChild.textContent = cnt;
+      if (t.shared && Array.isArray(t.audience)) {   // вкладка лише для обраних
+        const who = t.audience.map((id) => (staffList && staffList.find((s) => s.user_id === id) || {}).full_name || Persons.ctx().staff.get(id) || '…');
+        const a = document.createElement('span'); a.className = 'notes-aud'; a.textContent = ' 👥' + t.audience.length; b.insertBefore(a, b.lastChild);
+        b.title = 'Бачать лише: ' + who.join(', ') + (isAdmin ? ' (і адміністратори)' : '');
+      }
       b.onclick = () => { tabId = t.id; $('notes-q').value = ''; render(); };
       bar.appendChild(b);
     });
@@ -127,6 +137,7 @@ window.Notes = (() => {
 
   // ---------- вкладки ----------
   async function addTab() {
+    if (part === 'shared') return openTabDialog(null);
     const name = (prompt('Назва вкладки (напр., «Документи», «Телефони служб»):') || '').trim().slice(0, 60);
     if (!name) return;
     const { data, error } = await db.from('note_tabs').insert({ shared: part === 'shared', name, sort: tabs.length }).select('id').single();
@@ -134,6 +145,7 @@ window.Notes = (() => {
     tabId = data.id; load();
   }
   async function renameTab(t) {
+    if (t.shared) return openTabDialog(t);
     const name = (prompt('Нова назва вкладки:', t.name) || '').trim().slice(0, 60);
     if (!name || name === t.name) return;
     const { error } = await db.from('note_tabs').update({ name }).eq('id', t.id);
@@ -152,6 +164,50 @@ window.Notes = (() => {
     const a = tabs[i], b = tabs[j];
     await Promise.all([db.from('note_tabs').update({ sort: j }).eq('id', a.id), db.from('note_tabs').update({ sort: i }).eq('id', b.id)]);
     load();
+  }
+
+  // ---------- загальна вкладка: назва і хто бачить ----------
+  async function openTabDialog(t) {
+    tabEditing = t;
+    if (!staffList) {
+      const { data, error } = await db.from('operators').select('user_id, full_name, role').eq('active', true).order('full_name');
+      if (error) { console.error(error); toast('Не вдалося завантажити співробітників'); return; }
+      staffList = data || [];
+    }
+    $('notes-tab-dlg-title').textContent = t ? 'Змінити вкладку' : 'Нова загальна вкладка';
+    $('notes-tab-name').value = t ? t.name : '';
+    tabPicked.clear(); ((t && t.audience) || []).forEach((id) => tabPicked.add(id));
+    document.querySelector(`input[name="notes-aud"][value="${t && Array.isArray(t.audience) ? 'some' : 'all'}"]`).checked = true;
+    $('notes-aud-q').value = ''; $('notes-tab-err').hidden = true;
+    syncAud(); renderStaffPick();
+    $('notes-tab-dialog').showModal(); $('notes-tab-name').focus();
+  }
+  function syncAud() {
+    const some = document.querySelector('input[name="notes-aud"]:checked').value === 'some';
+    $('notes-aud-pick').hidden = !some;
+    $('notes-aud-sum').textContent = some ? (tabPicked.size ? `Обрано: ${tabPicked.size} — ${[...tabPicked].map((id) => (staffList.find((s) => s.user_id === id) || {}).full_name || '—').join(', ')}` : 'Оберіть, хто бачитиме вкладку') : 'Вкладку бачать усі співробітники';
+  }
+  function renderStaffPick() {
+    const q = $('notes-aud-q').value.trim().toLowerCase(); const box = $('notes-aud-list'); box.innerHTML = '';
+    staffList.filter((s) => s.role !== 'admin' && (!q || String(s.full_name).toLowerCase().includes(q))).forEach((s) => {
+      const l = document.createElement('label'); l.className = 'check';
+      const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = tabPicked.has(s.user_id);
+      cb.onchange = () => { cb.checked ? tabPicked.add(s.user_id) : tabPicked.delete(s.user_id); syncAud(); };
+      l.append(cb, ' ' + s.full_name); box.append(l);
+    });
+  }
+  async function saveTabDialog(e) {
+    e.preventDefault();
+    const name = $('notes-tab-name').value.replace(/\s+/g, ' ').trim().slice(0, 60);
+    const some = document.querySelector('input[name="notes-aud"]:checked').value === 'some';
+    const err = (t) => { $('notes-tab-err').textContent = t; $('notes-tab-err').hidden = false; };
+    if (!name) return err('Вкажіть назву вкладки');
+    if (some && !tabPicked.size) return err('Оберіть хоча б одного співробітника або «Усім співробітникам»');
+    const rec = { name, audience: some ? [...tabPicked] : null };
+    const { data, error } = tabEditing ? await db.from('note_tabs').update(rec).eq('id', tabEditing.id).select('id').single()
+      : await db.from('note_tabs').insert({ ...rec, shared: true, sort: tabs.length }).select('id').single();
+    if (error) { console.error(error); return err('Не вдалося зберегти'); }
+    $('notes-tab-dialog').close(); tabId = data.id; toast(some ? `Вкладку бачать лише обрані (${tabPicked.size}) і адміністратори` : 'Вкладку бачать усі'); load();
   }
 
   // ---------- записи ----------

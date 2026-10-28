@@ -1262,3 +1262,5 @@ body.read-only .sum-cell.is-ro { cursor: default; }
 .note-tools .btn-link { margin: 0; }
 .note-phone { margin-top: 0.3rem; font-size: 1.05rem; font-variant-numeric: tabular-nums; }
 .note-body { margin-top: 0.3rem; white-space: pre-wrap; font-size: 0.93rem; color: var(--ink-2, #444); }
+.notes-aud { font-size: 0.8rem; opacity: 0.85; }
+#notes-aud-q { font: inherit; padding: 0.4rem 0.5rem; border: 1px solid var(--line); border-radius: var(--radius-field); margin-top: 0.3rem; }

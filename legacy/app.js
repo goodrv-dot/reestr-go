@@ -222,6 +222,9 @@ function readLast() {
 }
 function markActivity() {
   const now = Date.now();
+  const wasIdle = window.__lastAct && now - window.__lastAct > 15 * 60 * 1e3;
+  window.__lastAct = now;
+  if (wasIdle && !document.hidden) document.dispatchEvent(new Event("visibilitychange"));
   if (now - lastWrite < 1e4) return;
   lastWrite = now;
   try {

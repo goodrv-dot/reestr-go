@@ -224,6 +224,9 @@ function readLast() {
 }
 function markActivity() {
   const now = Date.now();
+  const wasIdle = window.__lastAct && now - window.__lastAct > 15 * 60 * 1000;
+  window.__lastAct = now;   // для фонових перевірок: якщо давно ніхто не працює — не опитуємо базу
+  if (wasIdle && !document.hidden) document.dispatchEvent(new Event('visibilitychange'));   // повернулись — оновити дзвіночок і кабінет
   if (now - lastWrite < 10000) return;          // записуємо не частіше разу на 10 с
   lastWrite = now;
   try { localStorage.setItem(IDLE_KEY, String(now)); } catch { /* приватний режим */ }

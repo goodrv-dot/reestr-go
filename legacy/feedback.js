@@ -70,8 +70,9 @@ window.Feedback = /* @__PURE__ */ (() => {
     refreshDot();
     setInterval(() => {
       const b = $("bell-btn");
-      if (!document.hidden && (!b || b.hidden)) refreshDot();
-    }, 5 * 60 * 1e3);
+      const idle = window.__lastAct && Date.now() - window.__lastAct > 15 * 60 * 1e3;
+      if (!document.hidden && !idle && (!b || b.hidden)) refreshDot();
+    }, 10 * 60 * 1e3);
   }
   async function counts() {
     if (!db) return { fresh: 0, replies: 0 };

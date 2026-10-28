@@ -37,7 +37,9 @@ window.Cabinet = (() => {
   const dateOf = (c) => (ui().val ? (c.vals || {})[ui().val] : c.person[ui().date]) || null;
   const today = () => new Date().toISOString().slice(0, 10);
   const fmt = (iso) => (iso ? iso.slice(0, 10).split('-').reverse().join('.') : '');
-  const callLink = (phone) => V.callLink(phone);   // 📞 (validation.js)
+  const callLink = (phone) => V.callLink(phone);
+  // «нікого немає»: понад 15 хв без миші й клавіатури — фонові перевірки пропускаємо
+  const idleNow = () => window.__lastAct && Date.now() - window.__lastAct > 15 * 60 * 1000;   // 📞 (validation.js)
   // Коли створено справу: заведені в програмі — точна дата й час; перенесені з журналів (імпорт) — лише проміжок
   const createdOf = (c) => {
     if (c.person && c.person.import_batch_id) return { short: 'з журналу', full: 'створено: квітень – 23.10.2026 (перенесено з журналу)' };
@@ -86,7 +88,8 @@ window.Cabinet = (() => {
     window.addEventListener('popstate', () => { if (!$('cab-case').hidden) closeCase(true); });
     // зміни колег підтягуються самі: раз на 3 хв і при поверненні до вкладки (лише змінені справи)
     const auto = () => { if (!document.hidden && !$('cabinet-view').hidden && syncAt) load(); };
-    setInterval(auto, 3 * 60 * 1000);
+    // раз на 5 хв — лише коли вкладка на екрані й людина працює (менше запитів і логів); повернулись — одразу оновлюємо
+    setInterval(() => { if (!idleNow()) auto(); }, 5 * 60 * 1000);
     document.addEventListener('visibilitychange', auto);
     $('cab-case').addEventListener('focusout', () => {
       if (stagesPending) setTimeout(() => { if (stagesPending && !editingInCase()) renderStages(); }, 0);
@@ -1627,7 +1630,7 @@ window.Cabinet = (() => {
       bell.addEventListener('click', (e) => { e.stopPropagation(); const p = $('bell-panel'); p.hidden = !p.hidden; if (!p.hidden) { renderBell(); markHeard(); } });
       document.addEventListener('click', (e) => { if (!e.target.closest('#bell-panel')) $('bell-panel').hidden = true; });
       document.addEventListener('keydown', (e) => { if (e.key === 'Escape') $('bell-panel').hidden = true; });
-      setInterval(() => { if (!document.hidden) badge(); }, 5 * 60 * 1000);       // оновлення раз на 5 хв
+      setInterval(() => { if (!document.hidden && !idleNow()) badge(); }, 10 * 60 * 1000);   // раз на 10 хв, коли людина працює; повернулись на вкладку — одразу
       document.addEventListener('visibilitychange', () => { if (!document.hidden) badge(); });
     }
     if (!$('bell-panel').hidden) renderBell();

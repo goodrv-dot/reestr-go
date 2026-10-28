@@ -43,6 +43,7 @@ window.Cabinet = (() => {
   const today = () => (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
   const fmt = (iso) => iso ? iso.slice(0, 10).split("-").reverse().join(".") : "";
   const callLink = (phone) => V.callLink(phone);
+  const idleNow = () => window.__lastAct && Date.now() - window.__lastAct > 15 * 60 * 1e3;
   const createdOf = (c) => {
     if (c.person && c.person.import_batch_id) return { short: "з журналу", full: "створено: квітень – 23.10.2026 (перенесено з журналу)" };
     if (!c.created_at) return null;
@@ -149,7 +150,9 @@ window.Cabinet = (() => {
     const auto = () => {
       if (!document.hidden && !$("cabinet-view").hidden && syncAt) load();
     };
-    setInterval(auto, 3 * 60 * 1e3);
+    setInterval(() => {
+      if (!idleNow()) auto();
+    }, 5 * 60 * 1e3);
     document.addEventListener("visibilitychange", auto);
     $("cab-case").addEventListener("focusout", () => {
       if (stagesPending) setTimeout(() => {
@@ -2507,8 +2510,8 @@ window.Cabinet = (() => {
         if (e.key === "Escape") $("bell-panel").hidden = true;
       });
       setInterval(() => {
-        if (!document.hidden) badge();
-      }, 5 * 60 * 1e3);
+        if (!document.hidden && !idleNow()) badge();
+      }, 10 * 60 * 1e3);
       document.addEventListener("visibilitychange", () => {
         if (!document.hidden) badge();
       });

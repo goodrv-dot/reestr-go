@@ -48,7 +48,7 @@ window.Feedback = (() => {
     $('fb-to-admins').addEventListener('change', syncTo);
     $('fb-to-q').addEventListener('input', renderOps);
     refreshDot();
-    setInterval(() => { const b = $('bell-btn'); if (!document.hidden && (!b || b.hidden)) refreshDot(); }, 5 * 60 * 1000);   // з кабінетом це робить дзвіночок
+    setInterval(() => { const b = $('bell-btn'); const idle = window.__lastAct && Date.now() - window.__lastAct > 15 * 60 * 1000; if (!document.hidden && !idle && (!b || b.hidden)) refreshDot(); }, 10 * 60 * 1000);   // з кабінетом це робить дзвіночок
   }
 
   // для дзвіночка: fresh — нові/непрочитані розмови, replies — мої відкриті задачі (Нове / В роботі)

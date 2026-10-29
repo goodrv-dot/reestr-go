@@ -42,6 +42,12 @@ window.Feedback = (() => {
     $('fb-filter').addEventListener('change', renderList);
     $('fb-back').addEventListener('click', () => { current = null; showList(); load(); });
     $('fb-reply-form').addEventListener('submit', reply);
+    // Нагадування про доступ: підсвічується, коли в тексті є посилання на Google-документ
+    document.querySelectorAll('.fb-gdoc-hint').forEach((h) => {
+      const ta = $(h.dataset.for); if (!ta) return;
+      const upd = () => h.classList.toggle('is-hot', /(docs|drive|sheets)\.google\.com/i.test(ta.value));
+      ta.addEventListener('input', upd); ta.form && ta.form.addEventListener('submit', () => setTimeout(upd, 1500));
+    });
     $('fb-my-status').addEventListener('change', setStatus);
     $('fb-delete').addEventListener('click', removeThread);
     $('fb-to-all').addEventListener('change', syncTo);

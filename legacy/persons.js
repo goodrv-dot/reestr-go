@@ -1314,10 +1314,12 @@ window.Persons = /* @__PURE__ */ (() => {
     rec.unsubscribed = f.unsubscribed.checked;
     rec.consent_pd_at = f.consent_pd.checked ? editingConsentAt || (/* @__PURE__ */ new Date()).toISOString() : null;
     $("save-btn").disabled = true;
+    const wasNewSave = !editingId;
     const res = editingId ? await db.from("persons").update(rec).eq("id", editingId).select("id").single() : await db.from("persons").insert(rec).select("id").single();
     let error = res.error;
     if (!error) {
       const personId = res.data.id;
+      editingId = personId;
       const del = await db.from("person_veteran_statuses").delete().eq("person_id", personId);
       error = del.error;
       if (!error && vetStatuses.length) {
@@ -1347,12 +1349,13 @@ window.Persons = /* @__PURE__ */ (() => {
       if (error.code === "23505") {
         setHint("phone", "Особа з таким телефоном уже є в реєстрі");
         setFormError("Такий телефон уже є в реєстрі. Знайдіть цю особу через пошук.");
+        showPhoneOwner(rec.phone, editingId);
       } else {
         setFormError("Не вдалося зберегти. Перевірте інтернет і спробуйте ще раз.");
       }
       return;
     }
-    toast(editingId ? "Зміни збережено" : "Особу додано");
+    toast(wasNewSave ? "Особу додано" : "Зміни збережено");
     closeForm();
   }
   async function removePerson() {
@@ -1389,6 +1392,23 @@ window.Persons = /* @__PURE__ */ (() => {
       h.textContent = "";
       h.className = "hint";
     });
+  }
+  async function showPhoneOwner(phone, except) {
+    const { data } = await db.rpc("phone_owner", { p_phone: phone, p_except: except || null });
+    const box = $("form-error");
+    if (!data) {
+      box.textContent = "Такий телефон щойно був у іншій картці. Натисніть «Зберегти» ще раз.";
+      return;
+    }
+    box.textContent = `Цей телефон уже є в картці: ${data.name}${data.cases ? " (справа " + data.cases + ")" : ""}. `;
+    const a = document.createElement("a");
+    a.href = "#";
+    a.textContent = "Відкрити ту картку";
+    a.onclick = (e) => {
+      e.preventDefault();
+      openForm(data.person_id);
+    };
+    box.appendChild(a);
   }
   function setFormError(text) {
     $("form-error").textContent = text;

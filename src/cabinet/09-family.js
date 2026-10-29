@@ -52,7 +52,10 @@
     const { error } = await db.from('persons').update(patch).eq('id', id);
     if (error) {
       console.error(error);
-      Persons.toast(error.code === '23505' ? 'Такий телефон уже є в іншій картці реєстру' : error.code === '23514' ? 'Значення не пройшло перевірку (дата чи формат)' : 'Не вдалося зберегти');
+      if (error.code === '23505' && patch.phone) {
+        const { data: o } = await db.rpc('phone_owner', { p_phone: patch.phone, p_except: id });
+        Persons.toast(o ? `Цей телефон уже є в картці: ${o.name}${o.cases ? ' (справа ' + o.cases + ')' : ''}` : 'Такий телефон уже є в іншій картці реєстру');
+      } else Persons.toast(error.code === '23505' ? 'Такий телефон уже є в іншій картці реєстру' : error.code === '23514' ? 'Значення не пройшло перевірку (дата чи формат)' : 'Не вдалося зберегти');
       return false;
     }
     Persons.toast('Збережено'); return true;

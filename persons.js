@@ -1251,6 +1251,7 @@ window.Persons = (() => {
     rec.consent_pd_at = f.consent_pd.checked ? (editingConsentAt || new Date().toISOString()) : null;
 
     $('save-btn').disabled = true;
+    const wasNewSave = !editingId;
     const res = editingId
       ? await db.from('persons').update(rec).eq('id', editingId).select('id').single()
       : await db.from('persons').insert(rec).select('id').single();
@@ -1259,6 +1260,7 @@ window.Persons = (() => {
     // Статуси ветерана: замінюємо повністю
     if (!error) {
       const personId = res.data.id;
+      editingId = personId;   // якщо далі щось не збережеться — повторне «Зберегти» оновить цю ж картку, а не створить дубль
       const del = await db.from('person_veteran_statuses').delete().eq('person_id', personId);
       error = del.error;
       if (!error && vetStatuses.length) {
@@ -1290,13 +1292,14 @@ window.Persons = (() => {
       if (error.code === '23505') {
         setHint('phone', 'Особа з таким телефоном уже є в реєстрі');
         setFormError('Такий телефон уже є в реєстрі. Знайдіть цю особу через пошук.');
+        showPhoneOwner(rec.phone, editingId);
       } else {
         setFormError('Не вдалося зберегти. Перевірте інтернет і спробуйте ще раз.');
       }
       return;
     }
 
-    toast(editingId ? 'Зміни збережено' : 'Особу додано');
+    toast(wasNewSave ? 'Особу додано' : 'Зміни збережено');
     closeForm();
   }
 
@@ -1330,6 +1333,17 @@ window.Persons = (() => {
     document.querySelectorAll('#person-form .hint').forEach((h) => { h.textContent = ''; h.className = 'hint'; });
     document.querySelectorAll('#person-form [aria-invalid]').forEach((i) => i.setAttribute('aria-invalid', 'false'));
     document.querySelectorAll('#person-form .row-card .hint').forEach((h) => { h.textContent = ''; h.className = 'hint'; });
+  }
+
+  // Показує, у чиїй картці вже є цей телефон, і дає її відкрити
+  async function showPhoneOwner(phone, except) {
+    const { data } = await db.rpc('phone_owner', { p_phone: phone, p_except: except || null });
+    const box = $('form-error');
+    if (!data) { box.textContent = 'Такий телефон щойно був у іншій картці. Натисніть «Зберегти» ще раз.'; return; }
+    box.textContent = `Цей телефон уже є в картці: ${data.name}${data.cases ? ' (справа ' + data.cases + ')' : ''}. `;
+    const a = document.createElement('a'); a.href = '#'; a.textContent = 'Відкрити ту картку';
+    a.onclick = (e) => { e.preventDefault(); openForm(data.person_id); };
+    box.appendChild(a);
   }
 
   function setFormError(text) {

@@ -289,12 +289,14 @@ window.Lists = /* @__PURE__ */ (() => {
       const tr = document.createElement("tr");
       tr.innerHTML = `<td>${i + 1}</td><td class="list-jid"></td><td><a class="btn-link list-fio"></a><br><span class="muted"></span></td><td class="muted"></td>
         <td><select data-f="status">${MEMBER_ST.map((s) => `<option>${s}</option>`).join("")}</select></td>
-        <td><input data-f="note"></td>${cols.map((c) => `<td><input data-x="${esc(c)}"></td>`).join("")}
+        <td><textarea data-f="note" rows="1" class="list-note"></textarea></td>${cols.map((c) => `<td><input data-x="${esc(c)}"></td>`).join("")}
         <td><button type="button" class="btn-link list-rm" title="Прибрати зі списку">✕</button></td>`;
       tr.querySelector(".list-fio").textContent = fio(p);
+      const ownJ = (p.cases || []).map((c) => c.journal_id).filter(Boolean).sort();
+      const noteJ = ownJ.length ? [] : [...new Set((String(m.note || "").match(/(?:200|300|БЗВ|ПОЛ|ВЕТ)-\d{4}/gi) || []).map((x) => x.toUpperCase()))];
       {
         const a = tr.querySelector(".list-fio");
-        const jid = (p.cases || []).map((c) => c.journal_id).filter(Boolean).sort()[0];
+        const jid = (ownJ.length ? ownJ : noteJ)[0];
         if (jid) {
           a.href = "?case=" + encodeURIComponent(jid);
           a.title = `Відкрити справу ${jid} у кабінеті (правий клік — у новій вкладці)`;
@@ -318,7 +320,8 @@ window.Lists = /* @__PURE__ */ (() => {
       }
       {
         const td = tr.querySelector(".list-jid");
-        const jids = (p.cases || []).map((c) => c.journal_id).filter(Boolean).sort();
+        const jids = ownJ.length ? ownJ : noteJ;
+        if (!ownJ.length && noteJ.length) td.title = "Справа, де ця людина — родич";
         if (!jids.length) td.innerHTML = '<span class="muted">—</span>';
         jids.forEach((j, k) => {
           const a = document.createElement("a");
@@ -350,6 +353,14 @@ window.Lists = /* @__PURE__ */ (() => {
       const note = tr.querySelector('[data-f="note"]');
       note.value = m.note || "";
       note.disabled = !edit;
+      {
+        const grow = () => {
+          note.style.height = "auto";
+          note.style.height = Math.min(note.scrollHeight, 160) + "px";
+        };
+        note.addEventListener("input", grow);
+        setTimeout(grow);
+      }
       note.onchange = () => saveMember(m, { note: note.value.trim() || null });
       tr.querySelectorAll("[data-x]").forEach((inp) => {
         const key = inp.dataset.x;

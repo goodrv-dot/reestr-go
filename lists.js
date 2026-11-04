@@ -208,12 +208,15 @@ window.Lists = (() => {
       const p = m.person; const tr = document.createElement('tr');
       tr.innerHTML = `<td>${i + 1}</td><td class="list-jid"></td><td><a class="btn-link list-fio"></a><br><span class="muted"></span></td><td class="muted"></td>
         <td><select data-f="status">${MEMBER_ST.map((s) => `<option>${s}</option>`).join('')}</select></td>
-        <td><input data-f="note"></td>${cols.map((c) => `<td><input data-x="${esc(c)}"></td>`).join('')}
+        <td><textarea data-f="note" rows="1" class="list-note"></textarea></td>${cols.map((c) => `<td><input data-x="${esc(c)}"></td>`).join('')}
         <td><button type="button" class="btn-link list-rm" title="Прибрати зі списку">✕</button></td>`;
       tr.querySelector('.list-fio').textContent = fio(p);
       // справжнє посилання: правий клік → «Відкрити в новій вкладці», Ctrl/Cmd + клік чи середня кнопка — теж у новій вкладці
       // клік по ПІБ — відкриває СПРАВУ в кабінеті (як працюють оператори); якщо справи немає — картку особи
-      { const a = tr.querySelector('.list-fio'); const jid = ((p.cases) || []).map((c) => c.journal_id).filter(Boolean).sort()[0];
+      // справи особи; для родича (своєї справи немає) — справа з примітки «📍 Справа 200-0123 → Родина …»
+      const ownJ = ((p.cases) || []).map((c) => c.journal_id).filter(Boolean).sort();
+      const noteJ = ownJ.length ? [] : [...new Set((String(m.note || '').match(/(?:200|300|БЗВ|ПОЛ|ВЕТ)-\d{4}/gi) || []).map((x) => x.toUpperCase()))];
+      { const a = tr.querySelector('.list-fio'); const jid = (ownJ.length ? ownJ : noteJ)[0];
         if (jid) {
           a.href = '?case=' + encodeURIComponent(jid); a.title = `Відкрити справу ${jid} у кабінеті (правий клік — у новій вкладці)`;
           a.onclick = (e) => { if (e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0) return; e.preventDefault(); document.querySelector('.tab[data-tab="cabinet"]').click(); Cabinet.openByJournal(jid); };
@@ -221,7 +224,8 @@ window.Lists = (() => {
           a.href = '?person=' + encodeURIComponent(p.id); a.title = 'Відкрити картку особи (правий клік — у новій вкладці)';
           a.onclick = (e) => { if (e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0) return; e.preventDefault(); window.__cardReturn = 'lists'; document.querySelector('.tab[data-tab="registry"]').click(); Persons.openForm(p.id); };
         } }
-      { const td = tr.querySelector('.list-jid'); const jids = ((p.cases) || []).map((c) => c.journal_id).filter(Boolean).sort();
+      { const td = tr.querySelector('.list-jid'); const jids = ownJ.length ? ownJ : noteJ;
+        if (!ownJ.length && noteJ.length) td.title = 'Справа, де ця людина — родич';
         if (!jids.length) td.innerHTML = '<span class="muted">—</span>';
         jids.forEach((j, k) => { const a = document.createElement('a'); a.className = 'btn-link'; a.textContent = j; a.href = '?case=' + encodeURIComponent(j); a.title = 'Відкрити справу (правий клік — у новій вкладці)';
           a.onclick = (e) => { if (e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0) return; e.preventDefault(); document.querySelector('.tab[data-tab="cabinet"]').click(); Cabinet.openByJournal(j); };
@@ -233,6 +237,7 @@ window.Lists = (() => {
       const sel = tr.querySelector('[data-f="status"]'); sel.value = m.status; sel.disabled = !edit;
       sel.onchange = () => saveMember(m, { status: sel.value });
       const note = tr.querySelector('[data-f="note"]'); note.value = m.note || ''; note.disabled = !edit;
+      { const grow = () => { note.style.height = 'auto'; note.style.height = Math.min(note.scrollHeight, 160) + 'px'; }; note.addEventListener('input', grow); setTimeout(grow); }
       note.onchange = () => saveMember(m, { note: note.value.trim() || null });
       tr.querySelectorAll('[data-x]').forEach((inp) => {
         const key = inp.dataset.x; inp.value = (m.extra || {})[key] || ''; inp.disabled = !edit;

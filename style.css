@@ -1301,3 +1301,7 @@ body.read-only .sum-cell.is-ro { cursor: default; }
 .bm-line.is-warn { color: var(--err); }
 .bm-go { text-decoration: none; display: inline-block; }
 #dashboard-view .dash-grid[hidden], #burialmap-view[hidden] { display: none !important; }
+/* «🗺 Карта поховань» — поруч зі «Справи 200», підсвічена */
+.dash-metric-map { border-color: #b3261e; color: #8a1c16; background: #fdeceb; font-weight: 600; }
+.dash-metric-map:hover { background: #fadad7; }
+.dash-metric-map[aria-pressed="true"] { background: #b3261e; border-color: #b3261e; color: #fff; }

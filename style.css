@@ -1300,3 +1300,4 @@ body.read-only .sum-cell.is-ro { cursor: default; }
 .bm-edit[hidden], .bm-bases-wrap[hidden] { display: none !important; }
 .bm-line.is-warn { color: var(--err); }
 .bm-go { text-decoration: none; display: inline-block; }
+#dashboard-view .dash-grid[hidden], #burialmap-view[hidden] { display: none !important; }

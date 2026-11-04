@@ -11,7 +11,8 @@ window.Dashboard = /* @__PURE__ */ (() => {
     cases300: { label: "Справ 300 (поранені)", cases: "300", what: "поранення", chart: "Поранення по місяцях", none: "без дати поранення" },
     casesbzv: { label: "Справ БЗВ (зниклі безвісти)", cases: "bzv", name: "БЗВ", what: "зникнення", chart: "Зникнення по місяцях", none: "без дати зникнення" },
     casespol: { label: "Справ «Звільнені з полону»", cases: "pol", name: "Звільнені з полону", what: "звільнення", chart: "Звільнення з полону по місяцях", none: "без дати звільнення" },
-    casesvet: { label: "Справ «Ветерани»", cases: "vet", name: "Ветерани", what: "народження", chart: "Народження по місяцях", none: "без дати народження" }
+    casesvet: { label: "Справ «Ветерани»", cases: "vet", name: "Ветерани", what: "народження", chart: "Народження по місяцях", none: "без дати народження" },
+    burialmap: { label: "Карта поховань", burial: true }
   };
   const CASE_DATE = { bzv: "missing_date", pol: "release_date" };
   const modName = (M) => M.name || M.cases;
@@ -19,6 +20,11 @@ window.Dashboard = /* @__PURE__ */ (() => {
     const A = window.ACCESS;
     return !A || !!A["cab" + m];
   };
+  const hasReg = () => {
+    const A = window.ACCESS;
+    return !A || !!A.registry;
+  };
+  let rowsLoaded = false;
   let caseRows = null;
   const MONTHS = ["січень", "лютий", "березень", "квітень", "травень", "червень", "липень", "серпень", "вересень", "жовтень", "листопад", "грудень"];
   const MONTHS_SHORT = ["січ", "лют", "бер", "кві", "тра", "чер", "лип", "сер", "вер", "жов", "лис", "гру"];
@@ -44,6 +50,7 @@ window.Dashboard = /* @__PURE__ */ (() => {
       document.querySelectorAll(".dash-metric").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
       period = { from: "", to: "" };
       if (METRICS[metric].cases && !caseRows) loadCases().then(render);
+      else if (!METRICS[metric].cases && !METRICS[metric].burial && !rowsLoaded) refresh();
       else render();
     }));
     $("dash-png").addEventListener("click", downloadPng);
@@ -54,6 +61,15 @@ window.Dashboard = /* @__PURE__ */ (() => {
     document.querySelectorAll('.dash-metric[data-m^="cases"]').forEach((b) => {
       b.hidden = !hasCab(b.dataset.m.slice(5));
     });
+    if (!hasReg()) {
+      ["persons", "children", "minors", "critical"].forEach((k) => {
+        const b = document.querySelector(`.dash-metric[data-m="${k}"]`);
+        if (b) b.hidden = true;
+      });
+      const first = [...document.querySelectorAll(".dash-metric")].find((b) => !b.hidden);
+      metric = first ? first.dataset.m : "burialmap";
+      document.querySelectorAll(".dash-metric").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.m === metric)));
+    }
     $("dash-reset").addEventListener("click", () => {
       Persons.resetAll();
       refresh();
@@ -156,7 +172,9 @@ window.Dashboard = /* @__PURE__ */ (() => {
     $("dash-status").textContent = "Рахуємо…";
     try {
       rows = [];
-      for (let from = 0; ; from += 1e3) {
+      const needRows = hasReg() && !METRICS[metric].burial;
+      rowsLoaded = needRows;
+      for (let from = 0; needRows; from += 1e3) {
         const { query } = await Persons.buildQuery("region_id, children_ages, critical_count");
         const { data, error } = await query.order("id").range(from, from + 999);
         if (error) throw error;
@@ -182,6 +200,19 @@ window.Dashboard = /* @__PURE__ */ (() => {
   function render() {
     const { regions } = Persons.ctx();
     const M = METRICS[metric];
+    const bm = !!M.burial;
+    $("burialmap-view").hidden = !bm;
+    document.querySelector("#dashboard-view .dash-grid").hidden = bm;
+    $("dash-png").hidden = bm;
+    if (bm) {
+      ["dash-burials", "dash-cond", "dash-hint", "dash-case-hint"].forEach((id) => {
+        $(id).hidden = true;
+      });
+      $("dash-reset").hidden = true;
+      $("dash-title").textContent = "Карта поховань";
+      if (window.BurialMap) BurialMap.load();
+      return;
+    }
     const caseMod = M.cases;
     $("dash-burials").hidden = !caseMod;
     $("dash-cond").hidden = !!caseMod;
@@ -430,5 +461,12 @@ window.Dashboard = /* @__PURE__ */ (() => {
     };
     img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
   }
-  return { refresh };
+  function showBurials() {
+    const tab = document.querySelector('.tab[data-tab="dashboard"]');
+    init();
+    metric = "burialmap";
+    document.querySelectorAll(".dash-metric").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.m === metric)));
+    tab.click();
+  }
+  return { refresh, showBurials };
 })();

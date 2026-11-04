@@ -40,10 +40,10 @@ function showApp(operator, userId) {
   $('staff-tab').hidden = operator.role !== 'admin';
   const A = window.ACCESS, hasCab = (A.cabMods || []).length > 0 || A.cab200 || A.cab300;
   const tabBtn = (t) => document.querySelector(`.tab[data-tab="${t}"]`);
-  tabBtn('registry').hidden = !A.registry; tabBtn('dashboard').hidden = !A.registry;
+  tabBtn('registry').hidden = !A.registry; tabBtn('dashboard').hidden = false;   // «Дашборд» — усім (без «Реєстру» — справи кабінету й карта поховань)
   tabBtn('import').hidden = !A.import; tabBtn('cabinet').hidden = !hasCab; tabBtn('lists').hidden = !(A.lists && !hasCab && !A.registry);   // «📋 Списки» — кнопки в кабінеті та в «Особах»
   tabBtn('sendpulse').hidden = !A.sendpulse;
-  tabBtn('burialmap').hidden = false;   // «Карта поховань» — бачать усі співробітники   // «📨 Розсилка» — лише кому увімкнули
+   // «📨 Розсилка» — лише кому увімкнули
   document.querySelectorAll('.sp-only').forEach((el) => { el.hidden = !A.sendpulse; });
   // перехід в ERP — лише для тих, хто має доступ «Реєстр» (і адміністраторів)
   const erp = $('erp-link'), erpUrl = window.APP_CONFIG.ERP_URL;

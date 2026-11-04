@@ -37,12 +37,11 @@ function showApp(operator, userId) {
   const A = window.ACCESS, hasCab = (A.cabMods || []).length > 0 || A.cab200 || A.cab300;
   const tabBtn = (t) => document.querySelector(`.tab[data-tab="${t}"]`);
   tabBtn("registry").hidden = !A.registry;
-  tabBtn("dashboard").hidden = !A.registry;
+  tabBtn("dashboard").hidden = false;
   tabBtn("import").hidden = !A.import;
   tabBtn("cabinet").hidden = !hasCab;
   tabBtn("lists").hidden = !(A.lists && !hasCab && !A.registry);
   tabBtn("sendpulse").hidden = !A.sendpulse;
-  tabBtn("burialmap").hidden = false;
   document.querySelectorAll(".sp-only").forEach((el) => {
     el.hidden = !A.sendpulse;
   });

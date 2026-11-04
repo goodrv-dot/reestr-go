@@ -2,7 +2,7 @@
 window.BurialMap = /* @__PURE__ */ (() => {
   let db = null, map = null, layer = null, exactLayer = null, osm = null, sat = null, loading = null, data = null;
   let wantFocus = null, wantEdit = null, editMarker = null, cellsCache = null;
-  const markers = /* @__PURE__ */ new Map(), exactMarkers = /* @__PURE__ */ new Map();
+  const markers = /* @__PURE__ */ new Map();
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   const PFX = { C: "с.", X: "с-ще", M: "м.", K: "м." };
@@ -14,6 +14,9 @@ window.BurialMap = /* @__PURE__ */ (() => {
   function init(client) {
     db = client;
   }
+  const openMap = () => {
+    if (window.Dashboard && Dashboard.showBurials) Dashboard.showBurials();
+  };
   function loadLeaflet() {
     if (window.L) return Promise.resolve();
     if (loading) return loading;
@@ -98,16 +101,14 @@ window.BurialMap = /* @__PURE__ */ (() => {
     return `${PFX[k.cat] || ""} ${k.name}, ${k.raion} р-н, ${k.oblast}${/^Автономна/.test(k.oblast) ? "" : " обл."}`;
   }
   const caseLink = (r) => (r.can_open === false ? `<span>${esc(fio(r.person))}</span>` : `<a href="?case=${encodeURIComponent(r.journal_id)}" data-jid="${esc(r.journal_id)}">${esc(fio(r.person))}</a>`) + ` <span class="muted">${esc(r.journal_id)}</span>`;
-  const routeBtn = (r) => ` <button type="button" class="btn-link bm-route" data-pid="${esc(r.person.id)}" title="Маршрут і текст для водія">🚗</button>`;
   function popup(p) {
-    const list = p.people.slice().sort((a, b) => (a.person.last_name || "").localeCompare(b.person.last_name || "", "uk")).map((r) => `<li>${caseLink(r)}${r.person.burial_lat != null ? " 🎯" : ""}${routeBtn(r)}</li>`).join("");
-    return `<div class="bm-pop"><b>${esc(placeTitle(p.k))}</b><div class="muted">Поховано: ${p.people.length} · 🎯 — є точна точка · 🚗 — маршрут для водія</div><ol>${list}</ol></div>`;
+    const list = p.people.slice().sort((a, b) => (a.person.last_name || "").localeCompare(b.person.last_name || "", "uk")).map((r) => `<li>${caseLink(r)}</li>`).join("");
+    return `<div class="bm-pop"><b>${esc(placeTitle(p.k))}</b><div class="muted">Поховано: ${p.people.length}</div><ol>${list}</ol></div>`;
   }
   function draw() {
     layer.clearLayers();
     exactLayer.clearLayers();
     markers.clear();
-    exactMarkers.clear();
     const bounds = [];
     data.places.forEach((p) => {
       const n = p.people.length;
@@ -118,18 +119,12 @@ window.BurialMap = /* @__PURE__ */ (() => {
       bounds.push([p.lat, p.lon]);
       markers.set(p.code, m);
     });
-    data.exact.forEach((r) => {
-      const m = L.circleMarker([r.person.burial_lat, r.person.burial_lon], { radius: 6, color: "#0b3d91", weight: 2, fillColor: "#2f7fb0", fillOpacity: 0.9 });
-      m.bindTooltip("🎯 " + fio(r.person));
-      m.bindPopup(() => routePop(r, true), { maxWidth: 360 });
-      m.addTo(exactLayer);
-      exactMarkers.set(r.person.id, m);
-    });
     const shown = data.total - data.noGeo;
-    $("bm-sum").textContent = `На карті: ${shown} з ${data.total} поховань у ${data.places.length} населених пунктах` + (data.exact.length ? `, з них з точною точкою 🎯: ${data.exact.length}.` : ".") + (data.noGeo ? ` Без точки на карті: ${data.noGeo} — місце поховання не вдалося однозначно визначити (див. список «Поховання — уточнити місце»).` : "");
-    if (wantFocus && wantFocus.personId && exactMarkers.has(wantFocus.personId)) {
-      const mk = exactMarkers.get(wantFocus.personId);
-      map.setView(mk.getLatLng(), 16);
+    $("bm-sum").textContent = `На карті: ${shown} з ${data.total} поховань у ${data.places.length} населених пунктах.` + (data.noGeo ? ` Без точки на карті: ${data.noGeo} — місце поховання не вдалося однозначно визначити (див. список «Поховання — уточнити місце»).` : "");
+    if (wantFocus && wantFocus.exact) {
+      const x = wantFocus.exact;
+      const mk = L.marker([x.lat, x.lon]).addTo(exactLayer).bindPopup(`<div class="bm-pop"><b>🎯 ${esc(x.title)}</b><div class="muted">${fix(x.lat)}, ${fix(x.lon)}</div></div>`);
+      map.setView([x.lat, x.lon], 16);
       mk.openPopup();
       map.__fitted = true;
     } else if (wantFocus && markers.has(wantFocus.code)) {
@@ -142,13 +137,6 @@ window.BurialMap = /* @__PURE__ */ (() => {
       map.__fitted = true;
     }
     wantFocus = null;
-  }
-  function routePop(r, exact) {
-    const box = document.createElement("div");
-    box.className = "bm-pop bm-pop-route";
-    box.innerHTML = `<b>${exact ? "🎯 Точне місце поховання" : "🚗 Маршрут для водія"}</b><div>${caseLink(r)}</div><div class="muted">${esc(r.person.burial_place)}</div>`;
-    box.appendChild(placeLine(r.person, { cellId: r.cell_id, journalId: r.journal_id, onChange: () => load(), inMap: true }));
-    return box;
   }
   function setSat(on) {
     if (on) {
@@ -222,7 +210,7 @@ window.BurialMap = /* @__PURE__ */ (() => {
   }
   function editPoint(person, start, onSaved) {
     wantEdit = { person, start, onSaved };
-    document.querySelector('.tab[data-tab="burialmap"]').click();
+    openMap();
   }
   async function savePoint(person, lat, lon, onSaved) {
     const { error } = await db.rpc("set_burial_point", { p_person: person.id, p_lat: lat, p_lon: lon });
@@ -332,8 +320,8 @@ window.BurialMap = /* @__PURE__ */ (() => {
         a.textContent = "Показати на карті";
         a.onclick = (e) => {
           e.preventDefault();
-          wantFocus = { code: person.burial_katottg, personId: exact ? person.id : null };
-          document.querySelector('.tab[data-tab="burialmap"]').click();
+          wantFocus = { code: person.burial_katottg, exact: exact ? { lat: person.burial_lat, lon: person.burial_lon, title: fio(person) } : null };
+          openMap();
         };
         head.append(a);
       }
@@ -444,15 +432,6 @@ window.BurialMap = /* @__PURE__ */ (() => {
         layer = L.layerGroup().addTo(map);
         exactLayer = L.layerGroup().addTo(map);
         $("bm-map").addEventListener("click", (e) => {
-          const rb = e.target.closest(".bm-route");
-          if (rb) {
-            const r = data && [...data.places.flatMap((p) => p.people), ...data.exact].find((x) => x.person.id === rb.dataset.pid);
-            if (r) {
-              const ll = r.person.burial_lat != null ? [r.person.burial_lat, r.person.burial_lon] : markers.get(r.person.burial_katottg).getLatLng();
-              L.popup({ maxWidth: 360 }).setLatLng(ll).setContent(routePop(r, r.person.burial_lat != null)).openOn(map);
-            }
-            return;
-          }
           const a = e.target.closest("a[data-jid]");
           if (!a) return;
           if (e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0) return;

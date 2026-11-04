@@ -19,7 +19,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Unbounded:wght@600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=202611041012">
+  <link rel="stylesheet" href="style.css?v=202611041020">
 </head>
 <body>
 
@@ -59,7 +59,6 @@
         <nav class="tabs" aria-label="Розділи">
           <button type="button" class="tab is-active" data-tab="registry" aria-current="page">Особи</button>
           <button type="button" class="tab" data-tab="cabinet">Кабінет</button>
-          <button type="button" class="tab" data-tab="burialmap" hidden>Карта поховань</button>
           <button type="button" class="tab" data-tab="dashboard">Дашборд</button>
           <button type="button" class="tab" data-tab="import">Імпорт</button>
           <button type="button" class="tab" data-tab="lists" hidden>Списки</button>
@@ -524,6 +523,7 @@
         <button type="button" class="qchip dash-metric cab-mod-bzv" data-m="casesbzv" aria-pressed="false">Справи БЗВ</button>
         <button type="button" class="qchip dash-metric cab-mod-pol" data-m="casespol" aria-pressed="false">Справи «Звільнені з полону»</button>
         <button type="button" class="qchip dash-metric cab-mod-vet" data-m="casesvet" aria-pressed="false">Справи Ветерани</button>
+        <button type="button" class="qchip dash-metric" data-m="burialmap" aria-pressed="false">🗺 Карта поховань</button>
         <button id="dash-reset" class="btn-link reset-all" type="button" hidden>Скинути фільтри</button>
       </div>
       <section id="dash-burials" class="dash-burials" hidden aria-label="Період">
@@ -539,6 +539,22 @@
           <svg id="dash-months" class="dash-months" role="img" aria-label="Кількість поховань по місяцях"></svg>
         </div>
         <p id="dash-note" class="muted dash-note"></p>
+      </section>
+          <section id="burialmap-view" class="bm" hidden aria-label="Карта поховань">
+        <p id="bm-sum" class="muted"></p>
+        <div id="bm-edit" class="bm-edit" hidden>
+          <b id="bm-edit-title"></b>
+          <p class="muted">Перетягніть маркер (або клацніть по карті) на місце поховання — увімкнено супутник. Або вставте координати / посилання з Google Maps (у Google: правий клік по місцю → клік по числах — вони скопіюються).</p>
+          <div class="bm-edit-row"><input id="bm-edit-paste" placeholder="50.4501, 30.5234 або посилання Google Maps"> <button id="bm-edit-apply" type="button" class="btn-secondary btn-small">Застосувати</button></div>
+          <div class="bm-edit-row">Точка: <b id="bm-edit-coords"></b></div>
+          <div class="bm-edit-row"><button id="bm-edit-save" type="button" class="btn-primary btn-small">Зберегти</button> <button id="bm-edit-cancel" type="button" class="btn-secondary btn-small">Скасувати</button> <button id="bm-edit-clear" type="button" class="btn-link btn-link-danger" hidden>Прибрати точну точку</button></div>
+        </div>
+        <div id="bm-map" class="bm-map" role="region" aria-label="Карта місць поховання"></div>
+        <details id="bm-bases-wrap" class="bm-bases-wrap" hidden><summary>🚗 Точки виїзду осередків (для маршрутів)</summary>
+          <p class="muted">Звідки зазвичай виїжджає водій осередку. У справі маршрут рахується від точки осередку справи (можна вибрати іншу).</p>
+          <div id="bm-bases"></div>
+        </details>
+        <p class="muted bm-note">Точність — до населеного пункту, а не до кладовища. Кружок — село чи місто, число — скільки загиблих там поховано. Натисніть на кружок — список, клік по ПІБ відкриває справу.</p>
       </section>
       <p id="dash-status" class="imp-status" role="status"></p>
       <div class="dash-grid">
@@ -582,23 +598,7 @@
       </div>
     </main>
 
-    <main id="burialmap-view" class="app-main bm" hidden>
-      <div class="list-head"><h1>Карта поховань</h1></div>
-      <p id="bm-sum" class="muted"></p>
-      <div id="bm-edit" class="bm-edit" hidden>
-        <b id="bm-edit-title"></b>
-        <p class="muted">Перетягніть маркер (або клацніть по карті) на місце поховання — увімкнено супутник. Або вставте координати / посилання з Google Maps (у Google: правий клік по місцю → клік по числах — вони скопіюються).</p>
-        <div class="bm-edit-row"><input id="bm-edit-paste" placeholder="50.4501, 30.5234 або посилання Google Maps"> <button id="bm-edit-apply" type="button" class="btn-secondary btn-small">Застосувати</button></div>
-        <div class="bm-edit-row">Точка: <b id="bm-edit-coords"></b></div>
-        <div class="bm-edit-row"><button id="bm-edit-save" type="button" class="btn-primary btn-small">Зберегти</button> <button id="bm-edit-cancel" type="button" class="btn-secondary btn-small">Скасувати</button> <button id="bm-edit-clear" type="button" class="btn-link btn-link-danger" hidden>Прибрати точну точку</button></div>
-      </div>
-      <div id="bm-map" class="bm-map" role="region" aria-label="Карта місць поховання"></div>
-      <details id="bm-bases-wrap" class="bm-bases-wrap" hidden><summary>🚗 Точки виїзду осередків (для маршрутів)</summary>
-        <p class="muted">Звідки зазвичай виїжджає водій осередку. У справі маршрут рахується від точки осередку справи (можна вибрати іншу).</p>
-        <div id="bm-bases"></div>
-      </details>
-      <p class="muted bm-note">Точність — до населеного пункту, а не до кладовища. Кружок — село чи місто, число — скільки загиблих там поховано. Натисніть на кружок — список, клік по ПІБ відкриває справу.</p>
-    </main>
+
 
     <main id="notes-view" class="app-main notes" hidden>
       <div class="list-head"><h1>Нотатки</h1></div>
@@ -1112,14 +1112,14 @@
 
       <section id="m-burialmap">
         <h2>🗺 Карта поховань</h2>
-        <p>Вкладка <b>«Карта поховань»</b> є в усіх співробітників і показує <b>всі</b> поховання. Справу можна відкрити лише ту, до якої у вас є доступ (інші ПІБ — без посилання).</p>
+        <p><b>«Дашборд» → «🗺 Карта поховань»</b> — статистика: скільки загиблих поховано в кожному селі чи місті. Є в усіх співробітників і показує <b>всі</b> поховання; справу можна відкрити лише ту, до якої у вас є доступ (інші ПІБ — без посилання). Точних точок могил на цій карті немає — вони лише в справі.</p>
         <ul>
           <li>Кружок — населений пункт, число в підказці — скільки загиблих там поховано. Що більший кружок — то більше поховань.</li>
-          <li>Натисніть на кружок — відкриється список ПІБ; клік по ПІБ відкриває справу, <b>🚗</b> біля ПІБ — маршрут і «Скопіювати для водія». Синя точка 🎯 — точне місце: клік по ній теж дає маршрут і копіювання. Змінювати точку може лише адміністратор; усі інші — переглядають і копіюють.</li>
+          <li>Натисніть на кружок — відкриється список ПІБ; клік по ПІБ відкриває справу.</li>
           <li><b>У справі й у картці особи</b> під полем «Місце поховання» видно, який населений пункт визначила програма: «📍 с. Назва, район, область» і посилання <b>«Показати на карті»</b> — карта відкриється одразу на цьому місці. Якщо там червоне «⚠ Населений пункт не визначено» — допишіть «с. Назва, Назва р-н, Назва обл.».</li>
-          <li><b>🎯 Точна точка.</b> Адміністратор може поставити точне місце могили: у справі «✋ Уточнити точку» → карта відкриється на супутнику → перетягніть маркер (або клацніть по карті) чи вставте координати / посилання з Google Maps → «Зберегти». На карті точні точки — сині. Зміна записується в історію справи.</li>
+          <li><b>🎯 Точна точка.</b> Адміністратор може поставити точне місце могили: у справі «✋ Уточнити точку» → карта відкриється на супутнику → перетягніть маркер (або клацніть по карті) чи вставте координати / посилання з Google Maps → «Зберегти». Точна точка видна лише в справі (і на карті — коли відкрити її зі справи «Показати на карті»). Зміна записується в історію справи.</li>
           <li><b>🚗 Маршрут для водія.</b> Під «Місцем поховання» — «Звідки»: точка виїзду осередку (за замовчуванням — осередку справи), інша адреса або «від мого місця». Програма покаже відстань по дорогах і орієнтовний час (без заторів і блокпостів). <b>«🧭 Маршрут»</b> відкриває Google Maps з уже прокладеним маршрутом — навіть якщо ви в Запоріжжі, а їхати зі Львова. <b>«📋 Скопіювати для водія»</b> — готовий текст (ПІБ, місце, координати, км, посилання на маршрут) для Viber / Telegram. Якщо точної точки ще немає, маршрут веде до центру населеного пункту — у тексті це позначено.</li>
-          <li><b>Точки виїзду осередків</b> задає адміністратор унизу «Карти поховань»: «🚗 Точки виїзду осередків» → «Задати на карті».</li>
+          <li><b>Точки виїзду осередків</b> задає адміністратор унизу «Дашборд» → «🗺 Карта поховань»: «🚗 Точки виїзду осередків» → «Задати на карті».</li>
           <li>Нове або виправлене місце поховання визначається одразу після збереження; точка нового села з’являється на карті за кілька хвилин (при наступному відкритті карти).</li>
           <li>Точність — <b>до села чи міста</b>, не до кладовища. Місце визначається за полем «Місце поховання» і довідником населених пунктів України (КАТОТТГ); координати — з OpenStreetMap.</li>
           <li>Якщо поховання немає на карті — у «Місці поховання» не вдалося однозначно визначити населений пункт (опечатка, кілька сіл з такою назвою, немає області). Такі справи зібрані у списку <b>«Поховання — уточнити місце»</b>: допишіть «с. Назва, район, область» — і після наступного оновлення поховання з’явиться на карті.</li>
@@ -1653,6 +1653,6 @@
   </dialog>
   <div id="print-area" class="print-area" aria-hidden="true"></div>
   <!-- скрипти підключає boot.js: сучасні — для нових браузерів, legacy/ — для старіших iPhone (див. tools/build-legacy.mjs) -->
-  <script src="boot.js?v=202611041012"></script>
+  <script src="boot.js?v=202611041020"></script>
 </body>
 </html>

@@ -416,6 +416,22 @@ window.BurialMap = /* @__PURE__ */ (() => {
         placeName = k.data ? placeTitle(k.data) : "";
         if (!dest && g.data && g.data.status === "ok") dest = { lat: g.data.lat, lon: g.data.lon };
         build();
+        if (!dest && (!g.data || g.data.status !== "none")) {
+          let tries = 0;
+          const again = async () => {
+            tries++;
+            try {
+              await db.rpc("geo_collect");
+            } catch (e) {
+            }
+            const r = await db.from("katottg_geo").select("lat, lon, status").eq("code", person.burial_katottg).maybeSingle();
+            if (r.data && r.data.status === "ok") {
+              dest = { lat: r.data.lat, lon: r.data.lon };
+              build();
+            } else if (tries < 4 && el.isConnected && !(r.data && r.data.status === "none")) setTimeout(again, 2500);
+          };
+          setTimeout(again, 2e3);
+        }
       });
     } else build();
     return el;

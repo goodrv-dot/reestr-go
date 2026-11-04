@@ -42,7 +42,7 @@ function showApp(operator, userId) {
   tabBtn("cabinet").hidden = !hasCab;
   tabBtn("lists").hidden = !(A.lists && !hasCab && !A.registry);
   tabBtn("sendpulse").hidden = !A.sendpulse;
-  tabBtn("burialmap").hidden = !hasCab;
+  tabBtn("burialmap").hidden = false;
   document.querySelectorAll(".sp-only").forEach((el) => {
     el.hidden = !A.sendpulse;
   });

@@ -43,7 +43,7 @@ function showApp(operator, userId) {
   tabBtn('registry').hidden = !A.registry; tabBtn('dashboard').hidden = !A.registry;
   tabBtn('import').hidden = !A.import; tabBtn('cabinet').hidden = !hasCab; tabBtn('lists').hidden = !(A.lists && !hasCab && !A.registry);   // «📋 Списки» — кнопки в кабінеті та в «Особах»
   tabBtn('sendpulse').hidden = !A.sendpulse;
-  tabBtn('burialmap').hidden = !hasCab;   // «Карта поховань» — для тих, хто працює в кабінеті   // «📨 Розсилка» — лише кому увімкнули
+  tabBtn('burialmap').hidden = false;   // «Карта поховань» — бачать усі співробітники   // «📨 Розсилка» — лише кому увімкнули
   document.querySelectorAll('.sp-only').forEach((el) => { el.hidden = !A.sendpulse; });
   // перехід в ERP — лише для тих, хто має доступ «Реєстр» (і адміністраторів)
   const erp = $('erp-link'), erpUrl = window.APP_CONFIG.ERP_URL;

@@ -110,6 +110,10 @@
     if ((key === 'burial_date' || key === 'death_date') && dd && bd && bd < dd) { Persons.toast('Дата поховання раніше дати загибелі — перевірте'); el.value = p[key] || ''; return; }
     if (!(await updPerson(p.id, { [key]: v }))) { refreshStages(); return; }
     p[key] = v;
+    if (key === 'burial_place') {   // населений пункт для карти визначає база — беремо результат
+      const { data: bk } = await db.from('persons').select('burial_katottg').eq('id', p.id).maybeSingle();
+      p.burial_katottg = bk ? bk.burial_katottg : null;
+    }
     renderHead(); if (key !== 'comment') refreshStages(); loadHistory();
   }
 

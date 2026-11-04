@@ -107,7 +107,7 @@ window.Cabinet = (() => {
   // а між тим — лише ті, що змінились (updated_at; база сама позначає справу зміненою при правці особи чи рідних)
   let lastFull = 0, syncAt = '', loadedKey = '', fullSeq = 0;
   const extraDone = new Set();   // які довантаження завершених справ уже зроблено (пошук, мітки)
-  const CASE_SEL = '*, person:persons!cases_person_id_fkey(id, last_name, first_name, patronymic, military_status, death_date, burial_date, wounded, wound_date, birth_date, callsign, burial_place, military_unit_code, mp_unit_id, region_id, settlement, phone, comment, import_batch_id), case_values(stage_key, value)';
+  const CASE_SEL = '*, person:persons!cases_person_id_fkey(id, last_name, first_name, patronymic, military_status, death_date, burial_date, wounded, wound_date, birth_date, callsign, burial_place, burial_katottg, military_unit_code, mp_unit_id, region_id, settlement, phone, comment, import_batch_id), case_values(stage_key, value)';
   async function fetchKin(pids) {
     const kin = new Map();
     const chunks = []; for (let i = 0; i < pids.length; i += 150) chunks.push(pids.slice(i, i + 150));
@@ -1027,6 +1027,7 @@ window.Cabinet = (() => {
     if (f.kind !== 'date') el.value = f.kind === 'phone' ? (V.formatPhone(v) || '') : String(v);
     if (f.kind === 'link') { const a = wrap.querySelector('.link-open'); if (safeUrl(v)) { a.href = v; a.hidden = false; } }
     if (f.hint) { wrap.querySelector('.stage-hint').textContent = f.hint; wrap.classList.add(f.state || 'is-due'); }
+    if (f.extra) wrap.appendChild(f.extra);
     if (v !== '' && v != null) wrap.classList.add('is-done');
     if (f.kind === 'date') {
       // поки рік набирається («2» → 0002, «20» → 0020) браузер уже вважає дату повною — не зберігаємо, чекаємо 4 цифри
@@ -1051,7 +1052,8 @@ window.Cabinet = (() => {
     ((PERSON_FIELDS[module] || {})[sec] || []).forEach(([key, label, type]) => {
       const kind = type === 'code' ? 'list' : type === 'date' ? 'date' : type === 'unit' || type === 'region' ? 'map' : type === 'phone' ? 'phone' : key === 'comment' ? 'text' : 'line';
       out.push({ id: 'p-' + key, label, kind, options: type === 'code' ? unitCodes() : type === 'unit' ? units : type === 'region' ? regions : null,
-        value: p[key], onSave: (val, el) => savePerson(key, val, type, el) });
+        value: p[key], onSave: (val, el) => savePerson(key, val, type, el),
+        extra: key === 'burial_place' && window.BurialMap ? BurialMap.placeLine(p) : null });
     });
     secDefs(sec).forEach((d) => {
       const v = c.vals[d.key] ?? ''; const f = { id: 's-' + d.key, label: d.label, kind: d.kind === 'text' ? 'text' : d.kind, options: d.options, value: v,
@@ -1372,6 +1374,10 @@ window.Cabinet = (() => {
     if ((key === 'burial_date' || key === 'death_date') && dd && bd && bd < dd) { Persons.toast('Дата поховання раніше дати загибелі — перевірте'); el.value = p[key] || ''; return; }
     if (!(await updPerson(p.id, { [key]: v }))) { refreshStages(); return; }
     p[key] = v;
+    if (key === 'burial_place') {   // населений пункт для карти визначає база — беремо результат
+      const { data: bk } = await db.from('persons').select('burial_katottg').eq('id', p.id).maybeSingle();
+      p.burial_katottg = bk ? bk.burial_katottg : null;
+    }
     renderHead(); if (key !== 'comment') refreshStages(); loadHistory();
   }
 

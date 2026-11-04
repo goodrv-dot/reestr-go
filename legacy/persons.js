@@ -916,6 +916,7 @@ window.Persons = /* @__PURE__ */ (() => {
     renderJournal(null);
     $("relations-list").innerHTML = "";
     $("children-list").innerHTML = "";
+    $("burial-place-wrap").querySelectorAll(".bm-line").forEach((x) => x.remove());
     if (id) {
       const { data, error } = await db.from("persons").select("*, person_veteran_statuses(status), military_relations!military_relations_person_id_fkey(*), children(*), person_programs(program_id, role)").eq("id", id).single();
       if (error) {
@@ -1073,6 +1074,11 @@ window.Persons = /* @__PURE__ */ (() => {
     f.death_date.value = p.death_date || "";
     f.burial_date.value = p.burial_date || "";
     f.burial_place.value = p.burial_place || "";
+    {
+      const w = $("burial-place-wrap");
+      w.querySelectorAll(".bm-line").forEach((x) => x.remove());
+      if (window.BurialMap && p.burial_place) w.appendChild(BurialMap.placeLine(p));
+    }
     f.callsign.value = p.callsign || "";
     f.military_unit_code.value = p.military_unit_code || "";
     f.wounded.value = p.wounded;

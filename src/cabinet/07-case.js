@@ -193,6 +193,7 @@
     if (f.kind !== 'date') el.value = f.kind === 'phone' ? (V.formatPhone(v) || '') : String(v);
     if (f.kind === 'link') { const a = wrap.querySelector('.link-open'); if (safeUrl(v)) { a.href = v; a.hidden = false; } }
     if (f.hint) { wrap.querySelector('.stage-hint').textContent = f.hint; wrap.classList.add(f.state || 'is-due'); }
+    if (f.extra) wrap.appendChild(f.extra);
     if (v !== '' && v != null) wrap.classList.add('is-done');
     if (f.kind === 'date') {
       // поки рік набирається («2» → 0002, «20» → 0020) браузер уже вважає дату повною — не зберігаємо, чекаємо 4 цифри
@@ -217,7 +218,8 @@
     ((PERSON_FIELDS[module] || {})[sec] || []).forEach(([key, label, type]) => {
       const kind = type === 'code' ? 'list' : type === 'date' ? 'date' : type === 'unit' || type === 'region' ? 'map' : type === 'phone' ? 'phone' : key === 'comment' ? 'text' : 'line';
       out.push({ id: 'p-' + key, label, kind, options: type === 'code' ? unitCodes() : type === 'unit' ? units : type === 'region' ? regions : null,
-        value: p[key], onSave: (val, el) => savePerson(key, val, type, el) });
+        value: p[key], onSave: (val, el) => savePerson(key, val, type, el),
+        extra: key === 'burial_place' && window.BurialMap ? BurialMap.placeLine(p) : null });
     });
     secDefs(sec).forEach((d) => {
       const v = c.vals[d.key] ?? ''; const f = { id: 's-' + d.key, label: d.label, kind: d.kind === 'text' ? 'text' : d.kind, options: d.options, value: v,

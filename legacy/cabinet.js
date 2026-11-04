@@ -164,7 +164,7 @@ window.Cabinet = (() => {
   let withClosed = false, closedTotal = 0, closedFor = "";
   let lastFull = 0, syncAt = "", loadedKey = "", fullSeq = 0;
   const extraDone = /* @__PURE__ */ new Set();
-  const CASE_SEL = "*, person:persons!cases_person_id_fkey(id, last_name, first_name, patronymic, military_status, death_date, burial_date, wounded, wound_date, birth_date, callsign, burial_place, military_unit_code, mp_unit_id, region_id, settlement, phone, comment, import_batch_id), case_values(stage_key, value)";
+  const CASE_SEL = "*, person:persons!cases_person_id_fkey(id, last_name, first_name, patronymic, military_status, death_date, burial_date, wounded, wound_date, birth_date, callsign, burial_place, burial_katottg, military_unit_code, mp_unit_id, region_id, settlement, phone, comment, import_batch_id), case_values(stage_key, value)";
   async function fetchKin(pids) {
     const kin = /* @__PURE__ */ new Map();
     const chunks = [];
@@ -1522,6 +1522,7 @@ window.Cabinet = (() => {
       wrap.querySelector(".stage-hint").textContent = f.hint;
       wrap.classList.add(f.state || "is-due");
     }
+    if (f.extra) wrap.appendChild(f.extra);
     if (v !== "" && v != null) wrap.classList.add("is-done");
     if (f.kind === "date") {
       const okYear = () => !el.value || Number(el.value.slice(0, 4)) >= 1900;
@@ -1556,7 +1557,8 @@ window.Cabinet = (() => {
         kind,
         options: type === "code" ? unitCodes() : type === "unit" ? units : type === "region" ? regions : null,
         value: p[key],
-        onSave: (val, el) => savePerson(key, val, type, el)
+        onSave: (val, el) => savePerson(key, val, type, el),
+        extra: key === "burial_place" && window.BurialMap ? BurialMap.placeLine(p) : null
       });
     });
     secDefs(sec).forEach((d) => {
@@ -2134,6 +2136,10 @@ ${ex.name}
       return;
     }
     p[key] = v;
+    if (key === "burial_place") {
+      const { data: bk } = await db.from("persons").select("burial_katottg").eq("id", p.id).maybeSingle();
+      p.burial_katottg = bk ? bk.burial_katottg : null;
+    }
     renderHead();
     if (key !== "comment") refreshStages();
     loadHistory();

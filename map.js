@@ -4,7 +4,8 @@
 // Leaflet підвантажується лише при першому відкритті вкладки.
 // ============================================================
 window.BurialMap = (() => {
-  let db = null, map = null, layer = null, loading = null, data = null;
+  let db = null, map = null, layer = null, loading = null, data = null, wantFocus = null;
+  const markers = new Map();
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const PFX = { C: 'с.', X: 'с-ще', M: 'м.', K: 'м.' };
@@ -62,19 +63,47 @@ window.BurialMap = (() => {
   }
 
   function draw() {
-    layer.clearLayers();
+    layer.clearLayers(); markers.clear();
     const bounds = [];
     data.places.forEach((p) => {
       const n = p.people.length;
       const m = L.circleMarker([p.lat, p.lon], { radius: Math.min(26, 6 + 3 * Math.sqrt(n)), color: '#7a1f1f', weight: 1.5, fillColor: '#b3261e', fillOpacity: 0.55 });
       m.bindTooltip(`${placeTitle(p.k)} — ${n}`);
       m.bindPopup(() => popup(p), { maxWidth: 340, maxHeight: 320 });
-      m.addTo(layer); bounds.push([p.lat, p.lon]);
+      m.addTo(layer); bounds.push([p.lat, p.lon]); markers.set(p.code, m);
     });
     const shown = data.total - data.noGeo;
     $('bm-sum').textContent = `На карті: ${shown} з ${data.total} поховань у ${data.places.length} населених пунктах.` +
       (data.noGeo ? ` Без точки на карті: ${data.noGeo} — місце поховання не вдалося однозначно визначити (див. список «Поховання — уточнити місце»).` : '');
-    if (bounds.length && !map.__fitted) { map.fitBounds(bounds, { padding: [20, 20], maxZoom: 9 }); map.__fitted = true; }
+    if (wantFocus && markers.has(wantFocus)) {
+      const mk = markers.get(wantFocus); map.setView(mk.getLatLng(), 11); mk.openPopup(); map.__fitted = true;
+    } else if (bounds.length && !map.__fitted) { map.fitBounds(bounds, { padding: [20, 20], maxZoom: 9 }); map.__fitted = true; }
+    wantFocus = null;
+  }
+
+  // Відкрити карту на місці поховання конкретного загиблого
+  function focus(code) {
+    wantFocus = code;
+    document.querySelector('.tab[data-tab="burialmap"]').click();
+  }
+
+  // Рядок під полем «Місце поховання» у справі: що визначено + перехід на карту
+  function placeLine(person) {
+    const el = document.createElement('p'); el.className = 'bm-line';
+    if (!String(person.burial_place || '').trim()) return el;
+    if (!person.burial_katottg) {
+      el.classList.add('is-warn');
+      el.textContent = '⚠ Населений пункт не визначено — напишіть так: «с. Назва, Назва р-н, Назва обл.» (кладовище — далі після коми). Тоді поховання з’явиться на карті.';
+      return el;
+    }
+    el.textContent = '📍 …';
+    db.from('katottg').select('code, name, cat, raion, oblast').eq('code', person.burial_katottg).maybeSingle().then(({ data: k }) => {
+      el.textContent = '📍 ' + (k ? placeTitle(k) : 'визначено') + ' ';
+      const a = document.createElement('a'); a.href = '#'; a.className = 'btn-link'; a.textContent = 'Показати на карті';
+      a.onclick = (e) => { e.preventDefault(); focus(person.burial_katottg); };
+      el.appendChild(a);
+    });
+    return el;
   }
 
   async function load() {
@@ -93,6 +122,7 @@ window.BurialMap = (() => {
         });
       }
       setTimeout(() => map.invalidateSize(), 50);
+      try { await db.rpc('geo_collect'); } catch (e) { /* координати нових місць підтягнуться наступного разу */ }
       data = await fetchData();
       draw();
     } catch (e) {
@@ -101,5 +131,5 @@ window.BurialMap = (() => {
     }
   }
 
-  return { init, load };
+  return { init, load, focus, placeLine };
 })();

@@ -1285,3 +1285,5 @@ body.read-only .sum-cell.is-ro { cursor: default; }
 .bm-note { font-size: 0.85rem; margin-top: 0.5rem; }
 .bm-pop ol { margin: 0.4rem 0 0; padding-left: 1.2rem; max-height: 220px; overflow: auto; }
 .bm-pop li { margin: 0.15rem 0; }
+.bm-line { font-size: 0.85rem; margin: 0.25rem 0 0; color: var(--muted); }
+.bm-line.is-warn { color: var(--err); }

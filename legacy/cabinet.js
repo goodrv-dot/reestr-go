@@ -164,7 +164,7 @@ window.Cabinet = (() => {
   let withClosed = false, closedTotal = 0, closedFor = "";
   let lastFull = 0, syncAt = "", loadedKey = "", fullSeq = 0;
   const extraDone = /* @__PURE__ */ new Set();
-  const CASE_SEL = "*, person:persons!cases_person_id_fkey(id, last_name, first_name, patronymic, military_status, death_date, burial_date, wounded, wound_date, birth_date, callsign, burial_place, burial_katottg, military_unit_code, mp_unit_id, region_id, settlement, phone, comment, import_batch_id), case_values(stage_key, value)";
+  const CASE_SEL = "*, person:persons!cases_person_id_fkey(id, last_name, first_name, patronymic, military_status, death_date, burial_date, wounded, wound_date, birth_date, callsign, burial_place, burial_katottg, burial_lat, burial_lon, military_unit_code, mp_unit_id, region_id, settlement, phone, comment, import_batch_id), case_values(stage_key, value)";
   async function fetchKin(pids) {
     const kin = /* @__PURE__ */ new Map();
     const chunks = [];
@@ -1297,7 +1297,7 @@ window.Cabinet = (() => {
       ]
     }
   };
-  const P_LABELS = Object.fromEntries([["p_comment", "Примітки"], ...Object.values(PERSON_FIELDS).flatMap((m) => Object.values(m).flat()).map(([k, l]) => ["p_" + k, l])]);
+  const P_LABELS = Object.fromEntries([["p_comment", "Примітки"], ["p_burial_point", "Точка поховання (координати)"], ...Object.values(PERSON_FIELDS).flatMap((m) => Object.values(m).flat()).map(([k, l]) => ["p_" + k, l])]);
   const UNIT_CODES = ["А0216", "А0878", "А1275", "А1325", "А1965", "А2062", "А2611", "А2613", "А2777", "А2802", "А3821", "А4210", "А4217", "А4548", "А4635", "А4656", "А4765", "А4822", "А4916", "А4935", "А5025", "А5074", "А7053", "А7382"];
   const unitCodes = () => [.../* @__PURE__ */ new Set([...UNIT_CODES, ...cases.map((c) => c.person.military_unit_code).filter(Boolean)])].sort((a, b) => a.localeCompare(b, "uk"));
   let tab = "all";
@@ -1558,7 +1558,10 @@ window.Cabinet = (() => {
         options: type === "code" ? unitCodes() : type === "unit" ? units : type === "region" ? regions : null,
         value: p[key],
         onSave: (val, el) => savePerson(key, val, type, el),
-        extra: key === "burial_place" && window.BurialMap ? BurialMap.placeLine(p) : null
+        extra: key === "burial_place" && window.BurialMap ? BurialMap.placeLine(p, { cellId: c.cell_id, journalId: c.journal_id, onChange: () => {
+          refreshStages();
+          loadHistory();
+        } }) : null
       });
     });
     secDefs(sec).forEach((d) => {

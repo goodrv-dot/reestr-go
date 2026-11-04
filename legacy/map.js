@@ -1,10 +1,16 @@
 // АВТОМАТИЧНО з map.js (tools/build-legacy.mjs) — не редагувати вручну
 window.BurialMap = /* @__PURE__ */ (() => {
-  let db = null, map = null, layer = null, loading = null, data = null, wantFocus = null;
-  const markers = /* @__PURE__ */ new Map();
+  let db = null, map = null, layer = null, exactLayer = null, osm = null, sat = null, loading = null, data = null;
+  let wantFocus = null, wantEdit = null, editMarker = null, cellsCache = null;
+  const markers = /* @__PURE__ */ new Map(), exactMarkers = /* @__PURE__ */ new Map();
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   const PFX = { C: "с.", X: "с-ще", M: "м.", K: "м." };
+  const isAdmin = () => !!(window.ACCESS && window.ACCESS.admin);
+  const toast = (t) => window.Persons && Persons.toast ? Persons.toast(t) : alert(t);
+  const fio = (p) => [p.last_name, p.first_name, p.patronymic].filter(Boolean).join(" ");
+  const fix = (x) => Number(x).toFixed(6).replace(/0+$/, "").replace(/\.$/, "");
+  const gmaps = (o, d) => "https://www.google.com/maps/dir/?api=1" + (o ? `&origin=${fix(o.lat)},${fix(o.lon)}` : "") + `&destination=${fix(d.lat)},${fix(d.lon)}&travelmode=driving`;
   function init(client) {
     db = client;
   }
@@ -18,14 +24,27 @@ window.BurialMap = /* @__PURE__ */ (() => {
       document.head.appendChild(css);
       const s = document.createElement("script");
       s.src = "vendor/leaflet-1.9.4/leaflet.js";
-      s.onload = ok;
+      s.onload = () => {
+        L.Icon.Default.imagePath = "vendor/leaflet-1.9.4/images/";
+        ok();
+      };
       s.onerror = fail;
       document.head.appendChild(s);
     });
     return loading;
   }
+  function parseCoords(t) {
+    const s = String(t || "").trim();
+    let m;
+    if (m = s.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/)) return { lat: +m[1], lon: +m[2] };
+    if (m = s.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/)) return { lat: +m[1], lon: +m[2] };
+    if (m = s.match(/[?&](?:q|query|ll|destination|daddr)=(-?\d+\.\d+)(?:,|%2C)\s*(-?\d+\.\d+)/i)) return { lat: +m[1], lon: +m[2] };
+    if (m = s.match(/(-?\d{1,2}\.\d{3,})\s*[,;\s]\s*(-?\d{1,2}\.\d{3,})/)) return { lat: +m[1], lon: +m[2] };
+    return null;
+  }
+  const inUa = (c) => c && c.lat >= 43 && c.lat <= 53 && c.lon >= 21 && c.lon <= 41;
   async function fetchData() {
-    const { data: rows, error } = await db.from("cases").select("journal_id, module, person:persons!cases_person_id_fkey!inner(id, last_name, first_name, patronymic, burial_place, burial_katottg)").not("person.burial_place", "is", null).limit(5e3);
+    const { data: rows, error } = await db.from("cases").select("journal_id, module, cell_id, person:persons!cases_person_id_fkey!inner(id, last_name, first_name, patronymic, burial_place, burial_katottg, burial_lat, burial_lon)").not("person.burial_place", "is", null).limit(5e3);
     if (error) throw error;
     const withPlace = (rows || []).filter((r) => r.person && String(r.person.burial_place || "").trim());
     const codes = [...new Set(withPlace.map((r) => r.person.burial_katottg).filter(Boolean))];
@@ -43,30 +62,35 @@ window.BurialMap = /* @__PURE__ */ (() => {
     }
     const places = /* @__PURE__ */ new Map();
     let noGeo = 0;
+    const exact = [];
     withPlace.forEach((r) => {
+      if (r.person.burial_lat != null) exact.push(r);
       const c = r.person.burial_katottg;
       const g = c && geo.get(c);
       if (!g) {
-        noGeo++;
+        if (r.person.burial_lat == null) noGeo++;
         return;
       }
       if (!places.has(c)) places.set(c, { code: c, lat: g.lat, lon: g.lon, k: names.get(c), people: [] });
       places.get(c).people.push(r);
     });
-    return { places: [...places.values()], total: withPlace.length, noGeo };
+    return { places: [...places.values()], exact, total: withPlace.length, noGeo, geo, names };
   }
   function placeTitle(k) {
     if (!k) return "";
     if (k.cat === "K") return "м. " + k.name;
     return `${PFX[k.cat] || ""} ${k.name}, ${k.raion} р-н, ${k.oblast}${/^Автономна/.test(k.oblast) ? "" : " обл."}`;
   }
+  const caseLink = (r) => `<a href="?case=${encodeURIComponent(r.journal_id)}" data-jid="${esc(r.journal_id)}">${esc(fio(r.person))}</a> <span class="muted">${esc(r.journal_id)}</span>`;
   function popup(p) {
-    const list = p.people.slice().sort((a, b) => (a.person.last_name || "").localeCompare(b.person.last_name || "", "uk")).map((r) => `<li><a href="?case=${encodeURIComponent(r.journal_id)}" data-jid="${esc(r.journal_id)}">${esc([r.person.last_name, r.person.first_name, r.person.patronymic].filter(Boolean).join(" "))}</a> <span class="muted">${esc(r.journal_id)}</span></li>`).join("");
-    return `<div class="bm-pop"><b>${esc(placeTitle(p.k))}</b><div class="muted">Поховано: ${p.people.length}</div><ol>${list}</ol></div>`;
+    const list = p.people.slice().sort((a, b) => (a.person.last_name || "").localeCompare(b.person.last_name || "", "uk")).map((r) => `<li>${caseLink(r)}${r.person.burial_lat != null ? " 🎯" : ""}</li>`).join("");
+    return `<div class="bm-pop"><b>${esc(placeTitle(p.k))}</b><div class="muted">Поховано: ${p.people.length} · 🎯 — є точна точка</div><ol>${list}</ol></div>`;
   }
   function draw() {
     layer.clearLayers();
+    exactLayer.clearLayers();
     markers.clear();
+    exactMarkers.clear();
     const bounds = [];
     data.places.forEach((p) => {
       const n = p.people.length;
@@ -77,10 +101,24 @@ window.BurialMap = /* @__PURE__ */ (() => {
       bounds.push([p.lat, p.lon]);
       markers.set(p.code, m);
     });
+    data.exact.forEach((r) => {
+      const m = L.circleMarker([r.person.burial_lat, r.person.burial_lon], { radius: 6, color: "#0b3d91", weight: 2, fillColor: "#2f7fb0", fillOpacity: 0.9 });
+      m.bindTooltip("🎯 " + fio(r.person));
+      m.bindPopup(`<div class="bm-pop"><b>🎯 Точне місце поховання</b><div>${caseLink(r)}</div><div class="muted">${esc(r.person.burial_place)}</div>
+        <div class="muted">${fix(r.person.burial_lat)}, ${fix(r.person.burial_lon)}</div>
+        <p><a href="${gmaps(null, { lat: r.person.burial_lat, lon: r.person.burial_lon })}" target="_blank" rel="noopener">🧭 Відкрити в Google Maps</a></p></div>`, { maxWidth: 320 });
+      m.addTo(exactLayer);
+      exactMarkers.set(r.person.id, m);
+    });
     const shown = data.total - data.noGeo;
-    $("bm-sum").textContent = `На карті: ${shown} з ${data.total} поховань у ${data.places.length} населених пунктах.` + (data.noGeo ? ` Без точки на карті: ${data.noGeo} — місце поховання не вдалося однозначно визначити (див. список «Поховання — уточнити місце»).` : "");
-    if (wantFocus && markers.has(wantFocus)) {
-      const mk = markers.get(wantFocus);
+    $("bm-sum").textContent = `На карті: ${shown} з ${data.total} поховань у ${data.places.length} населених пунктах` + (data.exact.length ? `, з них з точною точкою 🎯: ${data.exact.length}.` : ".") + (data.noGeo ? ` Без точки на карті: ${data.noGeo} — місце поховання не вдалося однозначно визначити (див. список «Поховання — уточнити місце»).` : "");
+    if (wantFocus && wantFocus.personId && exactMarkers.has(wantFocus.personId)) {
+      const mk = exactMarkers.get(wantFocus.personId);
+      map.setView(mk.getLatLng(), 16);
+      mk.openPopup();
+      map.__fitted = true;
+    } else if (wantFocus && markers.has(wantFocus.code)) {
+      const mk = markers.get(wantFocus.code);
       map.setView(mk.getLatLng(), 11);
       mk.openPopup();
       map.__fitted = true;
@@ -90,32 +128,283 @@ window.BurialMap = /* @__PURE__ */ (() => {
     }
     wantFocus = null;
   }
-  function focus(code) {
-    wantFocus = code;
+  function setSat(on) {
+    if (on) {
+      if (map.hasLayer(osm)) map.removeLayer(osm);
+      if (!map.hasLayer(sat)) sat.addTo(map);
+    } else {
+      if (map.hasLayer(sat)) map.removeLayer(sat);
+      if (!map.hasLayer(osm)) osm.addTo(map);
+    }
+  }
+  function stopEdit() {
+    if (editMarker) {
+      map.removeLayer(editMarker);
+      editMarker = null;
+    }
+    $("bm-edit").hidden = true;
+    if (map) setSat(false);
+  }
+  function startEdit(what) {
+    stopEdit();
+    const box = $("bm-edit");
+    box.hidden = false;
+    $("bm-edit-title").textContent = what.title;
+    $("bm-edit-paste").value = "";
+    $("bm-edit-clear").hidden = !what.clear;
+    setSat(true);
+    editMarker = L.marker([what.start.lat, what.start.lon], { draggable: true, autoPan: true }).addTo(map);
+    map.setView([what.start.lat, what.start.lon], what.zoom || 16);
+    const show = () => {
+      const p = editMarker.getLatLng();
+      $("bm-edit-coords").textContent = `${fix(p.lat)}, ${fix(p.lng)}`;
+    };
+    editMarker.on("drag", show);
+    show();
+    map.off("click");
+    map.on("click", (e) => {
+      if (editMarker) {
+        editMarker.setLatLng(e.latlng);
+        show();
+      }
+    });
+    $("bm-edit-apply").onclick = () => {
+      const c = parseCoords($("bm-edit-paste").value);
+      if (!inUa(c)) {
+        toast("Не вдалося розпізнати координати в Україні. Скопіюйте з Google Maps числа на кшталт 50.4501, 30.5234");
+        return;
+      }
+      editMarker.setLatLng([c.lat, c.lon]);
+      map.setView([c.lat, c.lon], 17);
+      show();
+    };
+    $("bm-edit-cancel").onclick = () => {
+      stopEdit();
+      map.off("click");
+    };
+    $("bm-edit-save").onclick = async () => {
+      const p = editMarker.getLatLng();
+      if (await what.save(p.lat, p.lng)) {
+        stopEdit();
+        map.off("click");
+        load();
+      }
+    };
+    $("bm-edit-clear").onclick = async () => {
+      if (what.clear && confirm("Прибрати точну точку? Залишиться лише населений пункт.") && await what.clear()) {
+        stopEdit();
+        map.off("click");
+        load();
+      }
+    };
+  }
+  function editPoint(person, start, onSaved) {
+    wantEdit = { person, start, onSaved };
     document.querySelector('.tab[data-tab="burialmap"]').click();
   }
-  function placeLine(person) {
-    const el = document.createElement("p");
+  async function savePoint(person, lat, lon, onSaved) {
+    const { error } = await db.rpc("set_burial_point", { p_person: person.id, p_lat: lat, p_lon: lon });
+    if (error) {
+      console.error(error);
+      toast("Не вдалося зберегти точку: " + (error.message || ""));
+      return false;
+    }
+    person.burial_lat = lat;
+    person.burial_lon = lon;
+    toast(lat == null ? "Точну точку прибрано" : "Точку поховання збережено");
+    if (onSaved) onSaved();
+    return true;
+  }
+  async function cells(force) {
+    if (cellsCache && !force) return cellsCache;
+    const { data: rows } = await db.from("cells").select("id, name, active, base_lat, base_lon, base_label").order("name");
+    cellsCache = rows || [];
+    return cellsCache;
+  }
+  async function renderBases() {
+    const box = $("bm-bases");
+    if (!box) return;
+    $("bm-bases-wrap").hidden = !isAdmin();
+    if (!isAdmin()) return;
+    const list = (await cells(true)).filter((c) => c.active !== false);
+    box.innerHTML = "";
+    list.forEach((c) => {
+      const row = document.createElement("div");
+      row.className = "bm-base";
+      row.innerHTML = '<span class="bm-base-n"></span> <span class="muted bm-base-v"></span> <button type="button" class="btn-link">Задати на карті</button>';
+      row.querySelector(".bm-base-n").textContent = c.name;
+      row.querySelector(".bm-base-v").textContent = c.base_lat != null ? `${c.base_label ? c.base_label + " · " : ""}${fix(c.base_lat)}, ${fix(c.base_lon)}` : "не задано";
+      row.querySelector("button").onclick = () => {
+        const start = c.base_lat != null ? { lat: c.base_lat, lon: c.base_lon } : map.getCenter() && { lat: map.getCenter().lat, lon: map.getCenter().lng };
+        startEdit({
+          title: `Точка виїзду: ${c.name}`,
+          start,
+          zoom: c.base_lat != null ? 15 : 7,
+          save: async (lat, lon) => {
+            const label = prompt("Підпис точки виїзду (напр. «Львів, офіс»):", c.base_label || c.name);
+            const { error } = await db.from("cells").update({ base_lat: lat, base_lon: lon, base_label: (label || "").trim() || null }).eq("id", c.id);
+            if (error) {
+              console.error(error);
+              toast("Не вдалося зберегти");
+              return false;
+            }
+            toast("Точку виїзду збережено");
+            cellsCache = null;
+            renderBases();
+            return true;
+          }
+        });
+      };
+      box.appendChild(row);
+    });
+  }
+  async function route(o, d) {
+    const r = await fetch(`https://router.project-osrm.org/route/v1/driving/${fix(o.lon)},${fix(o.lat)};${fix(d.lon)},${fix(d.lat)}?overview=false`);
+    const j = await r.json();
+    if (j.code !== "Ok" || !j.routes || !j.routes[0]) throw new Error(j.code || "route");
+    return { km: j.routes[0].distance / 1e3, min: j.routes[0].duration / 60 };
+  }
+  const fmtRoute = (x) => `≈ ${Math.round(x.km).toLocaleString("uk-UA")} км, ~${Math.floor(x.min / 60)} год ${Math.round(x.min % 60)} хв`;
+  async function geocode(q) {
+    const r = await fetch("https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=ua&accept-language=uk&q=" + encodeURIComponent(q));
+    const j = await r.json();
+    return j && j[0] ? { lat: +j[0].lat, lon: +j[0].lon, label: j[0].display_name.split(",").slice(0, 2).join(",") } : null;
+  }
+  function placeLine(person, ctx = {}) {
+    const el = document.createElement("div");
     el.className = "bm-line";
     if (!String(person.burial_place || "").trim()) return el;
-    if (!person.burial_katottg) {
+    const exact = person.burial_lat != null;
+    if (!person.burial_katottg && !exact) {
       el.classList.add("is-warn");
       el.textContent = "⚠ Населений пункт не визначено — напишіть так: «с. Назва, Назва р-н, Назва обл.» (кладовище — далі після коми). Тоді поховання з’явиться на карті.";
-      return el;
+      if (isAdmin()) el.appendChild(document.createTextNode(" Або поставте точку вручну: "));
     }
-    el.textContent = "📍 …";
-    db.from("katottg").select("code, name, cat, raion, oblast").eq("code", person.burial_katottg).maybeSingle().then(({ data: k }) => {
-      el.textContent = "📍 " + (k ? placeTitle(k) : "визначено") + " ";
-      const a = document.createElement("a");
-      a.href = "#";
-      a.className = "btn-link";
-      a.textContent = "Показати на карті";
-      a.onclick = (e) => {
-        e.preventDefault();
-        focus(person.burial_katottg);
+    const head = document.createElement("div");
+    el.appendChild(head);
+    let dest = exact ? { lat: person.burial_lat, lon: person.burial_lon } : null, placeName = "";
+    const tools = document.createElement("div");
+    tools.className = "bm-tools";
+    el.appendChild(tools);
+    const build = () => {
+      head.textContent = "";
+      if (person.burial_katottg || placeName) head.append("📍 " + (placeName || "визначено") + " ");
+      if (exact) {
+        const s = document.createElement("span");
+        s.className = "bm-exact";
+        s.textContent = `🎯 точна точка ${fix(person.burial_lat)}, ${fix(person.burial_lon)} `;
+        head.append(s);
+      } else if (dest) {
+        const s = document.createElement("span");
+        s.className = "muted";
+        s.textContent = "(точка — центр населеного пункту) ";
+        head.append(s);
+      }
+      if (dest) {
+        const a = document.createElement("a");
+        a.href = "#";
+        a.className = "btn-link";
+        a.textContent = "Показати на карті";
+        a.onclick = (e) => {
+          e.preventDefault();
+          wantFocus = { code: person.burial_katottg, personId: exact ? person.id : null };
+          document.querySelector('.tab[data-tab="burialmap"]').click();
+        };
+        head.append(a);
+      }
+      if (isAdmin()) {
+        const b = document.createElement("a");
+        b.href = "#";
+        b.className = "btn-link";
+        b.textContent = exact ? " ✋ Змінити точку" : " ✋ Уточнити точку";
+        b.onclick = (e) => {
+          e.preventDefault();
+          editPoint(person, dest || { lat: 48.6, lon: 31.3 }, ctx.onChange);
+        };
+        head.append(" · ", b);
+      }
+      if (!dest) return;
+      tools.innerHTML = `<label class="bm-from">🚗 Звідки: <select></select></label> <input class="bm-other" placeholder="місто або адреса" hidden>
+        <span class="bm-km muted"></span>
+        <a class="btn-small btn-secondary bm-go" target="_blank" rel="noopener">🧭 Маршрут</a>
+        <button type="button" class="btn-small btn-secondary bm-copy">📋 Скопіювати для водія</button>`;
+      const sel = tools.querySelector("select"), other = tools.querySelector(".bm-other"), km = tools.querySelector(".bm-km"), go = tools.querySelector(".bm-go");
+      let origin = null, last = null;
+      const upd = async () => {
+        go.href = gmaps(origin, dest);
+        last = null;
+        km.textContent = "";
+        if (!origin) return;
+        km.textContent = "рахую…";
+        try {
+          last = await route(origin, dest);
+          km.textContent = fmtRoute(last);
+        } catch (e) {
+          km.textContent = "км не пораховано (немає зв’язку з маршрутизатором)";
+        }
       };
-      el.appendChild(a);
-    });
+      cells().then((list) => {
+        const withBase = list.filter((c) => c.base_lat != null);
+        sel.innerHTML = withBase.map((c) => `<option value="${c.id}">${esc(c.base_label || c.name)}</option>`).join("") + '<option value="other">Інша адреса…</option><option value="">— від мого місця (Google визначить сам)</option>';
+        const def = withBase.find((c) => c.id === ctx.cellId) || withBase[0];
+        sel.value = def ? String(def.id) : "";
+        const pick = () => {
+          other.hidden = sel.value !== "other";
+          if (sel.value === "other") {
+            origin = null;
+            upd();
+            other.focus();
+            return;
+          }
+          const c = withBase.find((x) => String(x.id) === sel.value);
+          origin = c ? { lat: c.base_lat, lon: c.base_lon, label: c.base_label || c.name } : null;
+          upd();
+        };
+        sel.onchange = pick;
+        pick();
+      });
+      other.onchange = async () => {
+        const q = other.value.trim();
+        if (!q) return;
+        km.textContent = "шукаю…";
+        try {
+          origin = await geocode(q);
+        } catch (e) {
+          origin = null;
+        }
+        if (!origin) {
+          km.textContent = "адресу не знайдено";
+          return;
+        }
+        origin.label = q;
+        upd();
+      };
+      tools.querySelector(".bm-copy").onclick = async () => {
+        const lines = [
+          `Поховання: ${fio(person)}${ctx.journalId ? ` (справа ${ctx.journalId})` : ""}`,
+          String(person.burial_place || "").trim(),
+          `Координати: ${fix(dest.lat)}, ${fix(dest.lon)}${exact ? "" : " (приблизно — центр населеного пункту)"}`,
+          origin && last ? `Маршрут: ${origin.label} → ${fmtRoute(last)}` : origin ? `Звідки: ${origin.label}` : "",
+          `🧭 ${gmaps(origin, dest)}`
+        ].filter(Boolean);
+        try {
+          await navigator.clipboard.writeText(lines.join("\n"));
+          toast("Скопійовано — вставте у Viber / Telegram");
+        } catch (e) {
+          prompt("Скопіюйте текст:", lines.join(" | "));
+        }
+      };
+    };
+    if (person.burial_katottg) {
+      Promise.all([
+        db.from("katottg").select("code, name, cat, raion, oblast").eq("code", person.burial_katottg).maybeSingle(),
+        db.from("katottg_geo").select("lat, lon, status").eq("code", person.burial_katottg).maybeSingle()
+      ]).then(([k, g]) => {
+        placeName = k.data ? placeTitle(k.data) : "";
+        if (!dest && g.data && g.data.status === "ok") dest = { lat: g.data.lat, lon: g.data.lon };
+        build();
+      });
+    } else build();
     return el;
   }
   async function load() {
@@ -124,8 +413,11 @@ window.BurialMap = /* @__PURE__ */ (() => {
       await loadLeaflet();
       if (!map) {
         map = L.map("bm-map", { zoomControl: true }).setView([48.6, 31.3], 6);
-        L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>' }).addTo(map);
+        osm = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>' }).addTo(map);
+        sat = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19, attribution: "Супутник &copy; Esri, Maxar, Earthstar Geographics" });
+        L.control.layers({ "Карта": osm, "Супутник": sat }, null, { position: "topright" }).addTo(map);
         layer = L.layerGroup().addTo(map);
+        exactLayer = L.layerGroup().addTo(map);
         $("bm-map").addEventListener("click", (e) => {
           const a = e.target.closest("a[data-jid]");
           if (!a) return;
@@ -142,10 +434,22 @@ window.BurialMap = /* @__PURE__ */ (() => {
       }
       data = await fetchData();
       draw();
+      renderBases();
+      if (wantEdit && isAdmin()) {
+        const w = wantEdit;
+        wantEdit = null;
+        startEdit({
+          title: `Точка поховання: ${fio(w.person)}`,
+          start: w.start,
+          zoom: w.person.burial_lat != null ? 18 : 15,
+          save: (lat, lon) => savePoint(w.person, lat, lon, w.onSaved),
+          clear: w.person.burial_lat != null ? () => savePoint(w.person, null, null, w.onSaved) : null
+        });
+      }
     } catch (e) {
       console.error(e);
       $("bm-sum").textContent = "Не вдалося завантажити карту. Перевірте інтернет і натисніть «⟳ Оновити».";
     }
   }
-  return { init, load, focus, placeLine };
+  return { init, load, placeLine, parseCoords };
 })();

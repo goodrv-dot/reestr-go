@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://tile.openstreetmap.org; connect-src 'self' https://pbvlnjcutnehjcqimubz.supabase.co wss://pbvlnjcutnehjcqimubz.supabase.co; worker-src 'self'; manifest-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://tile.openstreetmap.org https://server.arcgisonline.com; connect-src 'self' https://pbvlnjcutnehjcqimubz.supabase.co wss://pbvlnjcutnehjcqimubz.supabase.co https://router.project-osrm.org https://nominatim.openstreetmap.org; worker-src 'self'; manifest-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'">
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#133c55">
@@ -19,7 +19,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Unbounded:wght@600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=202611040907">
+  <link rel="stylesheet" href="style.css?v=202611040947">
 </head>
 <body>
 
@@ -585,7 +585,18 @@
     <main id="burialmap-view" class="app-main bm" hidden>
       <div class="list-head"><h1>Карта поховань</h1></div>
       <p id="bm-sum" class="muted"></p>
+      <div id="bm-edit" class="bm-edit" hidden>
+        <b id="bm-edit-title"></b>
+        <p class="muted">Перетягніть маркер (або клацніть по карті) на місце поховання — увімкнено супутник. Або вставте координати / посилання з Google Maps (у Google: правий клік по місцю → клік по числах — вони скопіюються).</p>
+        <div class="bm-edit-row"><input id="bm-edit-paste" placeholder="50.4501, 30.5234 або посилання Google Maps"> <button id="bm-edit-apply" type="button" class="btn-secondary btn-small">Застосувати</button></div>
+        <div class="bm-edit-row">Точка: <b id="bm-edit-coords"></b></div>
+        <div class="bm-edit-row"><button id="bm-edit-save" type="button" class="btn-primary btn-small">Зберегти</button> <button id="bm-edit-cancel" type="button" class="btn-secondary btn-small">Скасувати</button> <button id="bm-edit-clear" type="button" class="btn-link btn-link-danger" hidden>Прибрати точну точку</button></div>
+      </div>
       <div id="bm-map" class="bm-map" role="region" aria-label="Карта місць поховання"></div>
+      <details id="bm-bases-wrap" class="bm-bases-wrap" hidden><summary>🚗 Точки виїзду осередків (для маршрутів)</summary>
+        <p class="muted">Звідки зазвичай виїжджає водій осередку. У справі маршрут рахується від точки осередку справи (можна вибрати іншу).</p>
+        <div id="bm-bases"></div>
+      </details>
       <p class="muted bm-note">Точність — до населеного пункту, а не до кладовища. Кружок — село чи місто, число — скільки загиблих там поховано. Натисніть на кружок — список, клік по ПІБ відкриває справу.</p>
     </main>
 
@@ -1106,6 +1117,9 @@
           <li>Кружок — населений пункт, число в підказці — скільки загиблих там поховано. Що більший кружок — то більше поховань.</li>
           <li>Натисніть на кружок — відкриється список ПІБ; клік по ПІБ відкриває справу.</li>
           <li><b>У справі й у картці особи</b> під полем «Місце поховання» видно, який населений пункт визначила програма: «📍 с. Назва, район, область» і посилання <b>«Показати на карті»</b> — карта відкриється одразу на цьому місці. Якщо там червоне «⚠ Населений пункт не визначено» — допишіть «с. Назва, Назва р-н, Назва обл.».</li>
+          <li><b>🎯 Точна точка.</b> Адміністратор може поставити точне місце могили: у справі «✋ Уточнити точку» → карта відкриється на супутнику → перетягніть маркер (або клацніть по карті) чи вставте координати / посилання з Google Maps → «Зберегти». На карті точні точки — сині. Зміна записується в історію справи.</li>
+          <li><b>🚗 Маршрут для водія.</b> Під «Місцем поховання» — «Звідки»: точка виїзду осередку (за замовчуванням — осередку справи), інша адреса або «від мого місця». Програма покаже відстань по дорогах і орієнтовний час (без заторів і блокпостів). <b>«🧭 Маршрут»</b> відкриває Google Maps з уже прокладеним маршрутом — навіть якщо ви в Запоріжжі, а їхати зі Львова. <b>«📋 Скопіювати для водія»</b> — готовий текст (ПІБ, місце, координати, км, посилання на маршрут) для Viber / Telegram. Якщо точної точки ще немає, маршрут веде до центру населеного пункту — у тексті це позначено.</li>
+          <li><b>Точки виїзду осередків</b> задає адміністратор унизу «Карти поховань»: «🚗 Точки виїзду осередків» → «Задати на карті».</li>
           <li>Нове або виправлене місце поховання визначається одразу після збереження; точка нового села з’являється на карті за кілька хвилин (при наступному відкритті карти).</li>
           <li>Точність — <b>до села чи міста</b>, не до кладовища. Місце визначається за полем «Місце поховання» і довідником населених пунктів України (КАТОТТГ); координати — з OpenStreetMap.</li>
           <li>Якщо поховання немає на карті — у «Місці поховання» не вдалося однозначно визначити населений пункт (опечатка, кілька сіл з такою назвою, немає області). Такі справи зібрані у списку <b>«Поховання — уточнити місце»</b>: допишіть «с. Назва, район, область» — і після наступного оновлення поховання з’явиться на карті.</li>
@@ -1639,6 +1653,6 @@
   </dialog>
   <div id="print-area" class="print-area" aria-hidden="true"></div>
   <!-- скрипти підключає boot.js: сучасні — для нових браузерів, legacy/ — для старіших iPhone (див. tools/build-legacy.mjs) -->
-  <script src="boot.js?v=202611040907"></script>
+  <script src="boot.js?v=202611040947"></script>
 </body>
 </html>

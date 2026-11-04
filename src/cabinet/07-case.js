@@ -34,7 +34,7 @@
         ['settlement', 'Місце проживання']]
     }
   };
-  const P_LABELS = Object.fromEntries([['p_comment', 'Примітки'], ...Object.values(PERSON_FIELDS).flatMap((m) => Object.values(m).flat()).map(([k, l]) => ['p_' + k, l])]);
+  const P_LABELS = Object.fromEntries([['p_comment', 'Примітки'], ['p_burial_point', 'Точка поховання (координати)'], ...Object.values(PERSON_FIELDS).flatMap((m) => Object.values(m).flat()).map(([k, l]) => ['p_' + k, l])]);
   const UNIT_CODES = ['А0216', 'А0878', 'А1275', 'А1325', 'А1965', 'А2062', 'А2611', 'А2613', 'А2777', 'А2802', 'А3821', 'А4210', 'А4217', 'А4548', 'А4635', 'А4656', 'А4765', 'А4822', 'А4916', 'А4935', 'А5025', 'А5074', 'А7053', 'А7382'];
   const unitCodes = () => [...new Set([...UNIT_CODES, ...cases.map((c) => c.person.military_unit_code).filter(Boolean)])].sort((a, b) => a.localeCompare(b, 'uk'));
   let tab = 'all';
@@ -219,7 +219,7 @@
       const kind = type === 'code' ? 'list' : type === 'date' ? 'date' : type === 'unit' || type === 'region' ? 'map' : type === 'phone' ? 'phone' : key === 'comment' ? 'text' : 'line';
       out.push({ id: 'p-' + key, label, kind, options: type === 'code' ? unitCodes() : type === 'unit' ? units : type === 'region' ? regions : null,
         value: p[key], onSave: (val, el) => savePerson(key, val, type, el),
-        extra: key === 'burial_place' && window.BurialMap ? BurialMap.placeLine(p) : null });
+        extra: key === 'burial_place' && window.BurialMap ? BurialMap.placeLine(p, { cellId: c.cell_id, journalId: c.journal_id, onChange: () => { refreshStages(); loadHistory(); } }) : null });
     });
     secDefs(sec).forEach((d) => {
       const v = c.vals[d.key] ?? ''; const f = { id: 's-' + d.key, label: d.label, kind: d.kind === 'text' ? 'text' : d.kind, options: d.options, value: v,

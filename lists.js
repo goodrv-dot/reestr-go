@@ -30,6 +30,7 @@ window.Lists = (() => {
     $('lists-noreg').hidden = !!(window.ACCESS && window.ACCESS.registry);
     $('list-meta').addEventListener('change', saveMeta);
     $('list-add-q').addEventListener('input', debounce(searchPeople, 350));
+    $('list-hide-done').addEventListener('change', () => { if (current) renderMembers(); });
     $('list-print').addEventListener('click', () => printList());
     $('list-excel').addEventListener('click', excel);
     $('list-delete').addEventListener('click', removeList);
@@ -204,7 +205,11 @@ window.Lists = (() => {
     head.innerHTML = '<th>№</th><th>Справа</th><th>ПІБ</th><th>Відомості</th><th>Статус у списку</th><th>Примітка</th>' + cols.map((c) => `<th>${esc(c)}</th>`).join('') + '<th></th>';
     const tb = $('list-members').tBodies[0]; tb.innerHTML = '';
     const edit = !ro();
-    members.forEach((m, i) => {
+    // «Сховати виконані» — щоб у роботі лишалося тільки те, що треба зробити
+    const hideDone = $('list-hide-done') && $('list-hide-done').checked;
+    const shown = hideDone ? members.filter((m) => m.status !== 'Виконано') : members;
+    if (hideDone && !shown.length && members.length) tb.innerHTML = '<tr><td colspan="9" class="muted">Усе виконано 🎉 Зніміть «Сховати виконані», щоб побачити всіх.</td></tr>';
+    shown.forEach((m, i) => {
       const p = m.person; const tr = document.createElement('tr');
       tr.innerHTML = `<td>${i + 1}</td><td class="list-jid"></td><td><a class="btn-link list-fio"></a><br><span class="muted"></span></td><td class="muted"></td>
         <td><select data-f="status">${MEMBER_ST.map((s) => `<option>${s}</option>`).join('')}</select></td>

@@ -1279,3 +1279,9 @@ body.read-only .sum-cell.is-ro { cursor: default; }
 .sp-card ol { padding-left: 1.25rem; } .sp-card li { margin: 0.3rem 0; }
 .sp-open { display: inline-block; text-decoration: none; font-size: 1.05rem; padding: 0.6rem 1.2rem; }
 .sp-only[hidden] { display: none !important; }
+
+/* Вкладка «Карта поховань» */
+.bm-map { height: calc(100vh - 260px); min-height: 380px; border: 1px solid var(--line); border-radius: 10px; background: #e8ecef; }
+.bm-note { font-size: 0.85rem; margin-top: 0.5rem; }
+.bm-pop ol { margin: 0.4rem 0 0; padding-left: 1.2rem; max-height: 220px; overflow: auto; }
+.bm-pop li { margin: 0.15rem 0; }

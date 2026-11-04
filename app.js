@@ -42,7 +42,8 @@ function showApp(operator, userId) {
   const tabBtn = (t) => document.querySelector(`.tab[data-tab="${t}"]`);
   tabBtn('registry').hidden = !A.registry; tabBtn('dashboard').hidden = !A.registry;
   tabBtn('import').hidden = !A.import; tabBtn('cabinet').hidden = !hasCab; tabBtn('lists').hidden = !(A.lists && !hasCab && !A.registry);   // «📋 Списки» — кнопки в кабінеті та в «Особах»
-  tabBtn('sendpulse').hidden = !A.sendpulse;   // «📨 Розсилка» — лише кому увімкнули
+  tabBtn('sendpulse').hidden = !A.sendpulse;
+  tabBtn('burialmap').hidden = !hasCab;   // «Карта поховань» — для тих, хто працює в кабінеті   // «📨 Розсилка» — лише кому увімкнули
   document.querySelectorAll('.sp-only').forEach((el) => { el.hidden = !A.sendpulse; });
   // перехід в ERP — лише для тих, хто має доступ «Реєстр» (і адміністраторів)
   const erp = $('erp-link'), erpUrl = window.APP_CONFIG.ERP_URL;
@@ -58,6 +59,7 @@ function showApp(operator, userId) {
       Feedback.init(db, userId, operator.role === 'admin');
       try { QuickLinks.init(db, userId, operator.role === 'admin'); } catch (e) { console.error(e); }
       try { Notes.init(db, userId, operator.role === 'admin'); } catch (e) { console.error(e); }
+      try { BurialMap.init(db); } catch (e) { console.error(e); }
       if (A.lists) Lists.init(db, userId, operator.role === 'admin');
       window.__exp = true;
     }

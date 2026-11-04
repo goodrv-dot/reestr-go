@@ -42,6 +42,7 @@ function showApp(operator, userId) {
   tabBtn("cabinet").hidden = !hasCab;
   tabBtn("lists").hidden = !(A.lists && !hasCab && !A.registry);
   tabBtn("sendpulse").hidden = !A.sendpulse;
+  tabBtn("burialmap").hidden = !hasCab;
   document.querySelectorAll(".sp-only").forEach((el) => {
     el.hidden = !A.sendpulse;
   });
@@ -63,6 +64,11 @@ function showApp(operator, userId) {
       }
       try {
         Notes.init(db, userId, operator.role === "admin");
+      } catch (e) {
+        console.error(e);
+      }
+      try {
+        BurialMap.init(db);
       } catch (e) {
         console.error(e);
       }

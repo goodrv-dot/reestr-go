@@ -235,8 +235,8 @@ window.BurialMap = /* @__PURE__ */ (() => {
   async function renderBases() {
     const box = $("bm-bases");
     if (!box) return;
-    $("bm-bases-wrap").hidden = !isAdmin();
-    if (!isAdmin()) return;
+    $("bm-bases-wrap").hidden = !canPoint();
+    if (!canPoint()) return;
     const list = (await cells(true)).filter((c) => c.active !== false);
     box.innerHTML = "";
     list.forEach((c) => {
@@ -253,7 +253,7 @@ window.BurialMap = /* @__PURE__ */ (() => {
           zoom: c.base_lat != null ? 15 : 7,
           save: async (lat, lon) => {
             const label = prompt("Підпис точки виїзду (напр. «Львів, офіс»):", c.base_label || c.name);
-            const { error } = await db.from("cells").update({ base_lat: lat, base_lon: lon, base_label: (label || "").trim() || null }).eq("id", c.id);
+            const { error } = await db.rpc("set_cell_base", { p_cell: c.id, p_lat: lat, p_lon: lon, p_label: label || "" });
             if (error) {
               console.error(error);
               toast("Не вдалося зберегти");

@@ -1272,3 +1272,10 @@ body.read-only .sum-cell.is-ro { cursor: default; }
 .fb-gdoc-hint { font-size: 0.85rem; color: var(--muted, #666); margin: 0.25rem 0 0.5rem; padding: 0.4rem 0.6rem; border-left: 3px solid var(--line, #ccc); border-radius: 4px; }
 .fb-gdoc-hint.is-hot { color: #b00020; border-left-color: #b00020; background: rgba(176, 0, 32, 0.07); }
 @media (prefers-color-scheme: dark) { .fb-gdoc-hint.is-hot { color: #ff8a80; border-left-color: #ff8a80; background: rgba(255, 138, 128, 0.1); } }
+
+/* Вкладка «📨 Розсилка» */
+.sp-card { max-width: 46rem; background: var(--white); border: 1px solid var(--line, #ddd); border-radius: 10px; padding: 1rem 1.25rem; margin: 0 0 1rem; }
+.sp-card h2 { font-size: 1.05rem; margin: 0.25rem 0 0.5rem; }
+.sp-card ol { padding-left: 1.25rem; } .sp-card li { margin: 0.3rem 0; }
+.sp-open { display: inline-block; text-decoration: none; font-size: 1.05rem; padding: 0.6rem 1.2rem; }
+.sp-only[hidden] { display: none !important; }

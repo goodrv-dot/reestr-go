@@ -42,6 +42,8 @@ function showApp(operator, userId) {
   const tabBtn = (t) => document.querySelector(`.tab[data-tab="${t}"]`);
   tabBtn('registry').hidden = !A.registry; tabBtn('dashboard').hidden = !A.registry;
   tabBtn('import').hidden = !A.import; tabBtn('cabinet').hidden = !hasCab; tabBtn('lists').hidden = !(A.lists && !hasCab && !A.registry);   // «📋 Списки» — кнопки в кабінеті та в «Особах»
+  tabBtn('sendpulse').hidden = !A.sendpulse;   // «📨 Розсилка» — лише кому увімкнули
+  document.querySelectorAll('.sp-only').forEach((el) => { el.hidden = !A.sendpulse; });
   // перехід в ERP — лише для тих, хто має доступ «Реєстр» (і адміністраторів)
   const erp = $('erp-link'), erpUrl = window.APP_CONFIG.ERP_URL;
   erp.hidden = !erpUrl; // бачать усі співробітники
@@ -151,7 +153,7 @@ async function enterWithSession(session) {
     const adm = operator.role === 'admin';
     window.ACCESS = { admin: adm, registry: adm || !!acc.can_registry, import: adm || !!acc.can_import,
       cab200: adm || !!acc.can_cab200, cab300: adm || !!acc.can_cab300, cells: acc.cell_ids || [],
-      readOnly: !adm && !!acc.read_only, lists: adm || !!acc.can_lists };
+      readOnly: !adm && !!acc.read_only, lists: adm || !!acc.can_lists, sendpulse: adm || !!acc.can_sendpulse };
     // нові модулі кабінету (БЗВ, Полон, Ветерани): ACCESS.cabbzv / cabpol / cabvet
     (acc.cab_modules || []).forEach((m) => { window.ACCESS['cab' + m] = true; });
     window.ACCESS.cabMods = ['200', '300', ...(acc.cab_modules || [])].filter((m) => window.ACCESS['cab' + m]);

@@ -41,6 +41,10 @@ function showApp(operator, userId) {
   tabBtn("import").hidden = !A.import;
   tabBtn("cabinet").hidden = !hasCab;
   tabBtn("lists").hidden = !(A.lists && !hasCab && !A.registry);
+  tabBtn("sendpulse").hidden = !A.sendpulse;
+  document.querySelectorAll(".sp-only").forEach((el) => {
+    el.hidden = !A.sendpulse;
+  });
   const erp = $("erp-link"), erpUrl = window.APP_CONFIG.ERP_URL;
   erp.hidden = !erpUrl;
   if (!erp.hidden) erp.href = erpUrl;
@@ -154,7 +158,8 @@ async function enterWithSession(session) {
       cab300: adm || !!acc.can_cab300,
       cells: acc.cell_ids || [],
       readOnly: !adm && !!acc.read_only,
-      lists: adm || !!acc.can_lists
+      lists: adm || !!acc.can_lists,
+      sendpulse: adm || !!acc.can_sendpulse
     };
     (acc.cab_modules || []).forEach((m) => {
       window.ACCESS["cab" + m] = true;

@@ -309,6 +309,7 @@ window.Lists = /* @__PURE__ */ (() => {
           a.onclick = (e) => {
             if (e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0) return;
             e.preventDefault();
+            window.__caseReturn = { tab: "lists", y: window.scrollY, name: current && current.name };
             document.querySelector('.tab[data-tab="cabinet"]').click();
             Cabinet.openByJournal(jid);
           };
@@ -338,6 +339,7 @@ window.Lists = /* @__PURE__ */ (() => {
           a.onclick = (e) => {
             if (e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0) return;
             e.preventDefault();
+            window.__caseReturn = { tab: "lists", y: window.scrollY, name: current && current.name };
             document.querySelector('.tab[data-tab="cabinet"]').click();
             Cabinet.openByJournal(j);
           };

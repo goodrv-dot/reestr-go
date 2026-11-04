@@ -135,16 +135,19 @@ window.BurialMap = (() => {
     setSat(true);
     editMarker = L.marker([what.start.lat, what.start.lon], { draggable: true, autoPan: true }).addTo(map);
     map.setView([what.start.lat, what.start.lon], what.zoom || 16);
-    const show = () => { const p = editMarker.getLatLng(); $('bm-edit-coords').textContent = `${fix(p.lat)}, ${fix(p.lng)}`; };
-    editMarker.on('drag', show); show();
-    map.off('click'); map.on('click', (e) => { if (editMarker) { editMarker.setLatLng(e.latlng); show(); } });
+    // точку не збережемо, поки її не поставили (якщо старт — лише приблизний центр, напр. центр України)
+    let moved = !what.guess;
+    const show = () => { const p = editMarker.getLatLng(); $('bm-edit-coords').textContent = moved ? `${fix(p.lat)}, ${fix(p.lng)}` : '— перетягніть маркер або вставте координати —'; $('bm-edit-save').disabled = !moved; };
+    editMarker.on('drag', () => { moved = true; show(); }); show();
+    map.off('click'); map.on('click', (e) => { if (editMarker) { moved = true; editMarker.setLatLng(e.latlng); show(); } });
     $('bm-edit-apply').onclick = () => {
       const c = parseCoords($('bm-edit-paste').value);
       if (!inUa(c)) { toast('Не вдалося розпізнати координати в Україні. Скопіюйте з Google Maps числа на кшталт 50.4501, 30.5234'); return; }
-      editMarker.setLatLng([c.lat, c.lon]); map.setView([c.lat, c.lon], 17); show();
+      moved = true; editMarker.setLatLng([c.lat, c.lon]); map.setView([c.lat, c.lon], 17); show();
     };
     $('bm-edit-cancel').onclick = () => { stopEdit(); map.off('click'); };
     $('bm-edit-save').onclick = async () => {
+      if (!moved) { toast('Спершу поставте точку: перетягніть маркер, клацніть по карті або вставте координати'); return; }
       const p = editMarker.getLatLng();
       if (await what.save(p.lat, p.lng)) { stopEdit(); map.off('click'); load(); }
     };
@@ -238,7 +241,7 @@ window.BurialMap = (() => {
       }
       if (canPoint()) {
         const b = document.createElement('a'); b.href = '#'; b.className = 'btn-link'; b.textContent = exact ? ' ✋ Змінити точку' : ' ✋ Уточнити точку';
-        b.onclick = (e) => { e.preventDefault(); editPoint(person, dest || { lat: 48.6, lon: 31.3 }, ctx.onChange); };
+        b.onclick = (e) => { e.preventDefault(); editPoint(person, dest || { lat: 48.6, lon: 31.3, guess: true }, ctx.onChange); };
         head.append(' · ', b);
       }
       if (!dest) return;
@@ -336,7 +339,7 @@ window.BurialMap = (() => {
       renderBases();
       if (wantEdit && canPoint()) {
         const w = wantEdit; wantEdit = null;
-        startEdit({ title: `Точка поховання: ${fio(w.person)}`, start: w.start, zoom: w.person.burial_lat != null ? 18 : 15,
+        startEdit({ title: `Точка поховання: ${fio(w.person)}`, start: w.start, guess: !!w.start.guess, zoom: w.start.guess ? 6 : w.person.burial_lat != null ? 18 : 15,
           save: (lat, lon) => savePoint(w.person, lat, lon, w.onSaved),
           clear: w.person.burial_lat != null ? () => savePoint(w.person, null, null, w.onSaved) : null });
       }

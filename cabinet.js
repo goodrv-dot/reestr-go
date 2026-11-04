@@ -903,6 +903,7 @@ window.Cabinet = (() => {
   const contactOf = (c) => c.kin.find((k) => k.person.id === c.contact_person_id) || c.kin[0] || null;
 
   async function openCase(id, noPush) {
+    setBackLabel();
     current = cases.find((c) => c.id === id);
     if (!current) return;
     $('cab-list').hidden = true; $('cab-case').hidden = false;
@@ -998,6 +999,14 @@ window.Cabinet = (() => {
     current = null; keep('cab_case', null);
     if (!fromPop && history.state && history.state.view === 'case') history.back();
     render();
+    // справу відкрили зі «Списку» — повертаємось у той самий список і на те саме місце
+    const r = window.__caseReturn; window.__caseReturn = null; setBackLabel();
+    if (r && r.tab === 'lists') { document.querySelector('.tab[data-tab="lists"]').click(); setTimeout(() => window.scrollTo(0, r.y || 0), 700); }
+  }
+  function setBackLabel() {
+    const r = window.__caseReturn;
+    const t = r && r.tab === 'lists' ? '← Назад до списку' + (r.name ? ` «${r.name}»` : '') : 'Назад до справ';
+    $('cab-back').textContent = t; $('cab-back2').textContent = t;
   }
 
   // Одне поле: {id,label,kind,options,value,hint,state,onSave}

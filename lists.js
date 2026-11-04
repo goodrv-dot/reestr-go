@@ -224,7 +224,7 @@ window.Lists = (() => {
       { const a = tr.querySelector('.list-fio'); const jid = (ownJ.length ? ownJ : noteJ)[0];
         if (jid) {
           a.href = '?case=' + encodeURIComponent(jid); a.title = `Відкрити справу ${jid} у кабінеті (правий клік — у новій вкладці)`;
-          a.onclick = (e) => { if (e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0) return; e.preventDefault(); document.querySelector('.tab[data-tab="cabinet"]').click(); Cabinet.openByJournal(jid); };
+          a.onclick = (e) => { if (e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0) return; e.preventDefault(); window.__caseReturn = { tab: 'lists', y: window.scrollY, name: current && current.name }; document.querySelector('.tab[data-tab="cabinet"]').click(); Cabinet.openByJournal(jid); };
         } else {
           a.href = '?person=' + encodeURIComponent(p.id); a.title = 'Відкрити картку особи (правий клік — у новій вкладці)';
           a.onclick = (e) => { if (e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0) return; e.preventDefault(); window.__cardReturn = 'lists'; document.querySelector('.tab[data-tab="registry"]').click(); Persons.openForm(p.id); };
@@ -233,7 +233,7 @@ window.Lists = (() => {
         if (!ownJ.length && noteJ.length) td.title = 'Справа, де ця людина — родич';
         if (!jids.length) td.innerHTML = '<span class="muted">—</span>';
         jids.forEach((j, k) => { const a = document.createElement('a'); a.className = 'btn-link'; a.textContent = j; a.href = '?case=' + encodeURIComponent(j); a.title = 'Відкрити справу (правий клік — у новій вкладці)';
-          a.onclick = (e) => { if (e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0) return; e.preventDefault(); document.querySelector('.tab[data-tab="cabinet"]').click(); Cabinet.openByJournal(j); };
+          a.onclick = (e) => { if (e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0) return; e.preventDefault(); window.__caseReturn = { tab: 'lists', y: window.scrollY, name: current && current.name }; document.querySelector('.tab[data-tab="cabinet"]').click(); Cabinet.openByJournal(j); };
           if (k) td.append(document.createElement('br')); td.append(a); }); }
       tr.children[2].lastChild.textContent = [fmt(p.birth_date), p.military_status].filter(Boolean).join(' · ');
       tr.children[3].textContent = [rankOf(p), p.military_unit_code, unitOf(p), eventOf(p), kinOf(m)].filter(Boolean).join(' · ');

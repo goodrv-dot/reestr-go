@@ -166,15 +166,21 @@ window.BurialMap = /* @__PURE__ */ (() => {
     setSat(true);
     editMarker = L.marker([what.start.lat, what.start.lon], { draggable: true, autoPan: true }).addTo(map);
     map.setView([what.start.lat, what.start.lon], what.zoom || 16);
+    let moved = !what.guess;
     const show = () => {
       const p = editMarker.getLatLng();
-      $("bm-edit-coords").textContent = `${fix(p.lat)}, ${fix(p.lng)}`;
+      $("bm-edit-coords").textContent = moved ? `${fix(p.lat)}, ${fix(p.lng)}` : "— перетягніть маркер або вставте координати —";
+      $("bm-edit-save").disabled = !moved;
     };
-    editMarker.on("drag", show);
+    editMarker.on("drag", () => {
+      moved = true;
+      show();
+    });
     show();
     map.off("click");
     map.on("click", (e) => {
       if (editMarker) {
+        moved = true;
         editMarker.setLatLng(e.latlng);
         show();
       }
@@ -185,6 +191,7 @@ window.BurialMap = /* @__PURE__ */ (() => {
         toast("Не вдалося розпізнати координати в Україні. Скопіюйте з Google Maps числа на кшталт 50.4501, 30.5234");
         return;
       }
+      moved = true;
       editMarker.setLatLng([c.lat, c.lon]);
       map.setView([c.lat, c.lon], 17);
       show();
@@ -194,6 +201,10 @@ window.BurialMap = /* @__PURE__ */ (() => {
       map.off("click");
     };
     $("bm-edit-save").onclick = async () => {
+      if (!moved) {
+        toast("Спершу поставте точку: перетягніть маркер, клацніть по карті або вставте координати");
+        return;
+      }
       const p = editMarker.getLatLng();
       if (await what.save(p.lat, p.lng)) {
         stopEdit();
@@ -333,7 +344,7 @@ window.BurialMap = /* @__PURE__ */ (() => {
         b.textContent = exact ? " ✋ Змінити точку" : " ✋ Уточнити точку";
         b.onclick = (e) => {
           e.preventDefault();
-          editPoint(person, dest || { lat: 48.6, lon: 31.3 }, ctx.onChange);
+          editPoint(person, dest || { lat: 48.6, lon: 31.3, guess: true }, ctx.onChange);
         };
         head.append(" · ", b);
       }
@@ -471,7 +482,8 @@ window.BurialMap = /* @__PURE__ */ (() => {
         startEdit({
           title: `Точка поховання: ${fio(w.person)}`,
           start: w.start,
-          zoom: w.person.burial_lat != null ? 18 : 15,
+          guess: !!w.start.guess,
+          zoom: w.start.guess ? 6 : w.person.burial_lat != null ? 18 : 15,
           save: (lat, lon) => savePoint(w.person, lat, lon, w.onSaved),
           clear: w.person.burial_lat != null ? () => savePoint(w.person, null, null, w.onSaved) : null
         });

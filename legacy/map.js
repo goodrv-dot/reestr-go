@@ -7,6 +7,7 @@ window.BurialMap = /* @__PURE__ */ (() => {
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   const PFX = { C: "с.", X: "с-ще", M: "м.", K: "м." };
   const isAdmin = () => !!(window.ACCESS && window.ACCESS.admin);
+  const canPoint = () => !!(window.ACCESS && (window.ACCESS.admin || window.ACCESS.burialPoint));
   const toast = (t) => window.Persons && Persons.toast ? Persons.toast(t) : alert(t);
   const fio = (p) => [p.last_name, p.first_name, p.patronymic].filter(Boolean).join(" ");
   const fix = (x) => Number(x).toFixed(6).replace(/0+$/, "").replace(/\.$/, "");
@@ -291,7 +292,7 @@ window.BurialMap = /* @__PURE__ */ (() => {
     if (!person.burial_katottg && !exact) {
       el.classList.add("is-warn");
       el.textContent = "⚠ Населений пункт не визначено — напишіть так: «с. Назва, Назва р-н, Назва обл.» (кладовище — далі після коми). Тоді поховання з’явиться на карті.";
-      if (isAdmin()) el.appendChild(document.createTextNode(" Або поставте точку вручну: "));
+      if (canPoint()) el.appendChild(document.createTextNode(" Або поставте точку вручну: "));
     }
     const head = document.createElement("div");
     el.appendChild(head);
@@ -325,7 +326,7 @@ window.BurialMap = /* @__PURE__ */ (() => {
         };
         head.append(a);
       }
-      if (isAdmin()) {
+      if (canPoint()) {
         const b = document.createElement("a");
         b.href = "#";
         b.className = "btn-link";
@@ -464,7 +465,7 @@ window.BurialMap = /* @__PURE__ */ (() => {
       data = await fetchData();
       draw();
       renderBases();
-      if (wantEdit && isAdmin()) {
+      if (wantEdit && canPoint()) {
         const w = wantEdit;
         wantEdit = null;
         startEdit({

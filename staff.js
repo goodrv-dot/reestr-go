@@ -138,7 +138,7 @@ window.Staff = (() => {
 
   async function load() {
     const { data, error } = await db.from('operators')
-      .select('user_id, full_name, email, role, can_export, can_registry, can_import, can_cab200, can_cab300, cab_modules, can_lists, can_sendpulse, cell_ids, active, must_change_password, created_at, no_login, aliases, read_only')
+      .select('user_id, full_name, email, role, can_export, can_registry, can_import, can_cab200, can_cab300, cab_modules, can_lists, can_sendpulse, can_burial_point, cell_ids, active, must_change_password, created_at, no_login, aliases, read_only')
       .order('active', { ascending: false }).order('full_name');
     const tbody = $('staff-table').tBodies[0];
     tbody.innerHTML = '';
@@ -180,7 +180,7 @@ window.Staff = (() => {
     else if (o.role === 'admin') tdExp.innerHTML = '<span class="muted">усе (адміністратор)</span>';
     else {
       const cells = Persons.ctx().cells;
-      const parts = [o.read_only && '👁 Лише перегляд', o.can_registry && 'Реєстр', o.can_export && 'Експорт', o.can_registry && o.can_import && 'Імпорт', o.can_lists && 'Списки', o.can_sendpulse && 'Розсилка', o.can_cab200 && 'Кабінет 200', o.can_cab300 && 'Кабінет 300', ...(o.cab_modules || []).map((m) => MOD_NAMES[m]).filter(Boolean)].filter(Boolean);
+      const parts = [o.read_only && '👁 Лише перегляд', o.can_registry && 'Реєстр', o.can_export && 'Експорт', o.can_registry && o.can_import && 'Імпорт', o.can_lists && 'Списки', o.can_sendpulse && 'Розсилка', o.can_burial_point && 'Точки поховань', o.can_cab200 && 'Кабінет 200', o.can_cab300 && 'Кабінет 300', ...(o.cab_modules || []).map((m) => MOD_NAMES[m]).filter(Boolean)].filter(Boolean);
       const cn = (o.cell_ids || []).map((id) => cells.get(id)).filter(Boolean);
       const sum = document.createElement('div'); sum.className = 'acc-sum';
       sum.innerHTML = '<span></span><br><span class="muted"></span>';
@@ -245,6 +245,7 @@ window.Staff = (() => {
     NEW_MODS.forEach((m) => { f['cab' + m].checked = (o.cab_modules || []).includes(m); });
     f.lists.checked = !!o.can_lists;
     f.sendpulse.checked = !!o.can_sendpulse;
+    f.burialpoint.checked = !!o.can_burial_point;
     const anyCab = () => f.cab200.checked || f.cab300.checked || NEW_MODS.some((m) => f['cab' + m].checked);
     const box = $('acc-cells'); box.innerHTML = '';
     [...Persons.ctx().cells].forEach(([id, n]) => {
@@ -289,6 +290,8 @@ window.Staff = (() => {
       if (li.error) { console.error(li.error); Persons.toast('Не вдалося зберегти доступ «Списки»'); return; }
       const sp = await db.rpc('set_operator_sendpulse', { p_user: o.user_id, p_on: f.sendpulse.checked });
       if (sp.error) { console.error(sp.error); Persons.toast('Не вдалося зберегти доступ «Розсилка»'); return; }
+      const bp = await db.rpc('set_operator_burial_point', { p_user: o.user_id, p_on: f.burialpoint.checked && !f.readonly.checked });
+      if (bp.error) { console.error(bp.error); Persons.toast('Не вдалося зберегти доступ «Точки поховань»'); return; }
       const ro = await db.rpc('set_operator_readonly', { p_user: o.user_id, p_ro: f.readonly.checked });
       if (ro.error) { console.error(ro.error); Persons.toast('Не вдалося зберегти режим «Лише перегляд»'); return; }
       d.close(); Persons.toast('Доступи збережено. Співробітник побачить зміни після наступного входу.'); load();

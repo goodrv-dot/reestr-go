@@ -155,7 +155,7 @@ async function enterWithSession(session) {
     const adm = operator.role === 'admin';
     window.ACCESS = { admin: adm, registry: adm || !!acc.can_registry, import: adm || !!acc.can_import,
       cab200: adm || !!acc.can_cab200, cab300: adm || !!acc.can_cab300, cells: acc.cell_ids || [],
-      readOnly: !adm && !!acc.read_only, lists: adm || !!acc.can_lists, sendpulse: adm || !!acc.can_sendpulse };
+      readOnly: !adm && !!acc.read_only, lists: adm || !!acc.can_lists, sendpulse: adm || !!acc.can_sendpulse, burialPoint: adm || !!acc.can_burial_point };
     // нові модулі кабінету (БЗВ, Полон, Ветерани): ACCESS.cabbzv / cabpol / cabvet
     (acc.cab_modules || []).forEach((m) => { window.ACCESS['cab' + m] = true; });
     window.ACCESS.cabMods = ['200', '300', ...(acc.cab_modules || [])].filter((m) => window.ACCESS['cab' + m]);

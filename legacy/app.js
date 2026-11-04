@@ -164,7 +164,8 @@ async function enterWithSession(session) {
       cells: acc.cell_ids || [],
       readOnly: !adm && !!acc.read_only,
       lists: adm || !!acc.can_lists,
-      sendpulse: adm || !!acc.can_sendpulse
+      sendpulse: adm || !!acc.can_sendpulse,
+      burialPoint: adm || !!acc.can_burial_point
     };
     (acc.cab_modules || []).forEach((m) => {
       window.ACCESS["cab" + m] = true;

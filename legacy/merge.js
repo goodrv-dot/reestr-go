@@ -54,9 +54,7 @@ window.Merge = /* @__PURE__ */ (() => {
       li.innerHTML = '<button type="button" class="btn-link dup-open"></button> <span class="muted dup-meta"></span> ';
       li.querySelector(".dup-open").textContent = fio(c) + (c.name_check ? " (тимчасове ПІБ)" : "");
       li.querySelector(".dup-meta").textContent = `${V.formatPhone(c.phone) || "без телефону"} · ${c.why}`;
-      tabLink(li.querySelector(".dup-open"), personHref(c.id), () => {
-        if (confirm("Перейти до цієї картки? Незбережені зміни буде втрачено.")) Persons.openForm(c.id);
-      });
+      tabLink(li.querySelector(".dup-open"), personHref(c.id), () => Persons.openForm(c.id));
       if (isAdmin) {
         const b = document.createElement("button");
         b.type = "button";

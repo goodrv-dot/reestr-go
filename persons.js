@@ -199,7 +199,7 @@ window.Persons = (() => {
       row.querySelectorAll('select').forEach((x) => x.dispatchEvent(new Event('change', { bubbles: true })));
     }));
     row.querySelector('[data-act="open"]').addEventListener('click', () => {
-      if (confirm('Перейти до картки військового? Незбережені зміни в цій картці буде втрачено.')) openForm(row.dataset.personId);
+      openForm(row.dataset.personId);   // незбережені зміни — попередження перехоплює bindDirty()
     });
     const degree = q('relation_degree');
     degree.add(new Option('Оберіть…', ''));
@@ -308,7 +308,7 @@ window.Persons = (() => {
         const b = document.createElement('button');
         b.type = 'button'; b.className = 'btn-link';
         b.textContent = `${r.relation_degree} — ${[r.person.last_name, r.person.first_name].filter(Boolean).join(' ')}`;
-        const bl = tabLink(b, personHref(r.person.id), () => { if (confirm('Перейти до цієї картки? Незбережені зміни буде втрачено.')) openForm(r.person.id); });
+        const bl = tabLink(b, personHref(r.person.id), () => openForm(r.person.id));
         if (k) box.append(', ');
         box.appendChild(bl);
       });
@@ -409,7 +409,7 @@ window.Persons = (() => {
     $('add-btn').addEventListener('click', () => openForm(null));
     $('add-btn').hidden = !window.APP_CONFIG.ADD_PERSON;   // заморожено, див. config.js
     $('back-btn').addEventListener('click', closeForm);
-    $('cancel-btn').addEventListener('click', closeForm);
+    $('cancel-btn').addEventListener('click', () => { markClean(); closeForm(); });   // «Скасувати» — свідомо відмовляємось від змін
     $('pager').addEventListener('click', (e) => {
       const b = e.target.closest('button[data-page]');
       if (!b || b.disabled) return;
@@ -417,9 +417,16 @@ window.Persons = (() => {
       loadList().then(() => $('persons-table').scrollIntoView({ behavior: 'smooth', block: 'start' }));
     });
     // Системна кнопка «Назад»: закрити картку і повернутися до списку
-    window.addEventListener('popstate', () => {
-      if (!$('form-view').hidden) showList();
+    window.addEventListener('popstate', async () => {
+      if ($('form-view').hidden) return;
+      if (dirty) {   // є незбережені зміни — повертаємо крок «картка» і питаємо
+        history.pushState({ view: 'card' }, '');
+        if (await guardLeave()) history.back();
+        return;
+      }
+      showList();
     });
+    bindDirty();
     $('person-form').addEventListener('submit', save);
     $('delete-btn').addEventListener('click', removePerson);
     $('kin-add').addEventListener('click', addRelative);
@@ -998,6 +1005,7 @@ window.Persons = (() => {
     if (!history.state || history.state.view !== 'card') history.pushState({ view: 'card' }, '');
     window.scrollTo(0, 0);
     $('f-last_name').focus();
+    setTimeout(markClean);   // заповнення картки програмою — не зміни оператора
   }
 
   // Номер справи над карткою: своя справа (загиблий / поранений) або справа, де людина — родич
@@ -1101,8 +1109,72 @@ window.Persons = (() => {
     }
   }
 
-  async function save(e) {
-    e.preventDefault();
+  // ---------- Незбережені зміни в картці ----------
+  // Картка зберігається кнопкою «Зберегти». Якщо оператор щось змінив і йде з картки (назад, інша вкладка,
+  // посилання на справу чи родича, закриття сторінки) — попереджаємо: «Зберегти» / «Скасувати зміни» / «Залишитися».
+  let dirty = false;
+  const formOpen = () => !$('form-view').hidden && !$('registry-view').hidden;
+  function paintDirty() {
+    const n = $('unsaved-note'); if (!n) return;
+    n.classList.toggle('is-dirty', dirty);
+    n.textContent = dirty ? '● Є незбережені зміни — натисніть «Зберегти»' : 'Після заповнення чи змін картки обов’язково натисніть «Зберегти»';
+    $('person-form').querySelector('.form-actions').classList.toggle('is-dirty', dirty);
+  }
+  function markClean() { dirty = false; paintDirty(); }
+  function markDirty(e) { if (!e.isTrusted || !formOpen() || dirty) return; dirty = true; paintDirty(); }
+
+  let dlgBusy = false;
+  function askLeave() {
+    return new Promise((resolve) => {
+      let d = $('unsaved-dlg');
+      if (!d) {
+        d = document.createElement('dialog'); d.id = 'unsaved-dlg'; d.className = 'unsaved-dlg';
+        d.innerHTML = `<h3>Картку не збережено</h3>
+          <p>Ви внесли зміни, але не натиснули «Зберегти». Якщо вийти зараз — <b>зміни буде втрачено</b>.</p>
+          <div class="form-actions">
+            <button type="button" class="btn-primary" data-r="save">Зберегти</button>
+            <button type="button" class="btn-secondary" data-r="drop">Скасувати зміни</button>
+            <button type="button" class="btn-link" data-r="stay">Залишитися в картці</button>
+          </div>`;
+        document.body.appendChild(d);
+      }
+      const done = (r) => { d.close(); d.onclick = null; d.oncancel = null; resolve(r); };
+      d.onclick = (e) => { const b = e.target.closest('button[data-r]'); if (b) done(b.dataset.r); };
+      d.oncancel = (e) => { e.preventDefault(); done('stay'); };   // Esc — лишаємось
+      d.showModal(); d.querySelector('[data-r="save"]').focus();
+    });
+  }
+  // true — можна йти; false — лишаємось у картці
+  async function guardLeave() {
+    if (!dirty || !formOpen()) return true;
+    if (dlgBusy) return false;
+    dlgBusy = true;
+    try {
+      const r = await askLeave();
+      if (r === 'stay') return false;
+      if (r === 'drop') { markClean(); return true; }
+      const ok = await save(null, { stay: true });
+      if (!ok) { const bad = $('person-form').querySelector('[aria-invalid="true"]'); if (bad) bad.focus(); }
+      return ok;
+    } finally { dlgBusy = false; }
+  }
+  function bindDirty() {
+    const f = $('person-form');
+    f.addEventListener('input', markDirty); f.addEventListener('change', markDirty);
+    // кліки, що виводять з картки: вкладки, «Назад до списку», посилання на справи / родичів у картці
+    const LEAVE = '.tab[data-tab], #back-btn, #form-view a[href^="?case="], #form-view a[href^="?person="], #form-view [data-act="open"]';
+    document.addEventListener('click', async (e) => {
+      if (!dirty || !formOpen()) return;
+      const el = e.target.closest(LEAVE); if (!el) return;
+      if (e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0) return;   // у новій вкладці — ця картка лишається відкритою
+      e.preventDefault(); e.stopImmediatePropagation();
+      if (await guardLeave()) el.click();
+    }, true);
+    window.addEventListener('beforeunload', (e) => { if (dirty && formOpen()) { e.preventDefault(); e.returnValue = ''; } });
+  }
+
+  async function save(e, opt = {}) {
+    if (e && e.preventDefault) e.preventDefault();
     clearHints();
     setFormError('');
     const f = $('person-form');
@@ -1257,7 +1329,7 @@ window.Persons = (() => {
       setFormError('Виправте поля, позначені червоним.');
       const firstBad = f.querySelector('[aria-invalid="true"]');
       if (firstBad) firstBad.focus();
-      return;
+      return false;
     }
 
     // Додаткові телефони; якщо основний порожній — піднімаємо перший додатковий
@@ -1323,11 +1395,13 @@ window.Persons = (() => {
       } else {
         setFormError('Не вдалося зберегти. Перевірте інтернет і спробуйте ще раз.');
       }
-      return;
+      return false;
     }
 
     toast(wasNewSave ? 'Особу додано' : 'Зміни збережено');
-    closeForm();
+    markClean();
+    if (!opt.stay) closeForm();
+    return true;
   }
 
   // ---------- Видалення (лише адміністратор) ----------
@@ -1408,5 +1482,5 @@ window.Persons = (() => {
     return !!$('search').value.trim() || Filters.activeCount() > 0;
   }
 
-  return { init, showList, buildQuery, ctx, toast, resetAll, hasSelection, openForm, levelLabel, reloadUnits, namesOr, countNames };
+  return { init, showList, buildQuery, ctx, toast, resetAll, hasSelection, openForm, guardLeave, isDirty: () => dirty && formOpen(), levelLabel, reloadUnits, namesOr, countNames };
 })();

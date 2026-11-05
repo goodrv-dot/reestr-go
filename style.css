@@ -943,6 +943,8 @@ input.is-bad, textarea.is-bad { border-color: var(--err) !important; background:
 .sum-cell.is-ro { cursor: default; }
 .sum-cell.sum-wide { grid-column: 1 / -1; }
 .sum-cell.sum-wide .sum-v { max-height: none; }
+.stage.stage-wide { grid-column: 1 / -1; }
+.stage.stage-wide textarea { resize: none; overflow: hidden; }
 .sum-checks { display: flex; flex-direction: column; gap: 0.15rem; font-size: 0.82rem; }
 .sum-checks label { font-weight: 400; }
 .cab-dates { display: inline-flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; font-size: 0.92rem; }
@@ -1307,3 +1309,5 @@ body.read-only .sum-cell.is-ro { cursor: default; }
 .dash-metric-map[aria-pressed="true"] { background: #b3261e; border-color: #b3261e; color: #fff; }
 .dash-metrics-map { margin-top: -0.25rem; }
 .list-note { width: 100%; min-width: 16rem; font: inherit; font-size: 0.85rem; resize: vertical; line-height: 1.3; padding: 0.25rem 0.35rem; }
+
+textarea.one-line { resize: none; overflow: hidden; min-height: 2.4rem; }

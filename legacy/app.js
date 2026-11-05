@@ -71,6 +71,16 @@ function showApp(operator, userId) {
       } catch (e) {
         console.error(e);
       }
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && e.target.matches && e.target.matches("textarea.one-line")) e.preventDefault();
+      });
+      document.addEventListener("input", (e) => {
+        const t = e.target;
+        if (t.matches && t.matches("textarea.one-line")) {
+          if (/\n/.test(t.value)) t.value = t.value.replace(/\s*\n\s*/g, " ");
+          window.growOneLine(t);
+        }
+      });
       if (A.lists) Lists.init(db, userId, operator.role === "admin");
       window.__exp = true;
     }

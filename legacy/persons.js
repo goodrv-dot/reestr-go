@@ -1,4 +1,9 @@
 // АВТОМАТИЧНО з persons.js (tools/build-legacy.mjs) — не редагувати вручну
+window.growOneLine = (t) => setTimeout(() => {
+  if (!t || !t.scrollHeight) return;
+  t.style.height = "auto";
+  t.style.height = t.scrollHeight + 2 + "px";
+});
 window.Persons = /* @__PURE__ */ (() => {
   let db = null;
   let isAdmin = false;
@@ -368,6 +373,7 @@ window.Persons = /* @__PURE__ */ (() => {
     $("death-wrap").hidden = !OPT.deceased_statuses.includes(f.military_status.value);
     $("burial-wrap").hidden = $("death-wrap").hidden;
     $("burial-place-wrap").hidden = $("death-wrap").hidden;
+    if (!$("burial-place-wrap").hidden) growOneLine($("f-burial_place"));
   }
   function bind() {
     $("add-btn").addEventListener("click", () => openForm(null));
@@ -1074,6 +1080,7 @@ window.Persons = /* @__PURE__ */ (() => {
     f.death_date.value = p.death_date || "";
     f.burial_date.value = p.burial_date || "";
     f.burial_place.value = p.burial_place || "";
+    growOneLine(f.burial_place);
     {
       const w = $("burial-place-wrap");
       w.querySelectorAll(".bm-line").forEach((x) => x.remove());

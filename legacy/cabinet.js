@@ -1549,6 +1549,17 @@ window.Cabinet = (() => {
         el.value = /^\d{4}-\d{2}-\d{2}/.test(v) ? String(v).slice(0, 10) : "";
       });
     } else el.addEventListener("change", () => f.onSave(el.value.trim(), el));
+    if (f.oneLine && el.tagName === "TEXTAREA") {
+      el.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          el.blur();
+        }
+      });
+      el.addEventListener("input", () => {
+        if (/\n/.test(el.value)) el.value = el.value.replace(/\s*\n\s*/g, " ");
+      });
+    }
     if (el.tagName === "TEXTAREA") {
       const grow = () => {
         el.style.height = "auto";
@@ -1564,11 +1575,15 @@ window.Cabinet = (() => {
     const { units, regions } = Persons.ctx();
     const out = [];
     ((PERSON_FIELDS[module] || {})[sec] || []).forEach(([key, label, type]) => {
-      const kind = type === "code" ? "list" : type === "date" ? "date" : type === "unit" || type === "region" ? "map" : type === "phone" ? "phone" : key === "comment" ? "text" : "line";
+      const kind = type === "code" ? "list" : type === "date" ? "date" : type === "unit" || type === "region" ? "map" : type === "phone" ? "phone" : key === "comment" || key === "burial_place" ? "text" : "line";
+      const wideLine = key === "burial_place";
       out.push({
         id: "p-" + key,
         label,
         kind,
+        wide: wideLine,
+        oneLine: wideLine,
+        cls: wideLine ? "stage-wide" : "",
         options: type === "code" ? unitCodes() : type === "unit" ? units : type === "region" ? regions : null,
         value: p[key],
         onSave: (val, el) => savePerson(key, val, type, el),

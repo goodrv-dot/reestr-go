@@ -2,6 +2,8 @@
 // Особи: список, пошук, картка (основні дані, військовий статус,
 // інвалідність, Морська піхота), видалення
 // ============================================================
+// Висота поля під текст (поле приховане — лишаємо як є)
+window.growOneLine = (t) => setTimeout(() => { if (!t || !t.scrollHeight) return; t.style.height = 'auto'; t.style.height = t.scrollHeight + 2 + 'px'; });
 window.Persons = (() => {
   let db = null;
   let isAdmin = false;
@@ -380,6 +382,7 @@ window.Persons = (() => {
     $('death-wrap').hidden = !OPT.deceased_statuses.includes(f.military_status.value);
     $('burial-wrap').hidden = $('death-wrap').hidden;
     $('burial-place-wrap').hidden = $('death-wrap').hidden;
+    if (!$('burial-place-wrap').hidden) growOneLine($('f-burial_place'));
   }
 
   function bind() {
@@ -1051,7 +1054,7 @@ window.Persons = (() => {
 
     f.death_date.value = p.death_date || '';
     f.burial_date.value = p.burial_date || '';
-    f.burial_place.value = p.burial_place || '';
+    f.burial_place.value = p.burial_place || ''; growOneLine(f.burial_place);
     { const w = $('burial-place-wrap'); w.querySelectorAll('.bm-line').forEach((x) => x.remove());   // 📍 де на карті
       if (window.BurialMap && p.burial_place) w.appendChild(BurialMap.placeLine(p)); }
     f.callsign.value = p.callsign || '';

@@ -1048,6 +1048,10 @@ window.Cabinet = (() => {
         el.value = /^\d{4}-\d{2}-\d{2}/.test(v) ? String(v).slice(0, 10) : '';
       });
     } else el.addEventListener('change', () => f.onSave(el.value.trim(), el));
+    if (f.oneLine && el.tagName === 'TEXTAREA') {
+      el.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); el.blur(); } });
+      el.addEventListener('input', () => { if (/\n/.test(el.value)) el.value = el.value.replace(/\s*\n\s*/g, ' '); });
+    }
     if (el.tagName === 'TEXTAREA') {
       const grow = () => { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; };
       el.addEventListener('input', grow); setTimeout(grow);
@@ -1059,8 +1063,9 @@ window.Cabinet = (() => {
     const c = current, p = c.person; const { units, regions } = Persons.ctx();
     const out = [];
     ((PERSON_FIELDS[module] || {})[sec] || []).forEach(([key, label, type]) => {
-      const kind = type === 'code' ? 'list' : type === 'date' ? 'date' : type === 'unit' || type === 'region' ? 'map' : type === 'phone' ? 'phone' : key === 'comment' ? 'text' : 'line';
-      out.push({ id: 'p-' + key, label, kind, options: type === 'code' ? unitCodes() : type === 'unit' ? units : type === 'region' ? regions : null,
+      const kind = type === 'code' ? 'list' : type === 'date' ? 'date' : type === 'unit' || type === 'region' ? 'map' : type === 'phone' ? 'phone' : key === 'comment' || key === 'burial_place' ? 'text' : 'line';
+      const wideLine = key === 'burial_place';   // довга адреса — на всю ширину, у кілька рядків, але без Enter
+      out.push({ id: 'p-' + key, label, kind, wide: wideLine, oneLine: wideLine, cls: wideLine ? 'stage-wide' : '', options: type === 'code' ? unitCodes() : type === 'unit' ? units : type === 'region' ? regions : null,
         value: p[key], onSave: (val, el) => savePerson(key, val, type, el),
         extra: key === 'burial_place' && window.BurialMap ? BurialMap.placeLine(p, { cellId: c.cell_id, journalId: c.journal_id, onChange: () => { refreshStages(); loadHistory(); } }) : null });
     });

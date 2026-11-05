@@ -19,7 +19,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Unbounded:wght@600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=202611041227">
+  <link rel="stylesheet" href="style.css?v=202611050715">
 </head>
 <body>
 
@@ -238,8 +238,8 @@
                 <input id="f-death_date" name="death_date" type="date"><p class="hint" id="h-death_date"></p></div>
               <div class="field" id="burial-wrap" hidden><label for="f-burial_date">Дата поховання</label>
                 <input id="f-burial_date" name="burial_date" type="date"><p class="hint" id="h-burial_date"></p></div>
-              <div class="field" id="burial-place-wrap" hidden><label for="f-burial_place">Місце поховання</label>
-                <input id="f-burial_place" name="burial_place"></div>
+              <div class="field field-span" id="burial-place-wrap" hidden><label for="f-burial_place">Місце поховання</label>
+                <textarea id="f-burial_place" name="burial_place" rows="2" class="one-line"></textarea></div>
               <div class="field"><label for="f-callsign">Позивний</label>
                 <input id="f-callsign" name="callsign"></div>
               <div class="field"><label for="f-military_unit_code">В/ч (код частини)</label>
@@ -1657,6 +1657,6 @@
   </dialog>
   <div id="print-area" class="print-area" aria-hidden="true"></div>
   <!-- скрипти підключає boot.js: сучасні — для нових браузерів, legacy/ — для старіших iPhone (див. tools/build-legacy.mjs) -->
-  <script src="boot.js?v=202611041227"></script>
+  <script src="boot.js?v=202611050715"></script>
 </body>
 </html>

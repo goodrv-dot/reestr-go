@@ -134,8 +134,8 @@
         b.innerHTML = '<b></b><span></span>';
         b.firstChild.textContent = x.fio;
         b.lastChild.textContent = x.label ? `${x.label} · ${x.days < 0 ? `прострочено на ${-x.days} ${plural(-x.days, 'день', 'дні', 'днів')}` : 'сьогодні'}` : `справа ${x.journal_id}`;
-        b.onclick = () => { p.hidden = true; document.querySelector('.tab[data-tab="cabinet"]').click(); openByJournal(x.journal_id); };
-        li.appendChild(b); ul.appendChild(li);
+        li.appendChild(b);
+        tabLink(b, caseHref(x.journal_id), () => { p.hidden = true; document.querySelector('.tab[data-tab="cabinet"]').click(); openByJournal(x.journal_id); }); ul.appendChild(li);
       });
       p.appendChild(ul);
       if (list.length > 15) { const m = document.createElement('p'); m.className = 'muted'; m.textContent = `…і ще ${list.length - 15} — дивіться в кабінеті`; p.appendChild(m); }

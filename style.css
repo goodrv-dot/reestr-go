@@ -1311,3 +1311,9 @@ body.read-only .sum-cell.is-ro { cursor: default; }
 .list-note { width: 100%; min-width: 16rem; font: inherit; font-size: 0.85rem; resize: vertical; line-height: 1.3; padding: 0.25rem 0.35rem; }
 
 textarea.one-line { resize: none; overflow: hidden; min-height: 2.4rem; }
+
+/* Посилання, що відкриваються в новій вкладці (правий клік) — виглядають як раніше */
+a.row-link { color: inherit; text-decoration: none; }
+a.row-link:hover, a.row-link:focus-visible { text-decoration: underline; text-underline-offset: 3px; }
+a.btn-secondary.tab-link, a.btn-primary.tab-link { display: inline-block; text-decoration: none; }
+a.bell-item { text-decoration: none; box-sizing: border-box; }

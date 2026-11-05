@@ -214,13 +214,13 @@
         <td class="cab-exec"></td>
         <td class="cab-next"></td>
         <td><span class="cab-progress"><i style="width:${pct}%"></i></span> <span class="muted">${filled}/${totalStages}</span></td>`;
-      tr.children[0].textContent = c.journal_id;
+      { const a = document.createElement('a'); a.className = 'row-link'; a.textContent = c.journal_id; tr.children[0].appendChild(tabLink(a, caseHref(c.journal_id), () => openCase(c.id))); }
       { const g = gaps(c); const q = document.createElement('span'); q.className = 'cab-q';
         if (!g.crit && !g.soft) q.innerHTML = '<span class="q-ok" title="Усе заповнено">✓</span>';
         else q.innerHTML = (g.crit ? `<span class="q-pill q-pill-crit" title="Потрібно заповнити: ${g.crit}">${g.crit}</span>` : '') + (g.soft ? `<span class="q-pill q-pill-warn" title="Бажано заповнити: ${g.soft}">${g.soft}</span>` : '');
         tr.children[0].append(document.createElement('br'), q);
         const cr = createdOf(c); if (cr) { const s = document.createElement('span'); s.className = 'cab-created muted'; s.textContent = cr.short; s.title = cr.full; tr.children[0].append(document.createElement('br'), s); } }
-      tr.children[1].textContent = fio(c.person);
+      { const a = document.createElement('a'); a.className = 'row-link'; a.textContent = fio(c.person); tr.children[1].appendChild(tabLink(a, caseHref(c.journal_id), () => openCase(c.id))); }
       { const p = c.person; const lines = [];
         // 200: народження й загибель — одним рядком, поховання — окремим
         if (module === '200') { const b = [p.birth_date && 'н. ' + fmt(p.birth_date), p.death_date && 'заг. ' + fmt(p.death_date)].filter(Boolean).join(' · '); if (b) lines.push(b); }

@@ -4,6 +4,29 @@ window.growOneLine = (t) => setTimeout(() => {
   t.style.height = "auto";
   t.style.height = t.scrollHeight + 2 + "px";
 });
+window.tabLink = (el, href, go) => {
+  let a = el;
+  if (el.tagName !== "A") {
+    a = document.createElement("a");
+    a.className = el.className;
+    if (el.id) a.id = el.id;
+    if (el.title) a.title = el.title;
+    while (el.firstChild) a.appendChild(el.firstChild);
+    el.replaceWith(a);
+  }
+  a.href = href;
+  a.classList.add("tab-link");
+  a.title = (a.title ? a.title + " · " : "") + "правий клік — відкрити в новій вкладці";
+  a.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0) return;
+    e.preventDefault();
+    go(e);
+  });
+  return a;
+};
+window.personHref = (id) => "?person=" + encodeURIComponent(id);
+window.caseHref = (jid) => "?case=" + encodeURIComponent(jid);
 window.Persons = /* @__PURE__ */ (() => {
   let db = null;
   let isAdmin = false;
@@ -234,7 +257,7 @@ window.Persons = /* @__PURE__ */ (() => {
         const cl = V.callLink(pr.phone);
         if (cl) li.querySelector(".kin-phone").after(" ", cl);
       }
-      li.querySelector(".kin-open").addEventListener("click", () => openForm(pr.id));
+      tabLink(li.querySelector(".kin-open"), personHref(pr.id), () => openForm(pr.id));
       if (suggested) {
         const b = document.createElement("button");
         b.type = "button";
@@ -279,11 +302,11 @@ window.Persons = /* @__PURE__ */ (() => {
         b.type = "button";
         b.className = "btn-link";
         b.textContent = `${r.relation_degree} — ${[r.person.last_name, r.person.first_name].filter(Boolean).join(" ")}`;
-        b.addEventListener("click", () => {
+        const bl = tabLink(b, personHref(r.person.id), () => {
           if (confirm("Перейти до цієї картки? Незбережені зміни буде втрачено.")) openForm(r.person.id);
         });
         if (k) box.append(", ");
-        box.appendChild(b);
+        box.appendChild(bl);
       });
       box.hidden = false;
     }
@@ -746,7 +769,12 @@ window.Persons = /* @__PURE__ */ (() => {
       tr.appendChild(qualityCell(p.critical_count, p.warning_count));
       const nm = document.createElement("td");
       nm.className = "cell-name";
-      nm.textContent = [p.last_name, p.first_name, p.patronymic].filter(Boolean).join(" ");
+      {
+        const a = document.createElement("a");
+        a.className = "row-link";
+        a.textContent = [p.last_name, p.first_name, p.patronymic].filter(Boolean).join(" ");
+        nm.appendChild(tabLink(a, personHref(p.id), () => openForm(p.id)));
+      }
       const badges = moduleBadges(p.program_ids, p.main_program_ids, p.is_extra);
       if (badges.childNodes.length) {
         const wrap = document.createElement("div");

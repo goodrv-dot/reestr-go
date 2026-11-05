@@ -27,7 +27,7 @@
     shown.slice(0, LIMIT).forEach((c) => {
       const li = document.createElement('li'); li.className = 'today-item lvl-' + c.next.level;
       li.innerHTML = '<button type="button" class="btn-link today-name"></button><span class="today-what"></span><span class="today-due"></span><span class="today-act"></span>';
-      li.children[0].textContent = fio(c.person); li.children[0].onclick = () => openCase(c.id);
+      li.children[0].textContent = fio(c.person); tabLink(li.children[0], caseHref(c.journal_id), () => openCase(c.id));
       li.children[1].textContent = c.next.label; li.children[2].textContent = dueText(c.next);
       const done = document.createElement('button'); done.type = 'button'; done.className = 'btn-secondary btn-small';
       if (c.next.kind === 'date') { done.textContent = 'Зроблено'; done.title = 'Поставити сьогоднішню дату'; done.onclick = () => markDone(c, done); }

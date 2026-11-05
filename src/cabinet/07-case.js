@@ -80,7 +80,7 @@
     keep('cab_case', c.journal_id);           // після F5 відкриємо цю ж справу
     if (isNew(c) || !seen.has(c.id)) { const at = new Date().toISOString(); seen.set(c.id, at); db.from('case_seen').upsert({ case_id: c.id, user_id: me, seen_at: at }, { onConflict: 'user_id,case_id' }).then(() => badge()); }
     $('case-link').onclick = () => copyLink(`?case=${encodeURIComponent(c.journal_id)}`, `Посилання на справу ${c.journal_id} скопійовано`);
-    $('case-open-person').onclick = () => openPerson(p.id);
+    { const b = $('case-open-person'); if (b.tagName === 'A') { b.href = personHref(p.id); } else tabLink(b, personHref(p.id), () => openPerson(current.person.id)); }
 
     const sSel = $('case-status'); sSel.innerHTML = '';
     statuses.forEach((s) => sSel.add(new Option(s.name, s.name)));
@@ -133,7 +133,7 @@
     if (!k) { box.innerHTML = '<span class="muted">Контактну особу не вказано — додайте рідних у розділі «Родина».</span>'; docsLink(); return; }
     box.innerHTML = '<span class="muted">Контактна особа:</span> <button type="button" class="btn-link case-contact-name" title="Відкрити картку в реєстрі"></button> <span class="muted"></span> <b class="case-phone"></b>';
     box.children[1].textContent = fio(k.person);
-    box.children[1].onclick = () => openPerson(k.person.id);
+    tabLink(box.children[1], personHref(k.person.id), () => openPerson(k.person.id));
     box.children[2].textContent = `(${k.relation_degree})`;
     box.children[3].textContent = k.person.phone ? V.formatPhone(k.person.phone) : 'без телефону';
     { const cl = callLink(k.person.phone); if (cl) box.children[3].after(' ', cl); }

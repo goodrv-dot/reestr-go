@@ -267,7 +267,7 @@ window.Cabinet = (() => {
     shown.slice(0, LIMIT).forEach((c) => {
       const li = document.createElement('li'); li.className = 'today-item lvl-' + c.next.level;
       li.innerHTML = '<button type="button" class="btn-link today-name"></button><span class="today-what"></span><span class="today-due"></span><span class="today-act"></span>';
-      li.children[0].textContent = fio(c.person); li.children[0].onclick = () => openCase(c.id);
+      li.children[0].textContent = fio(c.person); tabLink(li.children[0], caseHref(c.journal_id), () => openCase(c.id));
       li.children[1].textContent = c.next.label; li.children[2].textContent = dueText(c.next);
       const done = document.createElement('button'); done.type = 'button'; done.className = 'btn-secondary btn-small';
       if (c.next.kind === 'date') { done.textContent = 'Зроблено'; done.title = 'Поставити сьогоднішню дату'; done.onclick = () => markDone(c, done); }
@@ -760,13 +760,13 @@ window.Cabinet = (() => {
         <td class="cab-exec"></td>
         <td class="cab-next"></td>
         <td><span class="cab-progress"><i style="width:${pct}%"></i></span> <span class="muted">${filled}/${totalStages}</span></td>`;
-      tr.children[0].textContent = c.journal_id;
+      { const a = document.createElement('a'); a.className = 'row-link'; a.textContent = c.journal_id; tr.children[0].appendChild(tabLink(a, caseHref(c.journal_id), () => openCase(c.id))); }
       { const g = gaps(c); const q = document.createElement('span'); q.className = 'cab-q';
         if (!g.crit && !g.soft) q.innerHTML = '<span class="q-ok" title="Усе заповнено">✓</span>';
         else q.innerHTML = (g.crit ? `<span class="q-pill q-pill-crit" title="Потрібно заповнити: ${g.crit}">${g.crit}</span>` : '') + (g.soft ? `<span class="q-pill q-pill-warn" title="Бажано заповнити: ${g.soft}">${g.soft}</span>` : '');
         tr.children[0].append(document.createElement('br'), q);
         const cr = createdOf(c); if (cr) { const s = document.createElement('span'); s.className = 'cab-created muted'; s.textContent = cr.short; s.title = cr.full; tr.children[0].append(document.createElement('br'), s); } }
-      tr.children[1].textContent = fio(c.person);
+      { const a = document.createElement('a'); a.className = 'row-link'; a.textContent = fio(c.person); tr.children[1].appendChild(tabLink(a, caseHref(c.journal_id), () => openCase(c.id))); }
       { const p = c.person; const lines = [];
         // 200: народження й загибель — одним рядком, поховання — окремим
         if (module === '200') { const b = [p.birth_date && 'н. ' + fmt(p.birth_date), p.death_date && 'заг. ' + fmt(p.death_date)].filter(Boolean).join(' · '); if (b) lines.push(b); }
@@ -914,7 +914,7 @@ window.Cabinet = (() => {
     keep('cab_case', c.journal_id);           // після F5 відкриємо цю ж справу
     if (isNew(c) || !seen.has(c.id)) { const at = new Date().toISOString(); seen.set(c.id, at); db.from('case_seen').upsert({ case_id: c.id, user_id: me, seen_at: at }, { onConflict: 'user_id,case_id' }).then(() => badge()); }
     $('case-link').onclick = () => copyLink(`?case=${encodeURIComponent(c.journal_id)}`, `Посилання на справу ${c.journal_id} скопійовано`);
-    $('case-open-person').onclick = () => openPerson(p.id);
+    { const b = $('case-open-person'); if (b.tagName === 'A') { b.href = personHref(p.id); } else tabLink(b, personHref(p.id), () => openPerson(current.person.id)); }
 
     const sSel = $('case-status'); sSel.innerHTML = '';
     statuses.forEach((s) => sSel.add(new Option(s.name, s.name)));
@@ -967,7 +967,7 @@ window.Cabinet = (() => {
     if (!k) { box.innerHTML = '<span class="muted">Контактну особу не вказано — додайте рідних у розділі «Родина».</span>'; docsLink(); return; }
     box.innerHTML = '<span class="muted">Контактна особа:</span> <button type="button" class="btn-link case-contact-name" title="Відкрити картку в реєстрі"></button> <span class="muted"></span> <b class="case-phone"></b>';
     box.children[1].textContent = fio(k.person);
-    box.children[1].onclick = () => openPerson(k.person.id);
+    tabLink(box.children[1], personHref(k.person.id), () => openPerson(k.person.id));
     box.children[2].textContent = `(${k.relation_degree})`;
     box.children[3].textContent = k.person.phone ? V.formatPhone(k.person.phone) : 'без телефону';
     { const cl = callLink(k.person.phone); if (cl) box.children[3].after(' ', cl); }
@@ -1292,7 +1292,7 @@ window.Cabinet = (() => {
         <label>Населений пункт, адреса<input data-f="settlement"></label>
         <label class="fam-contact"><input type="radio" name="fam-contact"> контактна особа</label>`;
       const q = (f) => row.querySelector(`[data-f="${f}"]`);
-      row.children[0].textContent = fio(k.person); row.children[0].onclick = () => openPerson(k.person.id);
+      row.children[0].textContent = fio(k.person); tabLink(row.children[0], personHref(k.person.id), () => openPerson(k.person.id));
       q('deg').value = k.relation_degree; q('phone').value = V.formatPhone(k.person.phone) || ''; q('settlement').value = k.person.settlement || '';
       { const cl = callLink(k.person.phone); const lab = q('phone').parentElement;   // «Телефон 📞» над полем
         if (cl) { const h = document.createElement('span'); h.append('Телефон ', cl); lab.replaceChild(h, lab.firstChild); } }
@@ -1757,8 +1757,8 @@ window.Cabinet = (() => {
         b.innerHTML = '<b></b><span></span>';
         b.firstChild.textContent = x.fio;
         b.lastChild.textContent = x.label ? `${x.label} · ${x.days < 0 ? `прострочено на ${-x.days} ${plural(-x.days, 'день', 'дні', 'днів')}` : 'сьогодні'}` : `справа ${x.journal_id}`;
-        b.onclick = () => { p.hidden = true; document.querySelector('.tab[data-tab="cabinet"]').click(); openByJournal(x.journal_id); };
-        li.appendChild(b); ul.appendChild(li);
+        li.appendChild(b);
+        tabLink(b, caseHref(x.journal_id), () => { p.hidden = true; document.querySelector('.tab[data-tab="cabinet"]').click(); openByJournal(x.journal_id); }); ul.appendChild(li);
       });
       p.appendChild(ul);
       if (list.length > 15) { const m = document.createElement('p'); m.className = 'muted'; m.textContent = `…і ще ${list.length - 15} — дивіться в кабінеті`; p.appendChild(m); }

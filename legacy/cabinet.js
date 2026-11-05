@@ -371,7 +371,7 @@ window.Cabinet = (() => {
       li.className = "today-item lvl-" + c.next.level;
       li.innerHTML = '<button type="button" class="btn-link today-name"></button><span class="today-what"></span><span class="today-due"></span><span class="today-act"></span>';
       li.children[0].textContent = fio(c.person);
-      li.children[0].onclick = () => openCase(c.id);
+      tabLink(li.children[0], caseHref(c.journal_id), () => openCase(c.id));
       li.children[1].textContent = c.next.label;
       li.children[2].textContent = dueText(c.next);
       const done = document.createElement("button");
@@ -1074,7 +1074,12 @@ window.Cabinet = (() => {
         <td class="cab-exec"></td>
         <td class="cab-next"></td>
         <td><span class="cab-progress"><i style="width:${pct}%"></i></span> <span class="muted">${filled}/${totalStages}</span></td>`;
-      tr.children[0].textContent = c.journal_id;
+      {
+        const a = document.createElement("a");
+        a.className = "row-link";
+        a.textContent = c.journal_id;
+        tr.children[0].appendChild(tabLink(a, caseHref(c.journal_id), () => openCase(c.id)));
+      }
       {
         const g = gaps(c);
         const q = document.createElement("span");
@@ -1091,7 +1096,12 @@ window.Cabinet = (() => {
           tr.children[0].append(document.createElement("br"), s);
         }
       }
-      tr.children[1].textContent = fio(c.person);
+      {
+        const a = document.createElement("a");
+        a.className = "row-link";
+        a.textContent = fio(c.person);
+        tr.children[1].appendChild(tabLink(a, caseHref(c.journal_id), () => openCase(c.id)));
+      }
       {
         const p = c.person;
         const lines = [];
@@ -1370,7 +1380,12 @@ window.Cabinet = (() => {
       db.from("case_seen").upsert({ case_id: c.id, user_id: me, seen_at: at }, { onConflict: "user_id,case_id" }).then(() => badge());
     }
     $("case-link").onclick = () => copyLink(`?case=${encodeURIComponent(c.journal_id)}`, `Посилання на справу ${c.journal_id} скопійовано`);
-    $("case-open-person").onclick = () => openPerson(p.id);
+    {
+      const b = $("case-open-person");
+      if (b.tagName === "A") {
+        b.href = personHref(p.id);
+      } else tabLink(b, personHref(p.id), () => openPerson(current.person.id));
+    }
     const sSel = $("case-status");
     sSel.innerHTML = "";
     statuses.forEach((s) => sSel.add(new Option(s.name, s.name)));
@@ -1444,7 +1459,7 @@ window.Cabinet = (() => {
     }
     box.innerHTML = '<span class="muted">Контактна особа:</span> <button type="button" class="btn-link case-contact-name" title="Відкрити картку в реєстрі"></button> <span class="muted"></span> <b class="case-phone"></b>';
     box.children[1].textContent = fio(k.person);
-    box.children[1].onclick = () => openPerson(k.person.id);
+    tabLink(box.children[1], personHref(k.person.id), () => openPerson(k.person.id));
     box.children[2].textContent = `(${k.relation_degree})`;
     box.children[3].textContent = k.person.phone ? V.formatPhone(k.person.phone) : "без телефону";
     {
@@ -1988,7 +2003,7 @@ window.Cabinet = (() => {
         <label class="fam-contact"><input type="radio" name="fam-contact"> контактна особа</label>`;
       const q = (f) => row.querySelector(`[data-f="${f}"]`);
       row.children[0].textContent = fio(k.person);
-      row.children[0].onclick = () => openPerson(k.person.id);
+      tabLink(row.children[0], personHref(k.person.id), () => openPerson(k.person.id));
       q("deg").value = k.relation_degree;
       q("phone").value = V.formatPhone(k.person.phone) || "";
       q("settlement").value = k.person.settlement || "";
@@ -2760,12 +2775,12 @@ ${ex.name}
         b.innerHTML = "<b></b><span></span>";
         b.firstChild.textContent = x.fio;
         b.lastChild.textContent = x.label ? `${x.label} · ${x.days < 0 ? `прострочено на ${-x.days} ${plural(-x.days, "день", "дні", "днів")}` : "сьогодні"}` : `справа ${x.journal_id}`;
-        b.onclick = () => {
+        li.appendChild(b);
+        tabLink(b, caseHref(x.journal_id), () => {
           p.hidden = true;
           document.querySelector('.tab[data-tab="cabinet"]').click();
           openByJournal(x.journal_id);
-        };
-        li.appendChild(b);
+        });
         ul.appendChild(li);
       });
       p.appendChild(ul);

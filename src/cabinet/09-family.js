@@ -14,7 +14,7 @@
         <label>Населений пункт, адреса<input data-f="settlement"></label>
         <label class="fam-contact"><input type="radio" name="fam-contact"> контактна особа</label>`;
       const q = (f) => row.querySelector(`[data-f="${f}"]`);
-      row.children[0].textContent = fio(k.person); row.children[0].onclick = () => openPerson(k.person.id);
+      row.children[0].textContent = fio(k.person); tabLink(row.children[0], personHref(k.person.id), () => openPerson(k.person.id));
       q('deg').value = k.relation_degree; q('phone').value = V.formatPhone(k.person.phone) || ''; q('settlement').value = k.person.settlement || '';
       { const cl = callLink(k.person.phone); const lab = q('phone').parentElement;   // «Телефон 📞» над полем
         if (cl) { const h = document.createElement('span'); h.append('Телефон ', cl); lab.replaceChild(h, lab.firstChild); } }

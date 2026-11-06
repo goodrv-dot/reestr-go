@@ -1379,11 +1379,6 @@ window.Cabinet = (() => {
       seen.set(c.id, at);
       db.from("case_seen").upsert({ case_id: c.id, user_id: me, seen_at: at }, { onConflict: "user_id,case_id" }).then(() => badge());
     }
-    {
-      const b = $("case-driver");
-      b.hidden = module !== "200";
-      b.onclick = () => openDriverMsg();
-    }
     $("case-link").onclick = () => copyLink(`?case=${encodeURIComponent(c.journal_id)}`, `Посилання на справу ${c.journal_id} скопійовано`);
     {
       const b = $("case-open-person");
@@ -1610,7 +1605,7 @@ window.Cabinet = (() => {
         extra: key === "burial_place" && window.BurialMap ? BurialMap.placeLine(p, { cellId: c.cell_id, journalId: c.journal_id, onChange: () => {
           refreshStages();
           loadHistory();
-        } }) : null
+        }, onDriver: module === "200" ? (link) => openDriverMsg(link) : null }) : null
       });
     });
     secDefs(sec).forEach((d) => {
@@ -1756,7 +1751,7 @@ window.Cabinet = (() => {
     ];
     return parts.filter(Boolean).join("\n\n");
   }
-  async function openDriverMsg() {
+  async function openDriverMsg(routeLink) {
     const c = current;
     if (!c) return;
     const p = c.person, v = c.vals || {};
@@ -1764,6 +1759,7 @@ window.Cabinet = (() => {
     const pointLink = p.burial_lat != null && p.burial_lon != null ? `https://maps.google.com/?q=${p.burial_lat},${p.burial_lon}` : "";
     const m = drvManual.get(c.id) || { schedule: "", handover: "", resp: "", link: pointLink };
     drvManual.set(c.id, m);
+    if (routeLink) m.link = routeLink;
     $("drv-schedule").value = m.schedule;
     $("drv-handover").value = m.handover;
     $("drv-resp").value = m.resp;
@@ -1773,7 +1769,7 @@ window.Cabinet = (() => {
       !p.burial_date && "дата поховання",
       !place && "місце поховання",
       !v.rank && "звання",
-      !m.link && "точка поховання на карті (посилання)",
+      !m.link && "посилання на локацію",
       !v.unit_contacts && "контакти підрозділу (ЦВС)",
       !v.tck && !v.tck_contacts && "ТЦК"
     ].filter(Boolean);

@@ -280,6 +280,7 @@ window.BurialMap = (() => {
         origin.label = q; upd();
       };
       tools.querySelector('.bm-copy').onclick = async () => {
+        if (ctx.onDriver) { ctx.onDriver(gmaps(origin, dest)); return; }   // справа 200: повний текст для водія (вікно кабінету)
         const lines = [
           `Поховання: ${fio(person)}${ctx.journalId ? ` (справа ${ctx.journalId})` : ''}`,
           String(person.burial_place || '').trim(),

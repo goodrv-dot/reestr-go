@@ -79,7 +79,6 @@
     const c = current, p = c.person;
     keep('cab_case', c.journal_id);           // після F5 відкриємо цю ж справу
     if (isNew(c) || !seen.has(c.id)) { const at = new Date().toISOString(); seen.set(c.id, at); db.from('case_seen').upsert({ case_id: c.id, user_id: me, seen_at: at }, { onConflict: 'user_id,case_id' }).then(() => badge()); }
-    { const b = $('case-driver'); b.hidden = module !== '200'; b.onclick = () => openDriverMsg(); }
     $('case-link').onclick = () => copyLink(`?case=${encodeURIComponent(c.journal_id)}`, `Посилання на справу ${c.journal_id} скопійовано`);
     { const b = $('case-open-person'); if (b.tagName === 'A') { b.href = personHref(p.id); } else tabLink(b, personHref(p.id), () => openPerson(current.person.id)); }
 
@@ -234,7 +233,7 @@
       const wideLine = key === 'burial_place';   // довга адреса — на всю ширину, у кілька рядків, але без Enter
       out.push({ id: 'p-' + key, label, kind, wide: wideLine, oneLine: wideLine, cls: wideLine ? 'stage-wide' : '', options: type === 'code' ? unitCodes() : type === 'unit' ? units : type === 'region' ? regions : null,
         value: p[key], onSave: (val, el) => savePerson(key, val, type, el),
-        extra: key === 'burial_place' && window.BurialMap ? BurialMap.placeLine(p, { cellId: c.cell_id, journalId: c.journal_id, onChange: () => { refreshStages(); loadHistory(); } }) : null });
+        extra: key === 'burial_place' && window.BurialMap ? BurialMap.placeLine(p, { cellId: c.cell_id, journalId: c.journal_id, onChange: () => { refreshStages(); loadHistory(); }, onDriver: module === '200' ? (link) => openDriverMsg(link) : null }) : null });
     });
     secDefs(sec).forEach((d) => {
       const v = c.vals[d.key] ?? ''; const f = { id: 's-' + d.key, label: d.label, kind: d.kind === 'text' ? 'text' : d.kind, options: d.options, value: v,
@@ -308,7 +307,7 @@
   }
   const emptyOpen = new Set();
 
-  // ---------- Повідомлення водію (200): маршрут на поховання ----------
+  // ---------- Повідомлення для водія (200): кнопка «📋 Скопіювати для водія» під «Місцем поховання» ----------
   // Текст збирається з даних справи; розклад, «кому вручати», відповідальну й посилання вписують у вікні —
   // у справу вони не пишуться, лише пам’ятаються до перезавантаження сторінки (для кожної справи окремо).
   const drvManual = new Map();
@@ -337,16 +336,17 @@
     ];
     return parts.filter(Boolean).join('\n\n');
   }
-  async function openDriverMsg() {
+  async function openDriverMsg(routeLink) {
     const c = current; if (!c) return;
     const p = c.person, v = c.vals || {};
     const dlg = $('drv-dialog');
     const pointLink = p.burial_lat != null && p.burial_lon != null ? `https://maps.google.com/?q=${p.burial_lat},${p.burial_lon}` : '';
     const m = drvManual.get(c.id) || { schedule: '', handover: '', resp: '', link: pointLink };
     drvManual.set(c.id, m);
+    if (routeLink) m.link = routeLink;   // з кнопки «Скопіювати для водія» — маршрут від точки виїзду до місця поховання
     $('drv-schedule').value = m.schedule; $('drv-handover').value = m.handover; $('drv-resp').value = m.resp; $('drv-link').value = m.link;
     const place = (await burialSettlement(p)) || (p.burial_place || '').trim();
-    const missing = [!p.burial_date && 'дата поховання', !place && 'місце поховання', !v.rank && 'звання', !m.link && 'точка поховання на карті (посилання)',
+    const missing = [!p.burial_date && 'дата поховання', !place && 'місце поховання', !v.rank && 'звання', !m.link && 'посилання на локацію',
       !v.unit_contacts && 'контакти підрозділу (ЦВС)', !v.tck && !v.tck_contacts && 'ТЦК'].filter(Boolean);
     $('drv-warn').textContent = missing.length ? '⚠ У справі не заповнено: ' + missing.join(', ') + '.' : '';
     const rebuild = () => { $('drv-text').value = driverText(c, place, m); };

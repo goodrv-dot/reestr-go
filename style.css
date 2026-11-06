@@ -1328,3 +1328,11 @@ a.bell-item { text-decoration: none; box-sizing: border-box; }
 .unsaved-dlg h3 { margin: 0 0 0.5rem; color: #9a3412; }
 .unsaved-dlg .form-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-top: 0.8rem; }
 .unsaved-dlg .btn-link { margin: 0; }
+
+/* Повідомлення водію (справа 200) */
+.drv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 1rem; }
+.drv-grid .field:first-child { grid-row: span 2; }
+.drv-text { font-family: inherit; line-height: 1.45; white-space: pre-wrap; }
+.drv-warn { color: #9a5b00; margin: 0.2rem 0 0.4rem; }
+.drv-warn:empty { display: none; }
+@media (max-width: 640px) { .drv-grid { grid-template-columns: 1fr; } .drv-grid .field:first-child { grid-row: auto; } }

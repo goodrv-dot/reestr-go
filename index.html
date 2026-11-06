@@ -474,6 +474,7 @@
             <button id="case-take" type="button" class="btn-secondary btn-small">Взяти собі</button>
             <button id="case-link" type="button" class="btn-secondary btn-small" title="Скопіювати посилання на цю справу (напр., для задачі оператору)">🔗 Посилання</button>
             <button id="case-open-person" type="button" class="btn-secondary btn-small">Картка в реєстрі</button>
+            <button id="case-driver" type="button" class="btn-secondary btn-small" title="Скласти повідомлення водію про поховання (для копіювання в месенджер)" hidden>🚐 Водію</button>
           </div>
         </div>
         <p id="case-legacy" class="muted case-note"></p>
@@ -1361,6 +1362,32 @@
   </dialog>
 
   <!-- Виконавці без входу (пошти ще немає) -->
+  <!-- Повідомлення водію (справа 200) -->
+  <dialog id="drv-dialog" class="dialog dialog-wide" aria-labelledby="drv-title">
+    <h2 id="drv-title">🚐 Повідомлення водію</h2>
+    <form id="drv-form" method="dialog" novalidate>
+      <p class="muted">Дані беруться зі справи. Розклад, кому вручати атрибутику й відповідальну впишіть тут — у справу вони не зберігаються.</p>
+      <div class="drv-grid">
+        <div class="field"><label for="drv-schedule">Поховання (час і місце, кожне з нового рядка)</label>
+          <textarea id="drv-schedule" rows="3" placeholder="10:00 Будинок Офіцерів&#10;13:00 поховання на Західному кладовищі"></textarea></div>
+        <div class="field"><label for="drv-handover">Атрибутику вручати</label>
+          <input id="drv-handover" type="text" placeholder="матері"></div>
+        <div class="field"><label for="drv-resp">Відповідальна</label>
+          <input id="drv-resp" type="text" placeholder="ПІБ і телефон"></div>
+        <div class="field"><label for="drv-link">Локація (посилання на карту)</label>
+          <input id="drv-link" type="url" placeholder="https://maps.google.com/?q=…"></div>
+      </div>
+      <p id="drv-warn" class="muted drv-warn"></p>
+      <div class="field"><label for="drv-text">Текст повідомлення (можна підправити перед копіюванням)</label>
+        <textarea id="drv-text" rows="16" class="drv-text"></textarea></div>
+      <div class="form-actions">
+        <button id="drv-copy" class="btn-primary" type="button">📋 Копіювати</button>
+        <button id="drv-reset" class="btn-secondary" type="button" title="Зібрати текст заново з даних справи">↻ Оновити зі справи</button>
+        <button id="drv-close" class="btn-secondary" type="button">Закрити</button>
+      </div>
+    </form>
+  </dialog>
+
   <dialog id="nl-dialog" class="dialog" aria-labelledby="nl-title">
     <h2 id="nl-title">Виконавці без входу</h2>
     <form id="nl-form" novalidate>

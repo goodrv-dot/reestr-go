@@ -79,6 +79,7 @@
     const c = current, p = c.person;
     keep('cab_case', c.journal_id);           // після F5 відкриємо цю ж справу
     if (isNew(c) || !seen.has(c.id)) { const at = new Date().toISOString(); seen.set(c.id, at); db.from('case_seen').upsert({ case_id: c.id, user_id: me, seen_at: at }, { onConflict: 'user_id,case_id' }).then(() => badge()); }
+    { const b = $('case-driver'); b.hidden = module !== '200'; b.onclick = () => openDriverMsg(); }
     $('case-link').onclick = () => copyLink(`?case=${encodeURIComponent(c.journal_id)}`, `Посилання на справу ${c.journal_id} скопійовано`);
     { const b = $('case-open-person'); if (b.tagName === 'A') { b.href = personHref(p.id); } else tabLink(b, personHref(p.id), () => openPerson(current.person.id)); }
 
@@ -307,3 +308,59 @@
   }
   const emptyOpen = new Set();
 
+  // ---------- Повідомлення водію (200): маршрут на поховання ----------
+  // Текст збирається з даних справи; розклад, «кому вручати», відповідальну й посилання вписують у вікні —
+  // у справу вони не пишуться, лише пам’ятаються до перезавантаження сторінки (для кожної справи окремо).
+  const drvManual = new Map();
+  const PLACE_PREFIX = { M: 'м.', K: 'м.', T: 'смт', X: 'с-ще', C: 'с.' };
+  async function burialSettlement(p) {
+    if (!p.burial_katottg) return '';
+    const { data } = await db.from('katottg').select('name, cat').eq('code', p.burial_katottg).maybeSingle();
+    if (!data || !data.name) return '';
+    const pre = PLACE_PREFIX[(data.cat || '').trim()];
+    return pre ? `${pre} ${data.name}` : data.name;
+  }
+  function driverText(c, place, m) {
+    const p = c.person, v = c.vals || {};
+    const name = [p.last_name && p.last_name.toUpperCase(), p.first_name, p.patronymic].filter(Boolean).join(' ');
+    const unit = p.mp_unit_id ? Persons.ctx().units.get(p.mp_unit_id) : '';
+    const dates = [fmt(p.birth_date), fmt(p.death_date)].filter(Boolean).join('-');
+    const tck = [v.tck, v.tck_contacts].map((x) => (x || '').trim()).filter(Boolean).join(' ');
+    const dot = (s) => { s = (s || '').trim(); return s && !/[.!?…]$/.test(s) ? s + '.' : s; };
+    const block = (...xs) => xs.filter((x) => x && String(x).trim()).join('\n');
+    const parts = [
+      block('Дата поховання', fmt(p.burial_date) || '—', place, [v.rank, name].filter(Boolean).join(' '), dates, v.position, p.military_unit_code, unit),
+      block(dot(v.circumstances), v.attributes && 'Атрибутика: ' + dot(v.attributes), m.handover && 'Атрибутику вручати ' + dot(m.handover)),
+      block(m.schedule && 'Поховання:\n' + m.schedule.trim()),
+      block(m.link),
+      block(v.unit_contacts && 'ЦВС: ' + v.unit_contacts.trim(), tck && 'ТЦК: ' + tck, m.resp && 'Відповідальна: ' + m.resp.trim())
+    ];
+    return parts.filter(Boolean).join('\n\n');
+  }
+  async function openDriverMsg() {
+    const c = current; if (!c) return;
+    const p = c.person, v = c.vals || {};
+    const dlg = $('drv-dialog');
+    const pointLink = p.burial_lat != null && p.burial_lon != null ? `https://maps.google.com/?q=${p.burial_lat},${p.burial_lon}` : '';
+    const m = drvManual.get(c.id) || { schedule: '', handover: '', resp: '', link: pointLink };
+    drvManual.set(c.id, m);
+    $('drv-schedule').value = m.schedule; $('drv-handover').value = m.handover; $('drv-resp').value = m.resp; $('drv-link').value = m.link;
+    const place = (await burialSettlement(p)) || (p.burial_place || '').trim();
+    const missing = [!p.burial_date && 'дата поховання', !place && 'місце поховання', !v.rank && 'звання', !m.link && 'точка поховання на карті (посилання)',
+      !v.unit_contacts && 'контакти підрозділу (ЦВС)', !v.tck && !v.tck_contacts && 'ТЦК'].filter(Boolean);
+    $('drv-warn').textContent = missing.length ? '⚠ У справі не заповнено: ' + missing.join(', ') + '.' : '';
+    const rebuild = () => { $('drv-text').value = driverText(c, place, m); };
+    [['drv-schedule', 'schedule'], ['drv-handover', 'handover'], ['drv-resp', 'resp'], ['drv-link', 'link']].forEach(([id, k]) => {
+      $(id).oninput = () => { m[k] = $(id).value; rebuild(); };
+    });
+    $('drv-reset').onclick = rebuild;
+    $('drv-copy').onclick = async () => {
+      const t = $('drv-text').value;
+      try { await navigator.clipboard.writeText(t); Persons.toast('Повідомлення водію скопійовано'); }
+      catch { $('drv-text').select(); Persons.toast('Виділено — натисніть Ctrl+C'); }
+    };
+    $('drv-close').onclick = () => dlg.close();
+    rebuild();
+    dlg.showModal();
+    $('drv-schedule').focus();
+  }

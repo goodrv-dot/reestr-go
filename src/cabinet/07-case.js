@@ -325,10 +325,12 @@
     const unit = p.mp_unit_id ? Persons.ctx().units.get(p.mp_unit_id) : '';
     const dates = [fmt(p.birth_date), fmt(p.death_date)].filter(Boolean).join('-');
     const tck = [v.tck, v.tck_contacts].map((x) => (x || '').trim()).filter(Boolean).join(' ');
+    const cs = (p.callsign || '').trim().replace(/^["«“'„]+|["»”'“]+$/g, '');
+    const who = [v.rank, name].filter(Boolean).join(' ') + (cs ? `, позивний «${cs}»` : '');
     const dot = (s) => { s = (s || '').trim(); return s && !/[.!?…]$/.test(s) ? s + '.' : s; };
     const block = (...xs) => xs.filter((x) => x && String(x).trim()).join('\n');
     const parts = [
-      block('Дата поховання', fmt(p.burial_date) || '—', place, [v.rank, name].filter(Boolean).join(' '), dates, v.position, p.military_unit_code, unit),
+      block('Дата поховання', fmt(p.burial_date) || '—', place, who, dates, v.position, p.military_unit_code, unit),
       block(dot(v.circumstances), v.attributes && 'Атрибутика: ' + dot(v.attributes), m.handover && 'Атрибутику вручати ' + dot(m.handover)),
       block(m.schedule && 'Поховання:\n' + m.schedule.trim()),
       block(m.link),

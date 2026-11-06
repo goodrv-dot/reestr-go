@@ -282,7 +282,7 @@ window.BurialMap = (() => {
       tools.querySelector('.bm-copy').onclick = async () => {
         if (ctx.onDriver) { ctx.onDriver(gmaps(origin, dest)); return; }   // справа 200: повний текст для водія (вікно кабінету)
         const lines = [
-          `Поховання: ${fio(person)}${ctx.journalId ? ` (справа ${ctx.journalId})` : ''}`,
+          `Поховання: ${fio(person)}${person.callsign ? `, позивний «${String(person.callsign).trim().replace(/^["«“'„]+|["»”'“]+$/g, '')}»` : ''}${ctx.journalId ? ` (справа ${ctx.journalId})` : ''}`,
           String(person.burial_place || '').trim(),
           `Координати: ${fix(dest.lat)}, ${fix(dest.lon)}${exact ? '' : ' (приблизно — центр населеного пункту)'}`,
           origin && last ? `Маршрут: ${origin.label} → ${fmtRoute(last)}` : (origin ? `Звідки: ${origin.label}` : ''),

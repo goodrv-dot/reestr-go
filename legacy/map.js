@@ -410,7 +410,7 @@ window.BurialMap = /* @__PURE__ */ (() => {
           return;
         }
         const lines = [
-          `Поховання: ${fio(person)}${ctx.journalId ? ` (справа ${ctx.journalId})` : ""}`,
+          `Поховання: ${fio(person)}${person.callsign ? `, позивний «${String(person.callsign).trim().replace(/^["«“'„]+|["»”'“]+$/g, "")}»` : ""}${ctx.journalId ? ` (справа ${ctx.journalId})` : ""}`,
           String(person.burial_place || "").trim(),
           `Координати: ${fix(dest.lat)}, ${fix(dest.lon)}${exact ? "" : " (приблизно — центр населеного пункту)"}`,
           origin && last ? `Маршрут: ${origin.label} → ${fmtRoute(last)}` : origin ? `Звідки: ${origin.label}` : "",

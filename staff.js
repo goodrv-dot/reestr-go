@@ -28,6 +28,16 @@ window.Staff = (() => {
       ws['!cols'] = [{ wch: 5 }, { wch: 46 }, { wch: 10 }, { wch: 40 }, { wch: 10 }, { wch: 12 }, { wch: 14 }, { wch: 40 }];
       ws['!autofilter'] = { ref: ws['!ref'] };
       const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Контакти підрозділів');
+      // 2-й аркуш — хронологія змін (з історії справ): що було → що стало, коли і хто
+      const ch = await db.rpc('contact_changes_report');
+      if (!ch.error) {
+        const fmtT = (t) => { const d = new Date(t); return d.toLocaleDateString('uk-UA') + ' ' + d.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' }); };
+        const hr = (ch.data || []).map((r) => ({ 'Коли': fmtT(r.changed_at), 'Справа': r.journal_id, 'Поле': r.field, 'Було': r.old_value || '', 'Стало': r.new_value || '', 'Хто': r.who || '' }));
+        const ws2 = hr.length ? XLSX.utils.json_to_sheet(hr) : XLSX.utils.aoa_to_sheet([['Змін немає']]);
+        ws2['!cols'] = [{ wch: 16 }, { wch: 10 }, { wch: 18 }, { wch: 50 }, { wch: 50 }, { wch: 24 }];
+        if (hr.length) ws2['!autofilter'] = { ref: ws2['!ref'] };
+        XLSX.utils.book_append_sheet(wb, ws2, 'Що змінено (з 09.11)');
+      } else console.error(ch.error);
       const stamp = new Date().toISOString().slice(0, 10);
       XLSX.writeFile(wb, `kontakty_pidrozdiliv_${stamp}.xlsx`);
       try { await db.from('export_log').insert({ kind: 'unit_contacts', channel: 'xlsx', row_count: rows.length, filters_note: 'Контакти підрозділу (усі справи 200)' }); } catch (e) { console.warn(e); }

@@ -6,6 +6,48 @@ window.Staff = /* @__PURE__ */ (() => {
   let db = null;
   let me = null;
   let mfaStatus = {};
+  async function unitContactsXlsx(btn2) {
+    if (!window.XLSX) {
+      alert("Модуль Excel ще завантажується — спробуйте за кілька секунд");
+      return;
+    }
+    btn2.disabled = true;
+    const t = btn2.textContent;
+    btn2.textContent = "⏳ Готуємо…";
+    try {
+      const { data, error } = await db.rpc("unit_contacts_report");
+      if (error) throw error;
+      const fmtD = (d) => d ? d.split("-").reverse().join(".") : "";
+      const rows = (data || []).map((r, i) => ({
+        "№": i + 1,
+        "Контакт підрозділу": r.contact,
+        "У скількох справах": r.cases,
+        "В/ч (к-сть справ)": r.units || "",
+        "Варіантів написання": r.variants,
+        "Востаннє вносили": fmtD(r.last_used),
+        "Залишити? (так / ні)": "",
+        "Правильний запис / коментар": ""
+      }));
+      const ws = XLSX.utils.json_to_sheet(rows);
+      ws["!cols"] = [{ wch: 5 }, { wch: 46 }, { wch: 10 }, { wch: 40 }, { wch: 10 }, { wch: 12 }, { wch: 14 }, { wch: 40 }];
+      ws["!autofilter"] = { ref: ws["!ref"] };
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Контакти підрозділів");
+      const stamp = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+      XLSX.writeFile(wb, `kontakty_pidrozdiliv_${stamp}.xlsx`);
+      try {
+        await db.from("export_log").insert({ kind: "unit_contacts", channel: "xlsx", row_count: rows.length, filters_note: "Контакти підрозділу (усі справи 200)" });
+      } catch (e) {
+        console.warn(e);
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Не вдалося сформувати файл");
+    } finally {
+      btn2.disabled = false;
+      btn2.textContent = t;
+    }
+  }
   function init(client, userId) {
     {
       const b = document.getElementById("exp-log-btn");
@@ -19,6 +61,13 @@ window.Staff = /* @__PURE__ */ (() => {
       if (b && !b.dataset.w) {
         b.dataset.w = "1";
         b.addEventListener("click", loadTrash);
+      }
+    }
+    {
+      const b = document.getElementById("uc-report-btn");
+      if (b && !b.dataset.w) {
+        b.dataset.w = "1";
+        b.addEventListener("click", () => unitContactsXlsx(b));
       }
     }
     db = client;

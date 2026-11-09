@@ -180,19 +180,6 @@
 
   // Одне поле: {id,label,kind,options,value,hint,state,onSave}
   const safeUrl = (u) => /^https?:\/\/\S+$/i.test(String(u || '').trim());
-  // «Контакти підрозділу»: варіанти з усіх справ (без дублів), ті, що з тієї ж в/ч, — першими. Кеш на 2 хв.
-  let ucCache = { key: null, t: 0 };
-  async function unitContactList(p) {
-    let dl = document.getElementById('dl-unit-contacts');
-    if (!dl) { dl = document.createElement('datalist'); dl.id = 'dl-unit-contacts'; document.body.appendChild(dl); }
-    const key = (p.military_unit_code || '') + '|' + (p.mp_unit_id || '');
-    if (ucCache.key === key && Date.now() - ucCache.t < 120000) return;
-    ucCache = { key, t: Date.now() };
-    const { data, error } = await db.rpc('unit_contact_options', { p_unit_code: p.military_unit_code || null, p_mp: p.mp_unit_id || null });
-    if (error) { console.error(error); ucCache.key = null; return; }
-    dl.innerHTML = '';
-    (data || []).forEach((r) => { const o = document.createElement('option'); o.value = r.value; if (r.same_unit) o.label = 'ця ж в/ч'; dl.appendChild(o); });
-  }
   function fieldEl(f) {
     const wrap = document.createElement('div');
     wrap.className = 'stage' + (f.cls ? ' ' + f.cls : '') + (f.id.endsWith('p-death_date') ? ' is-death' : '');
@@ -258,10 +245,6 @@
           if (d.kind === 'link' && val && !safeUrl(val)) { Persons.toast('Вставте повне посилання, що починається з https://'); el.value = v; return; }
           if (/контакт/i.test(d.label) && !phonesInText(el)) return; saveValue(d.key, val);
         } };
-      if (d.key === 'unit_contacts') {   // випадний список з уже внесених контактів (спершу — з тієї ж в/ч) + можна вписати новий
-        f.kind = 'line'; f.list = 'dl-unit-contacts'; f.placeholder = 'Оберіть зі списку або впишіть новий контакт';
-        f.onFocus = () => unitContactList(p);
-      }
       if (d.key === 'solutions' && !v && c.vals.problem_state === 'Вирішена') { f.hint = 'Проблему позначено «Вирішена» — опишіть, як вирішено'; f.state = 'is-due'; }
       if (d.key === 'problem_state' && !v && String(c.vals.problems || '').trim()) { f.hint = 'Оцініть стан проблеми'; f.state = 'is-due'; }
       if (!isClosed(c) && d.remind_after && !v && c.vals[d.remind_after] && /^\d{4}-\d{2}-\d{2}/.test(c.vals[d.remind_after])) {

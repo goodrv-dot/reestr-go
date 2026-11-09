@@ -4,7 +4,20 @@
   function familyEl() {
     const c = current; const wrap = document.createElement('div'); wrap.className = 'case-fam';
     const contact = contactOf(c);
-    if (!c.kin.length) wrap.innerHTML = '<p class="muted">Рідних ще не додано.</p>';
+    if (!c.kin.length) {
+      wrap.innerHTML = '<p class="muted">Рідних ще не додано.</p>';
+      if (module === '200') {   // загиблий без родини (сирота) — позначка замість контактної особи
+        const lab = document.createElement('label'); lab.className = 'fam-orphan';
+        lab.innerHTML = '<input type="checkbox"> <b>Родини немає (сирота)</b> <span class="muted">— позначте, якщо рідних немає зовсім; тоді справа не вимагатиме контактної особи</span>';
+        const cb = lab.firstChild; cb.checked = !!c.vals.no_family;
+        if (window.ACCESS && window.ACCESS.readOnly) cb.disabled = true;
+        cb.onchange = async () => {
+          await saveValue('no_family', cb.checked ? 'сирота' : '');
+          if (cb.checked && c.status === 'Родину не встановлено' && statuses.some((s) => s.name === 'В роботі')) { await saveCase({ status: 'В роботі' }); $('case-status').value = 'В роботі'; renderHead(); }
+        };
+        wrap.appendChild(lab);
+      }
+    }
     c.kin.forEach((k) => {
       const row = document.createElement('div'); row.className = 'fam-row';
       row.innerHTML = `
@@ -92,6 +105,7 @@
       const np = { id: res.person_id, ...kinRec };
       const r2 = { data: { id: res.relation_id, related_person_id: p.id, relation_degree: g('deg') } };
       c.kin.push({ ...r2.data, person: np });
+      if (c.vals.no_family) await saveValue('no_family', '');   // рідних знайшли — позначку «сирота» знімаємо
       if (module === '200' && c.status === 'Родину не встановлено' && statuses.some((s) => s.name === 'В роботі')) { await saveCase({ status: 'В роботі' }); $('case-status').value = 'В роботі'; }
       form.reset();    // щоб повторне «Додати» не створило того самого родича ще раз
       Persons.toast(ex ? 'Наявну картку прив’язано до справи' : 'Родича додано');

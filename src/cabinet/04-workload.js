@@ -8,7 +8,7 @@
       const m = new Map();
       open.forEach((c) => {
         const k = keyOf(c); const r = m.get(k) || { all: 0, over: 0, noContact: 0, problem: 0, noExec: 0 };
-        r.all++; if (c.next && c.next.overdue) r.over++; if (!contactOf(c)) r.noContact++;
+        r.all++; if (c.next && c.next.overdue) r.over++; if (!contactOf(c) && !isOrphan(c)) r.noContact++;
         if (c.status === 'Проблема') r.problem++; if (!c.executor_id) r.noExec++;
         m.set(k, r);
       });

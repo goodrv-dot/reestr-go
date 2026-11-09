@@ -448,7 +448,7 @@ window.Cabinet = (() => {
       const m = new Map();
       open.forEach((c) => {
         const k = keyOf(c); const r = m.get(k) || { all: 0, over: 0, noContact: 0, problem: 0, noExec: 0 };
-        r.all++; if (c.next && c.next.overdue) r.over++; if (!contactOf(c)) r.noContact++;
+        r.all++; if (c.next && c.next.overdue) r.over++; if (!contactOf(c) && !isOrphan(c)) r.noContact++;
         if (c.status === 'Проблема') r.problem++; if (!c.executor_id) r.noExec++;
         m.set(k, r);
       });
@@ -685,7 +685,7 @@ window.Cabinet = (() => {
   function gaps(c) {
     let crit = 0, soft = 0; const p = c.person, k = contactOf(c);
     if (!c.status) crit++; if (!c.executor_id) crit++; if (!c.cell_id) crit++;
-    if (!k || !k.person.phone) crit++;
+    if (k ? !k.person.phone : !isOrphan(c)) crit++;
     Object.values(PERSON_FIELDS[module] || {}).flat().forEach(([key]) => {
       if (p[key] === null || p[key] === undefined || p[key] === '') (CRIT.has('p-' + key) ? crit++ : soft++);
     });
@@ -774,7 +774,7 @@ window.Cabinet = (() => {
         lines.forEach((t) => { const m = document.createElement('span'); m.className = 'muted cab-date'; m.textContent = t; tr.children[1].append(document.createElement('br'), m); }); }
       tr.children[1].append(document.createElement('br'), markDots(c));
       if (isNew(c)) { const b = document.createElement('span'); b.className = 'cab-new-mark'; b.textContent = 'нова'; b.title = 'Справу передано у ваш осередок'; tr.children[1].append(' ', b); }
-      tr.children[2].innerHTML = rec ? '<span></span><br><span class="muted"></span>' : '<span class="muted">родину не встановлено</span>';
+      tr.children[2].innerHTML = rec ? '<span></span><br><span class="muted"></span>' : (isOrphan(c) ? '<span class="muted">родини немає (сирота)</span>' : '<span class="muted">родину не встановлено</span>');
       if (rec) {
         tr.children[2].firstChild.textContent = `${rec.relation_degree}: ${fio(rec.person)}` + (c.kin.length > 1 ? ` (+${c.kin.length - 1})` : '');
         tr.children[2].lastChild.textContent = V.formatPhone(rec.person.phone) || 'без телефону';
@@ -868,7 +868,9 @@ window.Cabinet = (() => {
         ['settlement', 'Місце проживання']]
     }
   };
-  const P_LABELS = Object.fromEntries([['p_comment', 'Примітки'], ['p_burial_point', 'Точка поховання (координати)'], ...Object.values(PERSON_FIELDS).flatMap((m) => Object.values(m).flat()).map(([k, l]) => ['p_' + k, l])]);
+  // «Родини немає (сирота)» — позначка у справі 200 замість контактної особи (case_values.no_family)
+  const isOrphan = (c) => !c.kin.length && !!(c.vals && c.vals.no_family);
+  const P_LABELS = Object.fromEntries([['no_family', 'Родини немає (сирота)'], ['p_comment', 'Примітки'], ['p_burial_point', 'Точка поховання (координати)'], ...Object.values(PERSON_FIELDS).flatMap((m) => Object.values(m).flat()).map(([k, l]) => ['p_' + k, l])]);
   const UNIT_CODES = ['А0216', 'А0878', 'А1275', 'А1325', 'А1965', 'А2062', 'А2611', 'А2613', 'А2777', 'А2802', 'А3821', 'А4210', 'А4217', 'А4548', 'А4635', 'А4656', 'А4765', 'А4822', 'А4916', 'А4935', 'А5025', 'А5074', 'А7053', 'А7382'];
   const unitCodes = () => [...new Set([...UNIT_CODES, ...cases.map((c) => c.person.military_unit_code).filter(Boolean)])].sort((a, b) => a.localeCompare(b, 'uk'));
   let tab = 'all';
@@ -964,7 +966,8 @@ window.Cabinet = (() => {
       a.className = 'case-docs'; a.href = c.vals[d.key]; a.target = '_blank'; a.rel = 'noopener'; a.textContent = '📁 Документи'; a.title = d.label;
       box.append(' · ', a);
     };
-    if (!k) { box.innerHTML = '<span class="muted">Контактну особу не вказано — додайте рідних у розділі «Родина».</span>'; docsLink(); return; }
+    if (!k && isOrphan(c)) { box.innerHTML = '<span class="muted">Контактна особа:</span> <b>родини немає (сирота)</b>'; docsLink(); return; }
+    if (!k) { box.innerHTML = '<span class="muted">Контактну особу не вказано — додайте рідних у розділі «Родина» або позначте «Родини немає».</span>'; docsLink(); return; }
     box.innerHTML = '<span class="muted">Контактна особа:</span> <button type="button" class="btn-link case-contact-name" title="Відкрити картку в реєстрі"></button> <span class="muted"></span> <b class="case-phone"></b>';
     box.children[1].textContent = fio(k.person);
     tabLink(box.children[1], personHref(k.person.id), () => openPerson(k.person.id));
@@ -1011,6 +1014,19 @@ window.Cabinet = (() => {
 
   // Одне поле: {id,label,kind,options,value,hint,state,onSave}
   const safeUrl = (u) => /^https?:\/\/\S+$/i.test(String(u || '').trim());
+  // «Контакти підрозділу»: варіанти з усіх справ (без дублів), ті, що з тієї ж в/ч, — першими. Кеш на 2 хв.
+  let ucCache = { key: null, t: 0 };
+  async function unitContactList(p) {
+    let dl = document.getElementById('dl-unit-contacts');
+    if (!dl) { dl = document.createElement('datalist'); dl.id = 'dl-unit-contacts'; document.body.appendChild(dl); }
+    const key = (p.military_unit_code || '') + '|' + (p.mp_unit_id || '');
+    if (ucCache.key === key && Date.now() - ucCache.t < 120000) return;
+    ucCache = { key, t: Date.now() };
+    const { data, error } = await db.rpc('unit_contact_options', { p_unit_code: p.military_unit_code || null, p_mp: p.mp_unit_id || null });
+    if (error) { console.error(error); ucCache.key = null; return; }
+    dl.innerHTML = '';
+    (data || []).forEach((r) => { const o = document.createElement('option'); o.value = r.value; if (r.same_unit) o.label = 'ця ж в/ч'; dl.appendChild(o); });
+  }
   function fieldEl(f) {
     const wrap = document.createElement('div');
     wrap.className = 'stage' + (f.cls ? ' ' + f.cls : '') + (f.id.endsWith('p-death_date') ? ' is-death' : '');
@@ -1025,7 +1041,7 @@ window.Cabinet = (() => {
       control = `<select id="${id}"><option value=""></option>${[...f.options].map(([k, n]) => `<option value="${k}">${esc(n)}</option>`).join('')}</select>`;
     } else if (f.kind === 'link') {
       control = `<span class="link-field"><input id="${id}" type="url" inputmode="url" placeholder="https://drive.google.com/…"><a class="link-open" target="_blank" rel="noopener" hidden>Відкрити ↗</a></span>`;
-    } else if (f.kind === 'line' || f.kind === 'phone') control = `<input id="${id}" type="${f.kind === 'phone' ? 'tel' : 'text'}">`;
+    } else if (f.kind === 'line' || f.kind === 'phone') control = `<input id="${id}" type="${f.kind === 'phone' ? 'tel' : 'text'}"${f.list ? ` list="${f.list}" autocomplete="off"` : ''}${f.placeholder ? ` placeholder="${esc(f.placeholder)}"` : ''}>`;
     else control = `<textarea id="${id}" rows="1"></textarea>`;
     wrap.innerHTML = `<label for="${id}"></label>${control}<p class="stage-hint"></p>`;
     wrap.querySelector('label').textContent = f.label;
@@ -1037,6 +1053,7 @@ window.Cabinet = (() => {
     if (f.kind === 'link') { const a = wrap.querySelector('.link-open'); if (safeUrl(v)) { a.href = v; a.hidden = false; } }
     if (f.hint) { wrap.querySelector('.stage-hint').textContent = f.hint; wrap.classList.add(f.state || 'is-due'); }
     if (f.extra) wrap.appendChild(f.extra);
+    if (f.onFocus) { el.addEventListener('focus', f.onFocus); if (document.activeElement === el) f.onFocus(); }
     if (v !== '' && v != null) wrap.classList.add('is-done');
     if (f.kind === 'date') {
       // поки рік набирається («2» → 0002, «20» → 0020) браузер уже вважає дату повною — не зберігаємо, чекаємо 4 цифри
@@ -1075,6 +1092,10 @@ window.Cabinet = (() => {
           if (d.kind === 'link' && val && !safeUrl(val)) { Persons.toast('Вставте повне посилання, що починається з https://'); el.value = v; return; }
           if (/контакт/i.test(d.label) && !phonesInText(el)) return; saveValue(d.key, val);
         } };
+      if (d.key === 'unit_contacts') {   // випадний список з уже внесених контактів (спершу — з тієї ж в/ч) + можна вписати новий
+        f.kind = 'line'; f.list = 'dl-unit-contacts'; f.placeholder = 'Оберіть зі списку або впишіть новий контакт';
+        f.onFocus = () => unitContactList(p);
+      }
       if (d.key === 'solutions' && !v && c.vals.problem_state === 'Вирішена') { f.hint = 'Проблему позначено «Вирішена» — опишіть, як вирішено'; f.state = 'is-due'; }
       if (d.key === 'problem_state' && !v && String(c.vals.problems || '').trim()) { f.hint = 'Оцініть стан проблеми'; f.state = 'is-due'; }
       if (!isClosed(c) && d.remind_after && !v && c.vals[d.remind_after] && /^\d{4}-\d{2}-\d{2}/.test(c.vals[d.remind_after])) {
@@ -1115,7 +1136,7 @@ window.Cabinet = (() => {
     chip('all', 'Усі розділи', `${all.filter(isFilled).length}/${all.length}`, false);
     secs.forEach(([k, label]) => {
       const fs = sectionFields(k);
-      chip(k, label, k === 'family' ? String(c.kin.length) : `${fs.filter(isFilled).length}/${fs.length}`, fs.some((f) => f.state === 'is-overdue'));
+      chip(k, label, k === 'family' ? (isOrphan(c) ? 'сирота' : String(c.kin.length)) : `${fs.filter(isFilled).length}/${fs.length}`, fs.some((f) => f.state === 'is-overdue'));
     });
     const box = $('case-stages'); box.innerHTML = '';
     secs.filter(([k]) => tab === 'all' || k === tab).forEach(([k, label]) => {
@@ -1223,7 +1244,7 @@ window.Cabinet = (() => {
     if (!c.status) crit.push(['Статус', top]);
     if (!c.executor_id) crit.push(['Виконавець', top]);
     if (!c.cell_id) crit.push(['Осередок', top]);
-    if (!k) crit.push(['Контактна особа (рідних не додано)', goFamily]);
+    if (!k && !isOrphan(c)) crit.push(['Контактна особа (рідних не додано)', goFamily]);
     else if (!k.person.phone) crit.push(['Телефон контактної особи', goFamily]);
     secs.filter(([key]) => key !== 'family').forEach(([key]) => sectionFields(key).forEach((f) => {
       if (f.state === 'is-overdue') crit.push([`${f.label} — прострочено`, goField(key, f)]);
@@ -1305,7 +1326,8 @@ window.Cabinet = (() => {
     });
     add(head, { id: 'h-resp', label: 'Відповідальний (по осередку)', kind: 'map', options: staff, value: c.responsible_id, onSave: (v) => saveCase({ responsible_id: v || null }).then(syncAll) }, 'soft');
     add(head, { id: 'h-cell', label: 'Осередок', kind: 'map', options: cells, value: c.cell_id, readonly: !!acc().readOnly, onSave: (v) => saveCase({ cell_id: v ? Number(v) : null }).then(syncAll) }, 'crit');
-    add(head, { id: 'h-contact', label: 'Контактна особа', kind: 'map', options: new Map(c.kin.map((x) => [x.person.id, `${fio(x.person)} (${x.relation_degree})`])), value: k ? k.person.id : '',
+    if (isOrphan(c)) add(head, { id: 'h-contact', label: 'Контактна особа', text: 'родини немає (сирота)', readonly: true }, 'soft');
+    else add(head, { id: 'h-contact', label: 'Контактна особа', kind: 'map', options: new Map(c.kin.map((x) => [x.person.id, `${fio(x.person)} (${x.relation_degree})`])), value: k ? k.person.id : '',
       readonly: !c.kin.length, onSave: (v) => { if (v) saveCase({ contact_person_id: v }).then(syncAll); } }, 'crit');
     // ---- розділи
     secs.forEach(([key, label]) => {
@@ -1322,11 +1344,11 @@ window.Cabinet = (() => {
           add(grid, { id: 'k-s' + i, label: 'Населений пункт, адреса' + n, kind: 'line', value: x.person.settlement, onSave: async (v) => {
             if (await updPerson(x.person.id, { settlement: v || null })) { x.person.settlement = v || null; syncAll(); } } }, 'soft');
         });
-        add(grid, { id: 'k-add', label: 'Рідні', text: c.kin.length ? '+ додати ще родича' : '' }, c.kin.length ? 'soft' : 'crit', () => {
+        add(grid, { id: 'k-add', label: 'Рідні', text: c.kin.length ? '+ додати ще родича' : isOrphan(c) ? 'родини немає (сирота)' : '' }, c.kin.length || isOrphan(c) ? 'soft' : 'crit', () => {
           tab = 'family'; renderStages(); $('case-tabs').scrollIntoView({ behavior: 'smooth', block: 'start' });
           const det = document.querySelector('.fam-add'); if (det) { det.open = true; const i = det.querySelector('input'); if (i) i.focus({ preventScroll: true }); }
         });
-        if (!c.kin.length) grid.lastChild.querySelector('.sum-v').textContent = 'не додано — натисніть, щоб додати';
+        if (!c.kin.length && !isOrphan(c)) grid.lastChild.querySelector('.sum-v').textContent = 'не додано — натисніть, щоб додати';
       }
       sectionFields(key).forEach((f) => add(grid, f, CRIT.has(f.id) || f.state === 'is-overdue' ? 'crit' : 'soft'));
     });
@@ -1341,7 +1363,20 @@ window.Cabinet = (() => {
   function familyEl() {
     const c = current; const wrap = document.createElement('div'); wrap.className = 'case-fam';
     const contact = contactOf(c);
-    if (!c.kin.length) wrap.innerHTML = '<p class="muted">Рідних ще не додано.</p>';
+    if (!c.kin.length) {
+      wrap.innerHTML = '<p class="muted">Рідних ще не додано.</p>';
+      if (module === '200') {   // загиблий без родини (сирота) — позначка замість контактної особи
+        const lab = document.createElement('label'); lab.className = 'fam-orphan';
+        lab.innerHTML = '<input type="checkbox"> <b>Родини немає (сирота)</b> <span class="muted">— позначте, якщо рідних немає зовсім; тоді справа не вимагатиме контактної особи</span>';
+        const cb = lab.firstChild; cb.checked = !!c.vals.no_family;
+        if (window.ACCESS && window.ACCESS.readOnly) cb.disabled = true;
+        cb.onchange = async () => {
+          await saveValue('no_family', cb.checked ? 'сирота' : '');
+          if (cb.checked && c.status === 'Родину не встановлено' && statuses.some((s) => s.name === 'В роботі')) { await saveCase({ status: 'В роботі' }); $('case-status').value = 'В роботі'; renderHead(); }
+        };
+        wrap.appendChild(lab);
+      }
+    }
     c.kin.forEach((k) => {
       const row = document.createElement('div'); row.className = 'fam-row';
       row.innerHTML = `
@@ -1429,6 +1464,7 @@ window.Cabinet = (() => {
       const np = { id: res.person_id, ...kinRec };
       const r2 = { data: { id: res.relation_id, related_person_id: p.id, relation_degree: g('deg') } };
       c.kin.push({ ...r2.data, person: np });
+      if (c.vals.no_family) await saveValue('no_family', '');   // рідних знайшли — позначку «сирота» знімаємо
       if (module === '200' && c.status === 'Родину не встановлено' && statuses.some((s) => s.name === 'В роботі')) { await saveCase({ status: 'В роботі' }); $('case-status').value = 'В роботі'; }
       form.reset();    // щоб повторне «Додати» не створило того самого родича ще раз
       Persons.toast(ex ? 'Наявну картку прив’язано до справи' : 'Родича додано');

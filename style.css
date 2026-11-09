@@ -1336,3 +1336,5 @@ a.bell-item { text-decoration: none; box-sizing: border-box; }
 .drv-warn { color: #9a5b00; margin: 0.2rem 0 0.4rem; }
 .drv-warn:empty { display: none; }
 @media (max-width: 640px) { .drv-grid { grid-template-columns: 1fr; } .drv-grid .field:first-child { grid-row: auto; } }
+.fam-orphan { display: block; margin: 0.4rem 0 0.8rem; padding: 0.5rem 0.7rem; border: 1px dashed var(--border, #cbd5e1); border-radius: 8px; cursor: pointer; }
+.fam-orphan input { margin-right: 0.35rem; }

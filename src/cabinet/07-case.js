@@ -34,7 +34,9 @@
         ['settlement', 'Місце проживання']]
     }
   };
-  const P_LABELS = Object.fromEntries([['p_comment', 'Примітки'], ['p_burial_point', 'Точка поховання (координати)'], ...Object.values(PERSON_FIELDS).flatMap((m) => Object.values(m).flat()).map(([k, l]) => ['p_' + k, l])]);
+  // «Родини немає (сирота)» — позначка у справі 200 замість контактної особи (case_values.no_family)
+  const isOrphan = (c) => !c.kin.length && !!(c.vals && c.vals.no_family);
+  const P_LABELS = Object.fromEntries([['no_family', 'Родини немає (сирота)'], ['p_comment', 'Примітки'], ['p_burial_point', 'Точка поховання (координати)'], ...Object.values(PERSON_FIELDS).flatMap((m) => Object.values(m).flat()).map(([k, l]) => ['p_' + k, l])]);
   const UNIT_CODES = ['А0216', 'А0878', 'А1275', 'А1325', 'А1965', 'А2062', 'А2611', 'А2613', 'А2777', 'А2802', 'А3821', 'А4210', 'А4217', 'А4548', 'А4635', 'А4656', 'А4765', 'А4822', 'А4916', 'А4935', 'А5025', 'А5074', 'А7053', 'А7382'];
   const unitCodes = () => [...new Set([...UNIT_CODES, ...cases.map((c) => c.person.military_unit_code).filter(Boolean)])].sort((a, b) => a.localeCompare(b, 'uk'));
   let tab = 'all';
@@ -130,7 +132,8 @@
       a.className = 'case-docs'; a.href = c.vals[d.key]; a.target = '_blank'; a.rel = 'noopener'; a.textContent = '📁 Документи'; a.title = d.label;
       box.append(' · ', a);
     };
-    if (!k) { box.innerHTML = '<span class="muted">Контактну особу не вказано — додайте рідних у розділі «Родина».</span>'; docsLink(); return; }
+    if (!k && isOrphan(c)) { box.innerHTML = '<span class="muted">Контактна особа:</span> <b>родини немає (сирота)</b>'; docsLink(); return; }
+    if (!k) { box.innerHTML = '<span class="muted">Контактну особу не вказано — додайте рідних у розділі «Родина» або позначте «Родини немає».</span>'; docsLink(); return; }
     box.innerHTML = '<span class="muted">Контактна особа:</span> <button type="button" class="btn-link case-contact-name" title="Відкрити картку в реєстрі"></button> <span class="muted"></span> <b class="case-phone"></b>';
     box.children[1].textContent = fio(k.person);
     tabLink(box.children[1], personHref(k.person.id), () => openPerson(k.person.id));
@@ -177,6 +180,19 @@
 
   // Одне поле: {id,label,kind,options,value,hint,state,onSave}
   const safeUrl = (u) => /^https?:\/\/\S+$/i.test(String(u || '').trim());
+  // «Контакти підрозділу»: варіанти з усіх справ (без дублів), ті, що з тієї ж в/ч, — першими. Кеш на 2 хв.
+  let ucCache = { key: null, t: 0 };
+  async function unitContactList(p) {
+    let dl = document.getElementById('dl-unit-contacts');
+    if (!dl) { dl = document.createElement('datalist'); dl.id = 'dl-unit-contacts'; document.body.appendChild(dl); }
+    const key = (p.military_unit_code || '') + '|' + (p.mp_unit_id || '');
+    if (ucCache.key === key && Date.now() - ucCache.t < 120000) return;
+    ucCache = { key, t: Date.now() };
+    const { data, error } = await db.rpc('unit_contact_options', { p_unit_code: p.military_unit_code || null, p_mp: p.mp_unit_id || null });
+    if (error) { console.error(error); ucCache.key = null; return; }
+    dl.innerHTML = '';
+    (data || []).forEach((r) => { const o = document.createElement('option'); o.value = r.value; if (r.same_unit) o.label = 'ця ж в/ч'; dl.appendChild(o); });
+  }
   function fieldEl(f) {
     const wrap = document.createElement('div');
     wrap.className = 'stage' + (f.cls ? ' ' + f.cls : '') + (f.id.endsWith('p-death_date') ? ' is-death' : '');
@@ -191,7 +207,7 @@
       control = `<select id="${id}"><option value=""></option>${[...f.options].map(([k, n]) => `<option value="${k}">${esc(n)}</option>`).join('')}</select>`;
     } else if (f.kind === 'link') {
       control = `<span class="link-field"><input id="${id}" type="url" inputmode="url" placeholder="https://drive.google.com/…"><a class="link-open" target="_blank" rel="noopener" hidden>Відкрити ↗</a></span>`;
-    } else if (f.kind === 'line' || f.kind === 'phone') control = `<input id="${id}" type="${f.kind === 'phone' ? 'tel' : 'text'}">`;
+    } else if (f.kind === 'line' || f.kind === 'phone') control = `<input id="${id}" type="${f.kind === 'phone' ? 'tel' : 'text'}"${f.list ? ` list="${f.list}" autocomplete="off"` : ''}${f.placeholder ? ` placeholder="${esc(f.placeholder)}"` : ''}>`;
     else control = `<textarea id="${id}" rows="1"></textarea>`;
     wrap.innerHTML = `<label for="${id}"></label>${control}<p class="stage-hint"></p>`;
     wrap.querySelector('label').textContent = f.label;
@@ -203,6 +219,7 @@
     if (f.kind === 'link') { const a = wrap.querySelector('.link-open'); if (safeUrl(v)) { a.href = v; a.hidden = false; } }
     if (f.hint) { wrap.querySelector('.stage-hint').textContent = f.hint; wrap.classList.add(f.state || 'is-due'); }
     if (f.extra) wrap.appendChild(f.extra);
+    if (f.onFocus) { el.addEventListener('focus', f.onFocus); if (document.activeElement === el) f.onFocus(); }
     if (v !== '' && v != null) wrap.classList.add('is-done');
     if (f.kind === 'date') {
       // поки рік набирається («2» → 0002, «20» → 0020) браузер уже вважає дату повною — не зберігаємо, чекаємо 4 цифри
@@ -241,6 +258,10 @@
           if (d.kind === 'link' && val && !safeUrl(val)) { Persons.toast('Вставте повне посилання, що починається з https://'); el.value = v; return; }
           if (/контакт/i.test(d.label) && !phonesInText(el)) return; saveValue(d.key, val);
         } };
+      if (d.key === 'unit_contacts') {   // випадний список з уже внесених контактів (спершу — з тієї ж в/ч) + можна вписати новий
+        f.kind = 'line'; f.list = 'dl-unit-contacts'; f.placeholder = 'Оберіть зі списку або впишіть новий контакт';
+        f.onFocus = () => unitContactList(p);
+      }
       if (d.key === 'solutions' && !v && c.vals.problem_state === 'Вирішена') { f.hint = 'Проблему позначено «Вирішена» — опишіть, як вирішено'; f.state = 'is-due'; }
       if (d.key === 'problem_state' && !v && String(c.vals.problems || '').trim()) { f.hint = 'Оцініть стан проблеми'; f.state = 'is-due'; }
       if (!isClosed(c) && d.remind_after && !v && c.vals[d.remind_after] && /^\d{4}-\d{2}-\d{2}/.test(c.vals[d.remind_after])) {
@@ -281,7 +302,7 @@
     chip('all', 'Усі розділи', `${all.filter(isFilled).length}/${all.length}`, false);
     secs.forEach(([k, label]) => {
       const fs = sectionFields(k);
-      chip(k, label, k === 'family' ? String(c.kin.length) : `${fs.filter(isFilled).length}/${fs.length}`, fs.some((f) => f.state === 'is-overdue'));
+      chip(k, label, k === 'family' ? (isOrphan(c) ? 'сирота' : String(c.kin.length)) : `${fs.filter(isFilled).length}/${fs.length}`, fs.some((f) => f.state === 'is-overdue'));
     });
     const box = $('case-stages'); box.innerHTML = '';
     secs.filter(([k]) => tab === 'all' || k === tab).forEach(([k, label]) => {

@@ -1517,6 +1517,31 @@ window.Cabinet = (() => {
     $("cab-back2").textContent = t;
   }
   const safeUrl = (u) => /^https?:\/\/\S+$/i.test(String(u || "").trim());
+  let ucCache = { key: null, t: 0 };
+  async function unitContactList(p) {
+    let dl = document.getElementById("dl-unit-contacts");
+    if (!dl) {
+      dl = document.createElement("datalist");
+      dl.id = "dl-unit-contacts";
+      document.body.appendChild(dl);
+    }
+    const key = (p.military_unit_code || "") + "|" + (p.mp_unit_id || "");
+    if (ucCache.key === key && Date.now() - ucCache.t < 12e4) return;
+    ucCache = { key, t: Date.now() };
+    const { data, error } = await db.rpc("unit_contact_options", { p_unit_code: p.military_unit_code || null, p_mp: p.mp_unit_id || null });
+    if (error) {
+      console.error(error);
+      ucCache.key = null;
+      return;
+    }
+    dl.innerHTML = "";
+    (data || []).forEach((r) => {
+      const o = document.createElement("option");
+      o.value = r.value;
+      if (r.same_unit) o.label = "ця ж в/ч";
+      dl.appendChild(o);
+    });
+  }
   function fieldEl(f) {
     var _a;
     const wrap = document.createElement("div");
@@ -1635,8 +1660,15 @@ window.Cabinet = (() => {
           }
           if (/контакт/i.test(d.label) && !phonesInText(el)) return;
           saveValue(d.key, val);
+          if (d.key === "unit_contacts") ucCache.key = null;
         }
       };
+      if (d.key === "unit_contacts") {
+        f.kind = "line";
+        f.list = "dl-unit-contacts";
+        f.placeholder = "Оберіть зі списку або впишіть новий контакт";
+        f.onFocus = () => unitContactList(p);
+      }
       if (d.key === "solutions" && !v && c.vals.problem_state === "Вирішена") {
         f.hint = "Проблему позначено «Вирішена» — опишіть, як вирішено";
         f.state = "is-due";

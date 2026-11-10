@@ -1126,7 +1126,7 @@ window.Cabinet = (() => {
         b.title = "Справу передано у ваш осередок";
         tr.children[1].append(" ", b);
       }
-      tr.children[2].innerHTML = rec ? '<span></span><br><span class="muted"></span>' : isOrphan(c) ? '<span class="muted">родини немає (сирота)</span>' : '<span class="muted">родину не встановлено</span>';
+      tr.children[2].innerHTML = rec ? '<span></span><br><span class="muted"></span>' : isOrphan(c) ? `<span class="muted">${noFamText(c)}</span>` : '<span class="muted">родину не встановлено</span>';
       if (rec) {
         tr.children[2].firstChild.textContent = `${rec.relation_degree}: ${fio(rec.person)}` + (c.kin.length > 1 ? ` (+${c.kin.length - 1})` : "");
         tr.children[2].lastChild.textContent = V.formatPhone(rec.person.phone) || "без телефону";
@@ -1308,7 +1308,8 @@ window.Cabinet = (() => {
     }
   };
   const isOrphan = (c) => !c.kin.length && !!(c.vals && c.vals.no_family);
-  const P_LABELS = Object.fromEntries([["no_family", "Родини немає (сирота)"], ["p_comment", "Примітки"], ["p_burial_point", "Точка поховання (координати)"], ...Object.values(PERSON_FIELDS).flatMap((m) => Object.values(m).flat()).map(([k, l]) => ["p_" + k, l])]);
+  const noFamText = (c) => c.vals && c.vals.no_family === "нема родини" ? "нема родини" : "сирота";
+  const P_LABELS = Object.fromEntries([["no_family", "Рідних немає (сирота / нема родини)"], ["p_comment", "Примітки"], ["p_burial_point", "Точка поховання (координати)"], ...Object.values(PERSON_FIELDS).flatMap((m) => Object.values(m).flat()).map(([k, l]) => ["p_" + k, l])]);
   const UNIT_CODES = ["А0216", "А0878", "А1275", "А1325", "А1965", "А2062", "А2611", "А2613", "А2777", "А2802", "А3821", "А4210", "А4217", "А4548", "А4635", "А4656", "А4765", "А4822", "А4916", "А4935", "А5025", "А5074", "А7053", "А7382"];
   const unitCodes = () => [.../* @__PURE__ */ new Set([...UNIT_CODES, ...cases.map((c) => c.person.military_unit_code).filter(Boolean)])].sort((a, b) => a.localeCompare(b, "uk"));
   let tab = "all";
@@ -1454,7 +1455,8 @@ window.Cabinet = (() => {
       box.append(" · ", a);
     };
     if (!k && isOrphan(c)) {
-      box.innerHTML = '<span class="muted">Контактна особа:</span> <b>родини немає (сирота)</b>';
+      box.innerHTML = '<span class="muted">Контактна особа:</span> <b></b>';
+      box.querySelector("b").textContent = noFamText(c);
       docsLink();
       return;
     }
@@ -1725,7 +1727,7 @@ window.Cabinet = (() => {
     chip("all", "Усі розділи", `${all.filter(isFilled).length}/${all.length}`, false);
     secs.forEach(([k, label]) => {
       const fs = sectionFields(k);
-      chip(k, label, k === "family" ? isOrphan(c) ? "сирота" : String(c.kin.length) : `${fs.filter(isFilled).length}/${fs.length}`, fs.some((f) => f.state === "is-overdue"));
+      chip(k, label, k === "family" ? isOrphan(c) ? noFamText(c) : String(c.kin.length) : `${fs.filter(isFilled).length}/${fs.length}`, fs.some((f) => f.state === "is-overdue"));
     });
     const box = $("case-stages");
     box.innerHTML = "";
@@ -2045,7 +2047,7 @@ window.Cabinet = (() => {
     });
     add(head, { id: "h-resp", label: "Відповідальний (по осередку)", kind: "map", options: staff, value: c.responsible_id, onSave: (v) => saveCase({ responsible_id: v || null }).then(syncAll) }, "soft");
     add(head, { id: "h-cell", label: "Осередок", kind: "map", options: cells, value: c.cell_id, readonly: !!acc().readOnly, onSave: (v) => saveCase({ cell_id: v ? Number(v) : null }).then(syncAll) }, "crit");
-    if (isOrphan(c)) add(head, { id: "h-contact", label: "Контактна особа", text: "родини немає (сирота)", readonly: true }, "soft");
+    if (isOrphan(c)) add(head, { id: "h-contact", label: "Контактна особа", text: noFamText(c), readonly: true }, "soft");
     else add(head, {
       id: "h-contact",
       label: "Контактна особа",
@@ -2090,7 +2092,7 @@ window.Cabinet = (() => {
             }
           } }, "soft");
         });
-        add(grid, { id: "k-add", label: "Рідні", text: c.kin.length ? "+ додати ще родича" : isOrphan(c) ? "родини немає (сирота)" : "" }, c.kin.length || isOrphan(c) ? "soft" : "crit", () => {
+        add(grid, { id: "k-add", label: "Рідні", text: c.kin.length ? "+ додати ще родича" : isOrphan(c) ? noFamText(c) : "" }, c.kin.length || isOrphan(c) ? "soft" : "crit", () => {
           tab = "family";
           renderStages();
           $("case-tabs").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -2116,21 +2118,33 @@ window.Cabinet = (() => {
     if (!c.kin.length) {
       wrap.innerHTML = '<p class="muted">Рідних ще не додано.</p>';
       if (module === "200") {
-        const lab = document.createElement("label");
-        lab.className = "fam-orphan";
-        lab.innerHTML = '<input type="checkbox"> <b>Родини немає (сирота)</b> <span class="muted">— позначте, якщо рідних немає зовсім; тоді справа не вимагатиме контактної особи</span>';
-        const cb = lab.firstChild;
-        cb.checked = !!c.vals.no_family;
-        if (window.ACCESS && window.ACCESS.readOnly) cb.disabled = true;
-        cb.onchange = async () => {
-          await saveValue("no_family", cb.checked ? "сирота" : "");
-          if (cb.checked && c.status === "Родину не встановлено" && statuses.some((s) => s.name === "В роботі")) {
-            await saveCase({ status: "В роботі" });
-            $("case-status").value = "В роботі";
+        const box = document.createElement("div");
+        box.className = "fam-orphan";
+        box.innerHTML = '<span class="muted">Якщо рідних немає зовсім, позначте — тоді справа не вимагатиме контактної особи:</span>';
+        const opts = [["сирота", "Сирота"], ["нема родини", "Нема родини"]];
+        const cbs = opts.map(([val, text]) => {
+          const lab = document.createElement("label");
+          lab.className = "fam-orphan-opt";
+          lab.innerHTML = '<input type="checkbox"> <b></b>';
+          lab.querySelector("b").textContent = text;
+          const cb = lab.firstChild;
+          cb.checked = c.vals.no_family === val || val === "сирота" && !!c.vals.no_family && !opts.some((o) => o[0] === c.vals.no_family);
+          if (window.ACCESS && window.ACCESS.readOnly) cb.disabled = true;
+          cb.onchange = async () => {
+            cbs.forEach((x) => {
+              if (x !== cb) x.checked = false;
+            });
+            await saveValue("no_family", cb.checked ? val : "");
+            if (cb.checked && c.status === "Родину не встановлено" && statuses.some((s) => s.name === "В роботі")) {
+              await saveCase({ status: "В роботі" });
+              $("case-status").value = "В роботі";
+            }
             renderHead();
-          }
-        };
-        wrap.appendChild(lab);
+          };
+          box.appendChild(lab);
+          return cb;
+        });
+        wrap.appendChild(box);
       }
     }
     c.kin.forEach((k) => {

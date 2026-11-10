@@ -228,7 +228,7 @@
         lines.forEach((t) => { const m = document.createElement('span'); m.className = 'muted cab-date'; m.textContent = t; tr.children[1].append(document.createElement('br'), m); }); }
       tr.children[1].append(document.createElement('br'), markDots(c));
       if (isNew(c)) { const b = document.createElement('span'); b.className = 'cab-new-mark'; b.textContent = 'нова'; b.title = 'Справу передано у ваш осередок'; tr.children[1].append(' ', b); }
-      tr.children[2].innerHTML = rec ? '<span></span><br><span class="muted"></span>' : (isOrphan(c) ? '<span class="muted">родини немає (сирота)</span>' : '<span class="muted">родину не встановлено</span>');
+      tr.children[2].innerHTML = rec ? '<span></span><br><span class="muted"></span>' : (isOrphan(c) ? `<span class="muted">${noFamText(c)}</span>` : '<span class="muted">родину не встановлено</span>');
       if (rec) {
         tr.children[2].firstChild.textContent = `${rec.relation_degree}: ${fio(rec.person)}` + (c.kin.length > 1 ? ` (+${c.kin.length - 1})` : '');
         tr.children[2].lastChild.textContent = V.formatPhone(rec.person.phone) || 'без телефону';

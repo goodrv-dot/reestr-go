@@ -105,7 +105,7 @@
     });
     add(head, { id: 'h-resp', label: 'Відповідальний (по осередку)', kind: 'map', options: staff, value: c.responsible_id, onSave: (v) => saveCase({ responsible_id: v || null }).then(syncAll) }, 'soft');
     add(head, { id: 'h-cell', label: 'Осередок', kind: 'map', options: cells, value: c.cell_id, readonly: !!acc().readOnly, onSave: (v) => saveCase({ cell_id: v ? Number(v) : null }).then(syncAll) }, 'crit');
-    if (isOrphan(c)) add(head, { id: 'h-contact', label: 'Контактна особа', text: 'родини немає (сирота)', readonly: true }, 'soft');
+    if (isOrphan(c)) add(head, { id: 'h-contact', label: 'Контактна особа', text: noFamText(c), readonly: true }, 'soft');
     else add(head, { id: 'h-contact', label: 'Контактна особа', kind: 'map', options: new Map(c.kin.map((x) => [x.person.id, `${fio(x.person)} (${x.relation_degree})`])), value: k ? k.person.id : '',
       readonly: !c.kin.length, onSave: (v) => { if (v) saveCase({ contact_person_id: v }).then(syncAll); } }, 'crit');
     // ---- розділи
@@ -123,7 +123,7 @@
           add(grid, { id: 'k-s' + i, label: 'Населений пункт, адреса' + n, kind: 'line', value: x.person.settlement, onSave: async (v) => {
             if (await updPerson(x.person.id, { settlement: v || null })) { x.person.settlement = v || null; syncAll(); } } }, 'soft');
         });
-        add(grid, { id: 'k-add', label: 'Рідні', text: c.kin.length ? '+ додати ще родича' : isOrphan(c) ? 'родини немає (сирота)' : '' }, c.kin.length || isOrphan(c) ? 'soft' : 'crit', () => {
+        add(grid, { id: 'k-add', label: 'Рідні', text: c.kin.length ? '+ додати ще родича' : isOrphan(c) ? noFamText(c) : '' }, c.kin.length || isOrphan(c) ? 'soft' : 'crit', () => {
           tab = 'family'; renderStages(); $('case-tabs').scrollIntoView({ behavior: 'smooth', block: 'start' });
           const det = document.querySelector('.fam-add'); if (det) { det.open = true; const i = det.querySelector('input'); if (i) i.focus({ preventScroll: true }); }
         });

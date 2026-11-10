@@ -6,16 +6,24 @@
     const contact = contactOf(c);
     if (!c.kin.length) {
       wrap.innerHTML = '<p class="muted">Рідних ще не додано.</p>';
-      if (module === '200') {   // загиблий без родини (сирота) — позначка замість контактної особи
-        const lab = document.createElement('label'); lab.className = 'fam-orphan';
-        lab.innerHTML = '<input type="checkbox"> <b>Родини немає (сирота)</b> <span class="muted">— позначте, якщо рідних немає зовсім; тоді справа не вимагатиме контактної особи</span>';
-        const cb = lab.firstChild; cb.checked = !!c.vals.no_family;
-        if (window.ACCESS && window.ACCESS.readOnly) cb.disabled = true;
-        cb.onchange = async () => {
-          await saveValue('no_family', cb.checked ? 'сирота' : '');
-          if (cb.checked && c.status === 'Родину не встановлено' && statuses.some((s) => s.name === 'В роботі')) { await saveCase({ status: 'В роботі' }); $('case-status').value = 'В роботі'; renderHead(); }
-        };
-        wrap.appendChild(lab);
+      if (module === '200') {   // рідних немає: «Сирота» або «Нема родини» — позначка замість контактної особи (case_values.no_family)
+        const box = document.createElement('div'); box.className = 'fam-orphan';
+        box.innerHTML = '<span class="muted">Якщо рідних немає зовсім, позначте — тоді справа не вимагатиме контактної особи:</span>';
+        const opts = [['сирота', 'Сирота'], ['нема родини', 'Нема родини']];
+        const cbs = opts.map(([val, text]) => {
+          const lab = document.createElement('label'); lab.className = 'fam-orphan-opt';
+          lab.innerHTML = '<input type="checkbox"> <b></b>'; lab.querySelector('b').textContent = text;
+          const cb = lab.firstChild; cb.checked = c.vals.no_family === val || (val === 'сирота' && !!c.vals.no_family && !opts.some((o) => o[0] === c.vals.no_family));
+          if (window.ACCESS && window.ACCESS.readOnly) cb.disabled = true;
+          cb.onchange = async () => {
+            cbs.forEach((x) => { if (x !== cb) x.checked = false; });   // лише одна позначка
+            await saveValue('no_family', cb.checked ? val : '');
+            if (cb.checked && c.status === 'Родину не встановлено' && statuses.some((s) => s.name === 'В роботі')) { await saveCase({ status: 'В роботі' }); $('case-status').value = 'В роботі'; }
+            renderHead();
+          };
+          box.appendChild(lab); return cb;
+        });
+        wrap.appendChild(box);
       }
     }
     c.kin.forEach((k) => {
@@ -105,7 +113,7 @@
       const np = { id: res.person_id, ...kinRec };
       const r2 = { data: { id: res.relation_id, related_person_id: p.id, relation_degree: g('deg') } };
       c.kin.push({ ...r2.data, person: np });
-      if (c.vals.no_family) await saveValue('no_family', '');   // рідних знайшли — позначку «сирота» знімаємо
+      if (c.vals.no_family) await saveValue('no_family', '');   // рідних знайшли — позначку «Сирота» / «Нема родини» знімаємо
       if (module === '200' && c.status === 'Родину не встановлено' && statuses.some((s) => s.name === 'В роботі')) { await saveCase({ status: 'В роботі' }); $('case-status').value = 'В роботі'; }
       form.reset();    // щоб повторне «Додати» не створило того самого родича ще раз
       Persons.toast(ex ? 'Наявну картку прив’язано до справи' : 'Родича додано');

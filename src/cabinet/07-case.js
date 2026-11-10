@@ -266,6 +266,10 @@
         f.kind = 'line'; f.list = 'dl-unit-contacts'; f.placeholder = 'Оберіть зі списку або впишіть новий контакт';
         f.onFocus = () => unitContactList(p);
       }
+      if (d.key === 'kids_form_sent') {   // кнопка «Анкета «Діти» → WhatsApp»; підказка — лише в картці, без дзвіночка
+        f.extra = kidsFormEl(c);
+        if (!v && !isClosed(c) && c.vals.call3) { f.hint = 'Після третього дзвінка надішліть родині анкету «Діти» кнопкою нижче'; f.state = 'is-due'; }
+      }
       if (d.key === 'solutions' && !v && c.vals.problem_state === 'Вирішена') { f.hint = 'Проблему позначено «Вирішена» — опишіть, як вирішено'; f.state = 'is-due'; }
       if (d.key === 'problem_state' && !v && String(c.vals.problems || '').trim()) { f.hint = 'Оцініть стан проблеми'; f.state = 'is-due'; }
       if (!isClosed(c) && d.remind_after && !v && c.vals[d.remind_after] && /^\d{4}-\d{2}-\d{2}/.test(c.vals[d.remind_after])) {

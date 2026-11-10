@@ -2,7 +2,7 @@
 //@ Файли src/cabinet/*.js склеюються по порядку в cabinet.js: node tools/build-cabinet.mjs (рядки //@ не потрапляють у збірку).
   // ---------- Налаштування етапів (адміністратор) ----------
   async function openSettings() {
-    loadUnitsEditor();
+    loadUnitsEditor(); loadKidsFormEditor();
     const { data } = await db.from('case_stage_defs').select('*').eq('module', module).order('sort');
     const tb = $('cab-set-table').tBodies[0]; tb.innerHTML = '';
     $('cab-set-title').textContent = `Поля справи — ${ui().short === ui().title ? ui().title : 'кабінет ' + ui().short}`;

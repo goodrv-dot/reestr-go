@@ -1340,3 +1340,9 @@ a.bell-item { text-decoration: none; box-sizing: border-box; }
 .fam-orphan input { margin-right: 0.35rem; }
 
 .fam-orphan-opt { display: inline-flex; align-items: center; gap: 0.3rem; margin: 0.35rem 1.2rem 0 0; cursor: pointer; }
+
+/* Анкета «Діти» → WhatsApp у справі 200 */
+.kids-form { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin-top: 0.4rem; font-size: 0.92rem; }
+.kids-form select { max-width: 100%; }
+#cab-kids-form label { display: block; margin: 0.5rem 0; }
+#cab-kids-form input, #cab-kids-form textarea { width: 100%; }

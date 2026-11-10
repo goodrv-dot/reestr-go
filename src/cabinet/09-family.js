@@ -6,7 +6,7 @@
     const contact = contactOf(c);
     if (!c.kin.length) {
       wrap.innerHTML = '<p class="muted">Рідних ще не додано.</p>';
-      if (module === '200') {   // рідних немає: «Сирота» або «Нема родини» — позначка замість контактної особи (case_values.no_family)
+      if (module === '200' && NO_FAMILY_ON) {   // рідних немає: «Сирота» або «Нема родини» — позначка замість контактної особи (case_values.no_family)
         const box = document.createElement('div'); box.className = 'fam-orphan';
         box.innerHTML = '<span class="muted">Якщо рідних немає зовсім, позначте — тоді справа не вимагатиме контактної особи:</span>';
         const opts = [['сирота', 'Сирота'], ['нема родини', 'Нема родини']];

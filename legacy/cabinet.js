@@ -1307,7 +1307,8 @@ window.Cabinet = (() => {
       ]
     }
   };
-  const isOrphan = (c) => !c.kin.length && !!(c.vals && c.vals.no_family);
+  const NO_FAMILY_ON = false;
+  const isOrphan = (c) => NO_FAMILY_ON && !c.kin.length && !!(c.vals && c.vals.no_family);
   const noFamText = (c) => c.vals && c.vals.no_family === "нема родини" ? "нема родини" : "сирота";
   const P_LABELS = Object.fromEntries([["no_family", "Рідних немає (сирота / нема родини)"], ["p_comment", "Примітки"], ["p_burial_point", "Точка поховання (координати)"], ...Object.values(PERSON_FIELDS).flatMap((m) => Object.values(m).flat()).map(([k, l]) => ["p_" + k, l])]);
   const UNIT_CODES = ["А0216", "А0878", "А1275", "А1325", "А1965", "А2062", "А2611", "А2613", "А2777", "А2802", "А3821", "А4210", "А4217", "А4548", "А4635", "А4656", "А4765", "А4822", "А4916", "А4935", "А5025", "А5074", "А7053", "А7382"];
@@ -2117,7 +2118,7 @@ window.Cabinet = (() => {
     const contact = contactOf(c);
     if (!c.kin.length) {
       wrap.innerHTML = '<p class="muted">Рідних ще не додано.</p>';
-      if (module === "200") {
+      if (module === "200" && NO_FAMILY_ON) {
         const box = document.createElement("div");
         box.className = "fam-orphan";
         box.innerHTML = '<span class="muted">Якщо рідних немає зовсім, позначте — тоді справа не вимагатиме контактної особи:</span>';

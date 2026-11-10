@@ -123,6 +123,15 @@
   // Найближча дія за правилами нагадувань
   // Завершені справи («Документи ✅», «Архів» — позначка closed у статусі): термінів і нагадувань немає
   const isClosed = (c) => statuses.some((s) => s.name === c.status && s.closed);
+  // Анкета «Діти» (200): строк = поховання + 30 днів; немає — третій дзвінок; немає — сповіщення + 60 днів (як kids_form_due у базі)
+  const KIDS_FROM = '2026-11-10';   // у «Наступну дію» / «Сьогодні» — лише строки від цієї дати; старі справи розбираємо окремо
+  function kidsDue(c) {
+    if (module !== '200') return null;
+    const d = (v) => (v && /^\d{4}-\d{2}-\d{2}/.test(v) ? String(v).slice(0, 10) : null);
+    const b = d(c.person && c.person.burial_date); if (b) return addDays(b, 30);
+    const c3 = d(c.vals.call3); if (c3) return c3;
+    const n = d(c.vals.notice_date); return n ? addDays(n, 60) : null;
+  }
   function nextAction(c) {
     let best = null;
     if (isClosed(c)) return null;
@@ -133,6 +142,10 @@
       const due = addDays(base.slice(0, 10), d.remind_days);
       if (!best || due < best.due) best = { key: d.key, kind: d.kind, label: d.label, due };
     });
+    if (!c.vals.kids_form_sent) {
+      const kd = defs.find((d) => d.key === 'kids_form_sent'), due = kd && kidsDue(c);
+      if (due && due >= KIDS_FROM && (!best || due < best.due)) best = { key: kd.key, kind: kd.kind, label: kd.label, due };
+    }
     if (best) {
       best.days = Math.round((new Date(best.due + 'T00:00:00Z') - new Date(today() + 'T00:00:00Z')) / 86400000);   // <0 — прострочено
       best.overdue = best.days < 0;

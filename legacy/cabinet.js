@@ -299,6 +299,17 @@ window.Cabinet = (() => {
     }
   }
   const isClosed = (c) => statuses.some((s) => s.name === c.status && s.closed);
+  const KIDS_FROM = "2026-11-10";
+  function kidsDue(c) {
+    if (module !== "200") return null;
+    const d = (v) => v && /^\d{4}-\d{2}-\d{2}/.test(v) ? String(v).slice(0, 10) : null;
+    const b = d(c.person && c.person.burial_date);
+    if (b) return addDays(b, 30);
+    const c3 = d(c.vals.call3);
+    if (c3) return c3;
+    const n = d(c.vals.notice_date);
+    return n ? addDays(n, 60) : null;
+  }
   function nextAction(c) {
     let best = null;
     if (isClosed(c)) return null;
@@ -309,6 +320,10 @@ window.Cabinet = (() => {
       const due = addDays(base.slice(0, 10), d.remind_days);
       if (!best || due < best.due) best = { key: d.key, kind: d.kind, label: d.label, due };
     });
+    if (!c.vals.kids_form_sent) {
+      const kd = defs.find((d) => d.key === "kids_form_sent"), due = kd && kidsDue(c);
+      if (due && due >= KIDS_FROM && (!best || due < best.due)) best = { key: kd.key, kind: kd.kind, label: kd.label, due };
+    }
     if (best) {
       best.days = Math.round((/* @__PURE__ */ new Date(best.due + "T00:00:00Z") - /* @__PURE__ */ new Date(today() + "T00:00:00Z")) / 864e5);
       best.overdue = best.days < 0;
@@ -1674,9 +1689,16 @@ window.Cabinet = (() => {
       }
       if (d.key === "kids_form_sent") {
         f.extra = kidsFormEl(c);
-        if (!v && !isClosed(c) && c.vals.call3) {
-          f.hint = "Після третього дзвінка надішліть родині анкету «Діти» кнопкою нижче";
-          f.state = "is-due";
+        const due = !v && !isClosed(c) ? kidsDue(c) : null;
+        if (due) {
+          const src = c.person.burial_date ? "через 30 днів після поховання" : c.vals.call3 ? "після третього дзвінка" : "через 2 місяці після сповіщення";
+          if (due >= KIDS_FROM) {
+            f.hint = `Надішліть родині анкету «Діти» (${src}) — до ${fmt(due)}`;
+            f.state = due < today() ? "is-overdue" : "is-due";
+          } else {
+            f.hint = "Анкету «Діти» цій родині ще не надсилали";
+            f.state = "is-due";
+          }
         }
       }
       if (d.key === "solutions" && !v && c.vals.problem_state === "Вирішена") {

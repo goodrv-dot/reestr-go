@@ -268,7 +268,12 @@
       }
       if (d.key === 'kids_form_sent') {   // кнопка «Анкета «Діти» → WhatsApp»; підказка — лише в картці, без дзвіночка
         f.extra = kidsFormEl(c);
-        if (!v && !isClosed(c) && c.vals.call3) { f.hint = 'Після третього дзвінка надішліть родині анкету «Діти» кнопкою нижче'; f.state = 'is-due'; }
+        const due = !v && !isClosed(c) ? kidsDue(c) : null;
+        if (due) {
+          const src = c.person.burial_date ? 'через 30 днів після поховання' : c.vals.call3 ? 'після третього дзвінка' : 'через 2 місяці після сповіщення';
+          if (due >= KIDS_FROM) { f.hint = `Надішліть родині анкету «Діти» (${src}) — до ${fmt(due)}`; f.state = due < today() ? 'is-overdue' : 'is-due'; }
+          else { f.hint = 'Анкету «Діти» цій родині ще не надсилали'; f.state = 'is-due'; }
+        }
       }
       if (d.key === 'solutions' && !v && c.vals.problem_state === 'Вирішена') { f.hint = 'Проблему позначено «Вирішена» — опишіть, як вирішено'; f.state = 'is-due'; }
       if (d.key === 'problem_state' && !v && String(c.vals.problems || '').trim()) { f.hint = 'Оцініть стан проблеми'; f.state = 'is-due'; }

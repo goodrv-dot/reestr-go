@@ -1,6 +1,6 @@
 //@ Частина кабінету «Анкета «Діти» у WhatsApp».
 //@ Файли src/cabinet/*.js склеюються по порядку в cabinet.js: node tools/build-cabinet.mjs (рядки //@ не потрапляють у збірку).
-  // ---------- Анкета «Діти» у WhatsApp (200: після третього дзвінка) ----------
+  // ---------- Анкета «Діти» у WhatsApp (усі кабінети; строки — kidsDue) ----------
   // Посилання і текст — app_settings (kids_form_url, kids_form_text), змінює адміністратор у «Налаштування полів».
   const KIDS_TEXT_DEFAULT = 'Доброго дня, {ім’я}! Просимо заповнити коротку анкету про дітей — щоб ми могли запрошувати їх на наші заходи та програми підтримки: {посилання}\nДякуємо!';
   const kidsSet = { loaded: false, url: '', text: '' };
@@ -23,14 +23,16 @@
     if (c.vals.kids_form_filled) {   // діти вже є в картці родича (анкета / імпорт) або позначено вручну
       box.innerHTML = '<span class="kids-done">✅ Анкету «Діти» заповнено — надсилати не потрібно</span>'; return box;
     }
-    const withPhone = c.kin.filter((k) => waDigits(k.person.phone));
-    if (!withPhone.length) { box.innerHTML = '<span class="muted">Щоб надіслати анкету, додайте в «Родині» родича з телефоном.</span>'; return box; }
+    // 300 / полон / ветерани — першим пропонуємо саму особу справи (вона жива й знає своїх дітей), далі рідних
+    const self = ['300', 'pol', 'vet'].includes(module) && waDigits(c.person.phone) ? [{ person: c.person, relation_degree: 'сам(а)', self: true }] : [];
+    const withPhone = [...self, ...c.kin.filter((k) => waDigits(k.person.phone))];
+    if (!withPhone.length) { box.innerHTML = (['300', 'pol', 'vet'].includes(module) ? '<span class="muted">Щоб надіслати анкету, внесіть телефон особи або додайте в «Родині» родича з телефоном.</span>' : '<span class="muted">Щоб надіслати анкету, додайте в «Родині» родича з телефоном.</span>'); return box; }
     const contact = contactOf(c);
     const sel = document.createElement('select'); sel.setAttribute('aria-label', 'Кому надіслати');
     withPhone.forEach((k, i) => {
       const o = document.createElement('option'); o.value = String(i);
       o.textContent = `${fio(k.person)}${k.relation_degree ? ' (' + k.relation_degree + ')' : ''} · ${V.formatPhone(k.person.phone) || k.person.phone}`;
-      if (k === contact) o.selected = true; sel.appendChild(o);
+      if (self.length ? k === self[0] : k === contact) o.selected = true; sel.appendChild(o);
     });
     const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'btn-primary btn-small';
     btn.textContent = '💬 Анкета «Діти» → WhatsApp';

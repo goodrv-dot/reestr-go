@@ -271,9 +271,13 @@
         f.extra = kidsFormEl(c);
         const due = !v && !c.vals.kids_form_filled && !isClosed(c) ? kidsDue(c) : null;
         if (due) {
-          const src = c.person.burial_date ? 'через 30 днів після поховання' : c.vals.call3 ? 'після третього дзвінка' : 'через 2 місяці після сповіщення';
+          const src = module === '300' ? 'через 30 днів після поранення' : module === 'pol' ? 'через 30 днів після звільнення'
+            : c.person.burial_date ? 'через 30 днів після поховання' : c.vals.call3 ? 'після третього дзвінка' : 'через 2 місяці після сповіщення';
           if (due >= KIDS_FROM) { f.hint = `Надішліть родині анкету «Діти» (${src}) — до ${fmt(due)}`; f.state = due < today() ? 'is-overdue' : 'is-due'; }
           else { f.hint = 'Анкету «Діти» цій родині ще не надсилали'; f.state = 'is-due'; }
+        } else if (!v && !c.vals.kids_form_filled && !isClosed(c)) {
+          // без строку (БЗВ, ветерани, або дат ще немає) — поле з кнопкою все одно видно, без жовтої підсвітки
+          f.hint = 'Анкету «Діти» ще не надсилали — можна надіслати кнопкою нижче'; f.state = 'is-info';
         }
       }
       if (d.key === 'solutions' && !v && c.vals.problem_state === 'Вирішена') { f.hint = 'Проблему позначено «Вирішена» — опишіть, як вирішено'; f.state = 'is-due'; }

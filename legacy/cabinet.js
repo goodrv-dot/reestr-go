@@ -301,8 +301,16 @@ window.Cabinet = (() => {
   const isClosed = (c) => statuses.some((s) => s.name === c.status && s.closed);
   const KIDS_FROM = "2026-11-10";
   function kidsDue(c) {
-    if (module !== "200") return null;
     const d = (v) => v && /^\d{4}-\d{2}-\d{2}/.test(v) ? String(v).slice(0, 10) : null;
+    if (module === "300") {
+      const w = d(c.person && c.person.wound_date);
+      return w ? addDays(w, 30) : null;
+    }
+    if (module === "pol") {
+      const r = d(c.vals.release_date);
+      return r ? addDays(r, 30) : null;
+    }
+    if (module !== "200") return null;
     const b = d(c.person && c.person.burial_date);
     if (b) return addDays(b, 30);
     const c3 = d(c.vals.call3);
@@ -1695,7 +1703,7 @@ window.Cabinet = (() => {
         f.extra = kidsFormEl(c);
         const due = !v && !c.vals.kids_form_filled && !isClosed(c) ? kidsDue(c) : null;
         if (due) {
-          const src = c.person.burial_date ? "через 30 днів після поховання" : c.vals.call3 ? "після третього дзвінка" : "через 2 місяці після сповіщення";
+          const src = module === "300" ? "через 30 днів після поранення" : module === "pol" ? "через 30 днів після звільнення" : c.person.burial_date ? "через 30 днів після поховання" : c.vals.call3 ? "після третього дзвінка" : "через 2 місяці після сповіщення";
           if (due >= KIDS_FROM) {
             f.hint = `Надішліть родині анкету «Діти» (${src}) — до ${fmt(due)}`;
             f.state = due < today() ? "is-overdue" : "is-due";
@@ -1703,6 +1711,9 @@ window.Cabinet = (() => {
             f.hint = "Анкету «Діти» цій родині ще не надсилали";
             f.state = "is-due";
           }
+        } else if (!v && !c.vals.kids_form_filled && !isClosed(c)) {
+          f.hint = "Анкету «Діти» ще не надсилали — можна надіслати кнопкою нижче";
+          f.state = "is-info";
         }
       }
       if (d.key === "solutions" && !v && c.vals.problem_state === "Вирішена") {
@@ -2411,9 +2422,10 @@ ${ex.name}
       box.innerHTML = '<span class="kids-done">✅ Анкету «Діти» заповнено — надсилати не потрібно</span>';
       return box;
     }
-    const withPhone = c.kin.filter((k) => waDigits(k.person.phone));
+    const self = ["300", "pol", "vet"].includes(module) && waDigits(c.person.phone) ? [{ person: c.person, relation_degree: "сам(а)", self: true }] : [];
+    const withPhone = [...self, ...c.kin.filter((k) => waDigits(k.person.phone))];
     if (!withPhone.length) {
-      box.innerHTML = '<span class="muted">Щоб надіслати анкету, додайте в «Родині» родича з телефоном.</span>';
+      box.innerHTML = ["300", "pol", "vet"].includes(module) ? '<span class="muted">Щоб надіслати анкету, внесіть телефон особи або додайте в «Родині» родича з телефоном.</span>' : '<span class="muted">Щоб надіслати анкету, додайте в «Родині» родича з телефоном.</span>';
       return box;
     }
     const contact = contactOf(c);
@@ -2423,7 +2435,7 @@ ${ex.name}
       const o = document.createElement("option");
       o.value = String(i);
       o.textContent = `${fio(k.person)}${k.relation_degree ? " (" + k.relation_degree + ")" : ""} · ${V.formatPhone(k.person.phone) || k.person.phone}`;
-      if (k === contact) o.selected = true;
+      if (self.length ? k === self[0] : k === contact) o.selected = true;
       sel.appendChild(o);
     });
     const btn = document.createElement("button");

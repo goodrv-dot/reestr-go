@@ -123,11 +123,13 @@
   // Найближча дія за правилами нагадувань
   // Завершені справи («Документи ✅», «Архів» — позначка closed у статусі): термінів і нагадувань немає
   const isClosed = (c) => statuses.some((s) => s.name === c.status && s.closed);
-  // Анкета «Діти» (200): строк = поховання + 30 днів; немає — третій дзвінок; немає — сповіщення + 60 днів (як kids_form_due у базі)
+  // Анкета «Діти»: 200 — поховання + 30 днів (немає — третій дзвінок; немає — сповіщення + 60); 300 — поранення + 30; полон — звільнення + 30 (як kids_form_due у базі)
   const KIDS_FROM = '2026-11-10';   // у «Наступну дію» / «Сьогодні» — лише строки від цієї дати; старі справи розбираємо окремо
   function kidsDue(c) {
-    if (module !== '200') return null;
     const d = (v) => (v && /^\d{4}-\d{2}-\d{2}/.test(v) ? String(v).slice(0, 10) : null);
+    if (module === '300') { const w = d(c.person && c.person.wound_date); return w ? addDays(w, 30) : null; }   // 30 днів після поранення
+    if (module === 'pol') { const r = d(c.vals.release_date); return r ? addDays(r, 30) : null; }             // 30 днів після звільнення
+    if (module !== '200') return null;                                                                        // БЗВ, ветерани — без строку
     const b = d(c.person && c.person.burial_date); if (b) return addDays(b, 30);
     const c3 = d(c.vals.call3); if (c3) return c3;
     const n = d(c.vals.notice_date); return n ? addDays(n, 60) : null;

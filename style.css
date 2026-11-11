@@ -1346,3 +1346,4 @@ a.bell-item { text-decoration: none; box-sizing: border-box; }
 .kids-form select { max-width: 100%; }
 #cab-kids-form label { display: block; margin: 0.5rem 0; }
 #cab-kids-form input, #cab-kids-form textarea { width: 100%; }
+.kids-done { color: var(--ok, #2e7d32); font-weight: 600; }

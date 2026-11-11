@@ -238,7 +238,7 @@ window.Cabinet = (() => {
       const due = addDays(base.slice(0, 10), d.remind_days);
       if (!best || due < best.due) best = { key: d.key, kind: d.kind, label: d.label, due };
     });
-    if (!c.vals.kids_form_sent) {
+    if (!c.vals.kids_form_sent && !c.vals.kids_form_filled) {
       const kd = defs.find((d) => d.key === 'kids_form_sent'), due = kd && kidsDue(c);
       if (due && due >= KIDS_FROM && (!best || due < best.due)) best = { key: kd.key, kind: kd.kind, label: kd.label, due };
     }
@@ -1115,7 +1115,7 @@ window.Cabinet = (() => {
       }
       if (d.key === 'kids_form_sent') {   // кнопка «Анкета «Діти» → WhatsApp»; підказка — лише в картці, без дзвіночка
         f.extra = kidsFormEl(c);
-        const due = !v && !isClosed(c) ? kidsDue(c) : null;
+        const due = !v && !c.vals.kids_form_filled && !isClosed(c) ? kidsDue(c) : null;
         if (due) {
           const src = c.person.burial_date ? 'через 30 днів після поховання' : c.vals.call3 ? 'після третього дзвінка' : 'через 2 місяці після сповіщення';
           if (due >= KIDS_FROM) { f.hint = `Надішліть родині анкету «Діти» (${src}) — до ${fmt(due)}`; f.state = due < today() ? 'is-overdue' : 'is-due'; }
@@ -1544,6 +1544,9 @@ window.Cabinet = (() => {
 
   function kidsFormEl(c) {
     const box = document.createElement('div'); box.className = 'kids-form';
+    if (c.vals.kids_form_filled) {   // діти вже є в картці родича (анкета / імпорт) або позначено вручну
+      box.innerHTML = '<span class="kids-done">✅ Анкету «Діти» заповнено — надсилати не потрібно</span>'; return box;
+    }
     const withPhone = c.kin.filter((k) => waDigits(k.person.phone));
     if (!withPhone.length) { box.innerHTML = '<span class="muted">Щоб надіслати анкету, додайте в «Родині» родича з телефоном.</span>'; return box; }
     const contact = contactOf(c);

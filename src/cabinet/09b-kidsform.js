@@ -20,6 +20,9 @@
 
   function kidsFormEl(c) {
     const box = document.createElement('div'); box.className = 'kids-form';
+    if (c.vals.kids_form_filled) {   // діти вже є в картці родича (анкета / імпорт) або позначено вручну
+      box.innerHTML = '<span class="kids-done">✅ Анкету «Діти» заповнено — надсилати не потрібно</span>'; return box;
+    }
     const withPhone = c.kin.filter((k) => waDigits(k.person.phone));
     if (!withPhone.length) { box.innerHTML = '<span class="muted">Щоб надіслати анкету, додайте в «Родині» родича з телефоном.</span>'; return box; }
     const contact = contactOf(c);

@@ -142,7 +142,7 @@
       const due = addDays(base.slice(0, 10), d.remind_days);
       if (!best || due < best.due) best = { key: d.key, kind: d.kind, label: d.label, due };
     });
-    if (!c.vals.kids_form_sent) {
+    if (!c.vals.kids_form_sent && !c.vals.kids_form_filled) {
       const kd = defs.find((d) => d.key === 'kids_form_sent'), due = kd && kidsDue(c);
       if (due && due >= KIDS_FROM && (!best || due < best.due)) best = { key: kd.key, kind: kd.kind, label: kd.label, due };
     }

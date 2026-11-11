@@ -268,7 +268,7 @@
       }
       if (d.key === 'kids_form_sent') {   // кнопка «Анкета «Діти» → WhatsApp»; підказка — лише в картці, без дзвіночка
         f.extra = kidsFormEl(c);
-        const due = !v && !isClosed(c) ? kidsDue(c) : null;
+        const due = !v && !c.vals.kids_form_filled && !isClosed(c) ? kidsDue(c) : null;
         if (due) {
           const src = c.person.burial_date ? 'через 30 днів після поховання' : c.vals.call3 ? 'після третього дзвінка' : 'через 2 місяці після сповіщення';
           if (due >= KIDS_FROM) { f.hint = `Надішліть родині анкету «Діти» (${src}) — до ${fmt(due)}`; f.state = due < today() ? 'is-overdue' : 'is-due'; }

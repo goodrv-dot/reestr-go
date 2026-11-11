@@ -1346,4 +1346,12 @@ a.bell-item { text-decoration: none; box-sizing: border-box; }
 .kids-form select { max-width: 100%; }
 #cab-kids-form label { display: block; margin: 0.5rem 0; }
 #cab-kids-form input, #cab-kids-form textarea { width: 100%; }
-.kids-done { color: var(--ok, #2e7d32); font-weight: 600; }
+/* «Анкету «Діти» заповнено» — зелена плашка */
+#cab-case .stage.is-kids-filled { background: #d9f2e1; border-left: 5px solid #1e8a4c; }
+#cab-case .stage.is-kids-filled label { color: #14623a; font-weight: 700; }
+.kids-done { display: inline-block; padding: 0.35rem 0.7rem; border-radius: 6px; background: #d9f2e1; color: #14623a; font-weight: 700; }
+@media (prefers-color-scheme: dark) {
+  #cab-case .stage.is-kids-filled { background: rgba(46, 160, 90, 0.18); border-left-color: #4cc17d; }
+  #cab-case .stage.is-kids-filled label, .kids-done { color: #8fe0ad; }
+  .kids-done { background: rgba(46, 160, 90, 0.18); }
+}

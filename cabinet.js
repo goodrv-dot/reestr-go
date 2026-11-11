@@ -1113,6 +1113,7 @@ window.Cabinet = (() => {
         f.kind = 'line'; f.list = 'dl-unit-contacts'; f.placeholder = 'Оберіть зі списку або впишіть новий контакт';
         f.onFocus = () => unitContactList(p);
       }
+      if (d.key === 'kids_form_filled' && v) { f.label = '✅ ' + d.label; f.cls = 'is-kids-filled'; }   // одразу видно: анкету заповнено
       if (d.key === 'kids_form_sent') {   // кнопка «Анкета «Діти» → WhatsApp»; підказка — лише в картці, без дзвіночка
         f.extra = kidsFormEl(c);
         const due = !v && !c.vals.kids_form_filled && !isClosed(c) ? kidsDue(c) : null;

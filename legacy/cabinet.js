@@ -1687,6 +1687,10 @@ window.Cabinet = (() => {
         f.placeholder = "Оберіть зі списку або впишіть новий контакт";
         f.onFocus = () => unitContactList(p);
       }
+      if (d.key === "kids_form_filled" && v) {
+        f.label = "✅ " + d.label;
+        f.cls = "is-kids-filled";
+      }
       if (d.key === "kids_form_sent") {
         f.extra = kidsFormEl(c);
         const due = !v && !c.vals.kids_form_filled && !isClosed(c) ? kidsDue(c) : null;

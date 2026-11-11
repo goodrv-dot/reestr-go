@@ -10,14 +10,15 @@
   --err: #a5392b;
   --focus: #2f7fb0;
   --radius-field: 6px;
-  --font-body: 'IBM Plex Sans', 'Segoe UI', Arial, sans-serif;
-  --font-mark: 'Unbounded', 'IBM Plex Sans', Arial, sans-serif;
+  --font-body: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;   /* системний шрифт — чіткий на будь-якому екрані, справжній жирний */
+  --font-mark: 'Unbounded', system-ui, 'Segoe UI', Arial, sans-serif;
 }
 
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; }
 body {
   font-family: var(--font-body);
+  text-rendering: optimizeLegibility;
   font-size: 16px;
   line-height: 1.5;
   color: var(--ink);
@@ -628,7 +629,7 @@ tr.st-warn { background: var(--warn-bg); }
 .map-region { fill: #e3e7ea; stroke: #ffffff; stroke-width: 1.5; cursor: pointer; transition: opacity .15s; }
 .map-region:hover, .map-region:focus { stroke: var(--brass); stroke-width: 3; outline: none; }
 .map-city { stroke-width: 3; }
-.map-value { font: 700 20px 'IBM Plex Sans', Arial, sans-serif; fill: var(--ink); text-anchor: middle; dominant-baseline: middle; pointer-events: none; }
+.map-value { font: 700 20px var(--font-body); fill: var(--ink); text-anchor: middle; dominant-baseline: middle; pointer-events: none; }
 .map-value.on-dark { fill: #ffffff; }
 .dash-tip {
   position: absolute; pointer-events: none; background: var(--ink); color: #fff; padding: 0.35rem 0.6rem;
@@ -667,8 +668,8 @@ tr.st-warn { background: var(--warn-bg); }
 .mbar:hover .mbar-hit, .mbar:focus .mbar-hit { fill: #eef3f6; }
 .mbar-fill { fill: #b9c9d4; }
 .mbar.is-sel .mbar-fill { fill: #7a2e2e; }
-.mbar-val { font: 700 14px 'IBM Plex Sans', Arial, sans-serif; text-anchor: middle; fill: var(--ink); }
-.mbar-lbl { font: 12px 'IBM Plex Sans', Arial, sans-serif; text-anchor: middle; fill: var(--muted); }
+.mbar-val { font: 700 14px var(--font-body); text-anchor: middle; fill: var(--ink); }
+.mbar-lbl { font: 12px var(--font-body); text-anchor: middle; fill: var(--muted); }
 .dash-note { font-size: 0.88rem; max-width: 70ch; }
 
 /* Відбір із дашборду */

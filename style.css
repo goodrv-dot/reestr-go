@@ -1,6 +1,6 @@
 :root {
-  --ink: #16222e;
-  --muted: #5b6875;
+  --ink: #0a0f14;   /* майже чорний — контрастніший текст */
+  --muted: #434f5b;
   --sea: #133c55;
   --sea-deep: #0e2d40;
   --paper: #f3f5f6;
@@ -1356,3 +1356,6 @@ a.bell-item { text-decoration: none; box-sizing: border-box; }
   #cab-case .stage.is-kids-filled label, .kids-done { color: #8fe0ad; }
   .kids-done { background: rgba(46, 160, 90, 0.18); }
 }
+/* поля вводу — тим самим майже чорним, що й текст */
+input, select, textarea { color: var(--ink); }
+input::placeholder, textarea::placeholder { color: #7a8591; }

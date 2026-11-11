@@ -870,7 +870,7 @@ tr[data-module="mvet"], #form-view[data-module="mvet"] { --mod-c: #4d5e2f; }
 .case-empty summary { cursor: pointer; color: var(--muted); font-size: 0.92rem; margin-bottom: 0.6rem; }
 .case-fam { display: flex; flex-direction: column; gap: 0.7rem; margin-bottom: 1rem; }
 .fam-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); gap: 0.4rem 0.8rem; align-items: end; padding: 0.6rem 0.7rem; border: 1px solid var(--line); border-radius: 8px; background: #fafbfc; }
-.fam-row label { display: flex; flex-direction: column; font-size: 0.85rem; gap: 0.2rem; }
+.fam-row label { display: flex; flex-direction: column; font-size: 14px; gap: 0.2rem; }
 .fam-row input:not([type=radio]), .fam-row select { font: inherit; padding: 0.4rem 0.5rem; border: 1px solid var(--line); border-radius: var(--radius-field); background: var(--white); width: 100%; }
 .fam-name { grid-column: 1 / -1; justify-self: start; margin: 0; font-weight: 600; font-size: 1rem; }
 .fam-row label.fam-contact { flex-direction: row; align-items: center; gap: 0.4rem; padding-bottom: 0.45rem; }
@@ -926,8 +926,8 @@ input.is-bad, textarea.is-bad { border-color: var(--err) !important; background:
 #cab-case .case-tab[aria-pressed="true"] { background: var(--sec); border-color: var(--sec); color: #fff; }
 #cab-case .case-stages { gap: 0.35rem 0.7rem; grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr)); }
 #cab-case .stage { padding: 0.15rem 0 0.15rem 0.45rem; border-left-width: 3px; }
-#cab-case .stage label { font-size: 0.78rem; margin-bottom: 0.1rem; color: var(--muted); }
-#cab-case .stage input, #cab-case .stage select, #cab-case .stage textarea { padding: 0.25rem 0.4rem; font-size: 0.9rem; }
+#cab-case .stage label { font-size: 13px; margin-bottom: 0.1rem; color: var(--muted); }
+#cab-case .stage input, #cab-case .stage select, #cab-case .stage textarea { padding: 0.25rem 0.4rem; font-size: 14px; }   /* цілі пікселі — рівніший текст */
 #cab-case .stage.is-done { background: #f5faf7; }
 #cab-case .stage-hint { font-size: 0.75rem; margin-top: 0.1rem; }
 #cab-case .case-empty { margin-top: 0.5rem; }

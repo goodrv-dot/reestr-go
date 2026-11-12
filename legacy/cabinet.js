@@ -2486,10 +2486,10 @@ ${ex.name}
   }
   const KIDS_TEXT_DEFAULT = "Доброго дня, {ім’я}!\nМене звати {оператор}, я з ГО «Ветеранський корпус Морської піхоти». Ми поруч із вашою родиною.\n\nЯкщо у вашій родині є діти до 18 років, просимо заповнити коротку анкету — так ми зможемо запрошувати їх на оздоровлення, табори та інші програми підтримки:\n{посилання}\n\nЯкщо це не стосується вашої родини — просто напишіть нам про це у відповідь.\n\nЗбережіть, будь ласка, цей номер — за ним ви завжди можете звернутися до нас з питаннями чи по підтримку.\nБудь ласка, підтвердіть коротким повідомленням, що отримали. Дякуємо.";
   const KIDS_TEXT_SELF_DEFAULT = KIDS_TEXT_DEFAULT.replace("Ми поруч із вашою родиною.", "Дякуємо вам за службу.");
-  const kidsSet = { loaded: false, url: "", text: "", textSelf: "" };
+  const kidsSet = { loaded: false, url: "", text: "", textSelf: "", entry: "" };
   async function loadKidsSet(force) {
     if (kidsSet.loaded && !force) return kidsSet;
-    const { data, error } = await db.from("app_settings").select("key, value").in("key", ["kids_form_url", "kids_form_text", "kids_form_text_self"]);
+    const { data, error } = await db.from("app_settings").select("key, value").in("key", ["kids_form_url", "kids_form_text", "kids_form_text_self", "kids_form_code_entry"]);
     if (error) {
       console.error(error);
       return kidsSet;
@@ -2500,6 +2500,7 @@ ${ex.name}
     (data || []).forEach((r) => {
       if (r.key === "kids_form_url") kidsSet.url = r.value || "";
       else if (r.key === "kids_form_text") kidsSet.text = r.value || "";
+      else if (r.key === "kids_form_code_entry") kidsSet.entry = r.value || "";
       else kidsSet.textSelf = r.value || "";
     });
     kidsSet.loaded = true;
@@ -2509,7 +2510,9 @@ ${ex.name}
     const d = String(phone || "").replace(/\D/g, "");
     return d.length >= 9 ? d : "";
   };
-  const kidsText = (k) => (k.self ? kidsSet.textSelf || KIDS_TEXT_SELF_DEFAULT : kidsSet.text || KIDS_TEXT_DEFAULT).replace(/\{ім[’'`]?я\}/gi, [k.person.first_name, k.person.patronymic].filter(Boolean).join(" ") || "").replace(/\{оператор\}/gi, staff.get(me) || "співробітник").replace(/\{посилання\}/gi, kidsSet.url).replace(/\{загиблий\}/gi, fio(current.person));
+  const caseCode = (c) => String(c.id).replace(/-/g, "").slice(0, 8).toUpperCase();
+  const kidsLink = (c) => kidsSet.entry && kidsSet.url ? kidsSet.url.replace(/[?#].*$/, "") + "?usp=pp_url&" + encodeURIComponent(kidsSet.entry) + "=" + caseCode(c) : kidsSet.url;
+  const kidsText = (k) => (k.self ? kidsSet.textSelf || KIDS_TEXT_SELF_DEFAULT : kidsSet.text || KIDS_TEXT_DEFAULT).replace(/\{ім[’'`]?я\}/gi, [k.person.first_name, k.person.patronymic].filter(Boolean).join(" ") || "").replace(/\{оператор\}/gi, staff.get(me) || "співробітник").replace(/\{посилання\}/gi, kidsLink(current)).replace(/\{загиблий\}/gi, fio(current.person));
   function kidsFormEl(c) {
     const box = document.createElement("div");
     box.className = "kids-form";

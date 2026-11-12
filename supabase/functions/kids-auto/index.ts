@@ -102,9 +102,33 @@ async function matchExisting(db, list) {
   });
 }
 
+// ---------- «Код анкети» (кнопка WhatsApp підставляє код справи у посилання) — точна прив’язка до справи ----------
+const STATUS_BY_MODULE = { '200': 'Загиблий', bzv: 'Зниклий безвісти', pol: 'Військовополонений', '300': 'Діючий військовослужбовець', vet: 'Ветеран' };
+async function linkByCode(db, list, rows, header) {
+  const ci = header.findIndex((h) => /^код анкети/i.test(clean(h)));
+  if (ci < 0) return;
+  const codeOf = (r) => { const v = clean(rows[r.rows[0] - 2]?.[ci]).toUpperCase(); return /^[0-9A-F]{8}$/.test(v) ? v : null; };
+  const codes = [...new Set(list.map(codeOf).filter(Boolean))];
+  if (!codes.length) return;
+  const { data, error } = await db.rpc('cases_by_codes', { p_codes: codes });
+  if (error) throw error;
+  const by = new Map((data || []).map((x) => [x.code, x]));
+  list.forEach((r) => {
+    if (r.state === 'error') return;
+    const code = codeOf(r); if (!code) return;
+    const hit = by.get(code);
+    if (!hit) { r.warnings.push(`Код анкети «${code}» не знайдено серед справ — перевірте`); return; }
+    if (r.existing && r.existing.id === hit.person_id) { r.relations = []; return; }   // анкету заповнив сам боєць справи
+    if (r.relations[0]) { r.relations[0].related_person_id = hit.person_id; if (!r.relations[0].related_full_name) r.relations[0].related_full_name = hit.fio; }
+    else r.relations.push({ relation_degree: OTHER_DEG, related_full_name: hit.fio, related_status: STATUS_BY_MODULE[hit.module] || 'Невідомо', related_mp: 'Так', related_person_id: hit.person_id });
+    // ПІБ бійця в анкеті написано інакше, ніж у справі — прив’язуємо за кодом, але просимо глянути
+    if (r.relations[0] && letters(r.relations[0].related_full_name) !== letters(hit.fio)) r.warnings.push(`За кодом анкети родину прив’язано до справи «${hit.fio}», а в анкеті вказано «${r.relations[0].related_full_name}» — перевірте`);
+  });
+}
+
 // ---------- зв’язок із бійцем: точний і єдиний збіг ПІБ серед карток, що мають справу в кабінеті ----------
 async function linkSoldiers(db, list) {
-  const rels = list.flatMap((r) => (r.state === 'error' ? [] : r.relations.map((rel) => ({ r, rel })))).filter((x) => x.rel.related_full_name);
+  const rels = list.flatMap((r) => (r.state === 'error' ? [] : r.relations.map((rel) => ({ r, rel })))).filter((x) => x.rel.related_full_name && !x.rel.related_person_id);
   const lasts = [...new Set(rels.map((x) => x.rel.related_full_name.split(' ')[0]))];
   if (!lasts.length) return;
   const { data, error } = await db.from('persons').select('id, last_name, first_name, patronymic, birth_date, cases!cases_person_id_fkey!inner(id)').in('last_name', lasts);
@@ -214,6 +238,7 @@ Deno.serve(async (req) => {
     list = list.filter((r) => fresh.has(r.rows[0]));
     list = mergeByPhone(list);
     await matchExisting(db, list);
+    await linkByCode(db, list, rows, header);
     await linkSoldiers(db, list);
 
     const summary = { total: rows.length, fresh: fresh.size, records: list.length, new: 0, update: 0, error: 0, kids: 0, review: 0, linked: 0 };

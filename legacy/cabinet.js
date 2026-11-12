@@ -1562,15 +1562,28 @@ window.Cabinet = (() => {
     setBackLabel();
     if (r && r.tab === "lists") {
       document.querySelector('.tab[data-tab="lists"]').click();
-      setTimeout(() => window.scrollTo(0, r.y || 0), 700);
+      restoreScroll(r.y || 0, null);
       return;
     }
-    const y = listY;
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      const row = document.querySelector(`#cab-list tr[data-cid="${lastOpened}"]`);
-      if (y != null) window.scrollTo(0, y);
-      else if (row) row.scrollIntoView({ block: "center" });
-    }));
+    restoreScroll(listY, `#cab-list tr[data-cid="${lastOpened}"]`);
+  }
+  function restoreScroll(y, rowSel) {
+    if (y == null && !rowSel) return;
+    let stop = false, n = 0;
+    const quit = () => {
+      stop = true;
+    };
+    ["wheel", "touchstart", "keydown", "mousedown"].forEach((ev) => window.addEventListener(ev, quit, { once: true, passive: true }));
+    const tick = () => {
+      if (stop || ++n > 60) return;
+      const row = rowSel ? document.querySelector(rowSel) : null;
+      const tall = document.documentElement.scrollHeight - window.innerHeight;
+      if (y != null && tall >= y - 5) {
+        if (Math.abs(window.scrollY - y) > 5) window.scrollTo(0, y);
+      } else if (row) row.scrollIntoView({ block: "center" });
+      setTimeout(tick, 120);
+    };
+    requestAnimationFrame(tick);
   }
   function setBackLabel() {
     const r = window.__caseReturn;

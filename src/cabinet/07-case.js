@@ -77,6 +77,9 @@
     setBackLabel();
     current = cases.find((c) => c.id === id);
     if (!current) return;
+    // запам’ятати місце в списку справ, щоб після «Назад» повернутись туди ж (а не на початок)
+    if (!$('cab-list').hidden) listY = window.scrollY;
+    lastOpened = id;
     $('cab-list').hidden = true; $('cab-case').hidden = false;
     if (!noPush) history.pushState({ view: 'case' }, '');
     window.scrollTo(0, 0);
@@ -173,7 +176,14 @@
     render();
     // справу відкрили зі «Списку» — повертаємось у той самий список і на те саме місце
     const r = window.__caseReturn; window.__caseReturn = null; setBackLabel();
-    if (r && r.tab === 'lists') { document.querySelector('.tab[data-tab="lists"]').click(); setTimeout(() => window.scrollTo(0, r.y || 0), 700); }
+    if (r && r.tab === 'lists') { document.querySelector('.tab[data-tab="lists"]').click(); setTimeout(() => window.scrollTo(0, r.y || 0), 700); return; }
+    // назад у список справ — на те саме місце; рядок справи, з якої повернулись, підсвічено
+    const y = listY;
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const row = document.querySelector(`#cab-list tr[data-cid="${lastOpened}"]`);
+      if (y != null) window.scrollTo(0, y);
+      else if (row) row.scrollIntoView({ block: 'center' });
+    }));
   }
   function setBackLabel() {
     const r = window.__caseReturn;

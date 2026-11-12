@@ -1377,3 +1377,7 @@ input::placeholder, textarea::placeholder { color: #7a8591; }
 }
 .kf-sum { border-collapse: collapse; margin: 0.5rem 0 1rem; font-size: 13px; } .kf-sum th, .kf-sum td { border: 1px solid var(--line); padding: 0.25rem 0.45rem; text-align: center; } .kf-sum thead th { font-weight: 600; } .kf-sum tbody th { text-align: left; }
 #cab-kids-form { overflow-x: auto; }
+/* справа, з якої щойно повернулись у список */
+#cab-list tr.is-last-opened > td { background: #fff4c2 !important; }
+#cab-list tr.is-last-opened > td:first-child { box-shadow: inset 4px 0 0 #d9a400; }
+@media (prefers-color-scheme: dark) { #cab-list tr.is-last-opened > td { background: rgba(217,164,0,.18) !important; } }

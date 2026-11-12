@@ -203,6 +203,7 @@
     }
     list.slice((page - 1) * PAGE, page * PAGE).forEach((c) => {
       const tr = document.createElement('tr');
+      tr.dataset.cid = c.id; if (c.id === lastOpened) tr.classList.add('is-last-opened');   // справа, з якої щойно повернулись
       const rec = contactOf(c);
       const filled = defs.filter((d) => (d.section || 'other') !== 'head' && c.vals[d.key]).length;
       const pct = totalStages ? Math.round((filled / totalStages) * 100) : 0;

@@ -11,6 +11,7 @@ window.Cabinet = (() => {
   const keep = (k, v) => { try { if (v) sessionStorage.setItem(k, v); else sessionStorage.removeItem(k); } catch { /* ок */ } };
   try { module = sessionStorage.getItem('cab_module') || module; } catch { /* ок */ }
   let defs = [], statuses = [], staff = new Map(), cases = [];
+  let listY = null, lastOpened = null;   // місце в списку справ і остання відкрита справа (повернення «Назад» — туди ж)
   let marks = new Map();        // case_id → [1..5] — особисті мітки адміністратора
   const MARK_COLORS = ['#d64545', '#e8912d', '#e3c13b', '#3f9a5a', '#3b7dd8'];
   const MARK_NAMES = ['червона', 'помаранчева', 'жовта', 'зелена', 'синя'];

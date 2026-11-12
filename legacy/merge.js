@@ -34,6 +34,11 @@ window.Merge = /* @__PURE__ */ (() => {
       const others = (data || []).map((r) => r.person).filter((p) => p && (p.name_check || me.name_check));
       add(others, "тимчасове ПІБ у родини того ж військового");
     }
+    const ids = [...found.keys()];
+    if (ids.length) {
+      const { data: nd } = await db.from("not_duplicates").select("a, b").or(`a.eq.${id},b.eq.${id}`);
+      (nd || []).forEach((x) => found.delete(x.a === id ? x.b : x.a));
+    }
     return [...found.values()];
   }
   async function render(id, isAdmin) {
@@ -55,6 +60,25 @@ window.Merge = /* @__PURE__ */ (() => {
       li.querySelector(".dup-open").textContent = fio(c) + (c.name_check ? " (тимчасове ПІБ)" : "");
       li.querySelector(".dup-meta").textContent = `${V.formatPhone(c.phone) || "без телефону"} · ${c.why}`;
       tabLink(li.querySelector(".dup-open"), personHref(c.id), () => Persons.openForm(c.id));
+      const nb = document.createElement("button");
+      nb.type = "button";
+      nb.className = "btn-link btn-small";
+      nb.textContent = "✕ Це різні люди";
+      nb.title = "Більше не пропонувати об’єднувати ці дві картки";
+      nb.addEventListener("click", async () => {
+        const { db } = Persons.ctx();
+        const [a, b2] = [id, c.id].sort();
+        const { error } = await db.from("not_duplicates").insert({ a, b: b2 });
+        if (error && error.code !== "23505") {
+          console.error(error);
+          Persons.toast("Не вдалося зберегти");
+          return;
+        }
+        li.remove();
+        if (!$("dup-list").children.length) $("dup-box").hidden = true;
+        Persons.toast("Добре, ці картки більше не пропонуватимуться як дублікат");
+      });
+      li.appendChild(nb);
       if (isAdmin) {
         const b = document.createElement("button");
         b.type = "button";

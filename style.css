@@ -721,7 +721,10 @@ tr.is-relative td:nth-child(3) { padding-left: 1.6rem; }
 .pg-info { color: var(--muted); margin-left: 0.5rem; font-size: 0.9rem; }
 
 /* ============ Мобільна версія: шапка без виходу за екран ============ */
-html, body { overflow-x: hidden; max-width: 100%; }
+/* overflow-x лише на html (переходить на вікно). Якщо дати його й body — body стає окремим «вікном прокрутки»,
+   і window.scrollTo / window.scrollY не працюють (не працювало повернення на місце списку й кнопка «Вгору»). */
+html { overflow-x: hidden; max-width: 100%; }
+body { max-width: 100%; }
 @media (max-width: 760px) {
   .topbar {
     display: grid; grid-template-columns: 1fr auto; grid-template-areas: "brand user" "tabs tabs";

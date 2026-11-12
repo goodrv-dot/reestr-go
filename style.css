@@ -1384,3 +1384,4 @@ input::placeholder, textarea::placeholder { color: #7a8591; }
 #cab-list tr.is-last-opened > td { background: #fff4c2 !important; }
 #cab-list tr.is-last-opened > td:first-child { box-shadow: inset 4px 0 0 #d9a400; }
 @media (prefers-color-scheme: dark) { #cab-list tr.is-last-opened > td { background: rgba(217,164,0,.18) !important; } }
+.fam-nocalls { display: block; margin: 0.4rem 0 0.6rem; padding: 0.5rem 0.7rem; border: 1px dashed var(--line); border-radius: 8px; }

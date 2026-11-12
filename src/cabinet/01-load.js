@@ -150,7 +150,7 @@
   function nextAction(c) {
     let best = null;
     if (isClosed(c)) return null;
-    defs.filter((d) => d.remind_after && d.remind_days != null).forEach((d) => {
+    defs.filter((d) => d.remind_after && d.remind_days != null && !(c.vals.no_calls && /^call/.test(d.key))).forEach((d) => {   // 📵 рідних немає — без нагадувань про дзвінки
       if (c.vals[d.key]) return;                    // уже зроблено
       const base = c.vals[d.remind_after];
       if (!base || !/^\d{4}-\d{2}-\d{2}/.test(base)) return;
@@ -158,7 +158,7 @@
       if (!best || due < best.due) best = { key: d.key, kind: d.kind, label: d.label, due };
     });
     { const ks = kidsState(c);
-      if (ks && ks.k === 'none' && ks.due && ks.due >= KIDS_FROM && (!best || ks.due < best.due)) best = { key: 'kids_form_sent', kind: 'date', label: 'Надіслати анкету «Діти»', due: ks.due };
+      if (ks && ks.k === 'none' && !c.vals.no_calls && ks.due && ks.due >= KIDS_FROM && (!best || ks.due < best.due)) best = { key: 'kids_form_sent', kind: 'date', label: 'Надіслати анкету «Діти»', due: ks.due };
       if (ks && ks.k === 'repeat' && (!best || ks.due < best.due)) best = { key: 'kids_form_resent', kind: 'date', label: 'Анкета «Діти» — надіслати повторно', due: ks.due };
     }
     if (best) {

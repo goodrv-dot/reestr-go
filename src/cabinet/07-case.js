@@ -37,9 +37,11 @@
   // «Сирота» / «Нема родини» — позначка у справі 200 замість контактної особи (case_values.no_family)
   // Тимчасово вимкнено (10.11.2026): команда узгоджує, як правильно. Увімкнути — NO_FAMILY_ON = true.
   const NO_FAMILY_ON = false;
-  const isOrphan = (c) => NO_FAMILY_ON && !c.kin.length && !!(c.vals && c.vals.no_family);
-  const noFamText = (c) => (c.vals && c.vals.no_family === 'нема родини' ? 'нема родини' : 'сирота');
-  const P_LABELS = Object.fromEntries([['no_family', 'Рідних немає (сирота / нема родини)'], ['p_comment', 'Примітки'], ['p_burial_point', 'Точка поховання (координати)'], ...Object.values(PERSON_FIELDS).flatMap((m) => Object.values(m).flat()).map(([k, l]) => ['p_' + k, l])]);
+  // «📵 Рідних немає — дзвінки не потрібні» (case_values.no_calls = дата): дзвінки й нагадування про них вимкнено, контактна особа не вимагається
+  const noCalls = (c) => !!(c && c.vals && c.vals.no_calls);
+  const isOrphan = (c) => !c.kin.length && (noCalls(c) || (NO_FAMILY_ON && !!(c.vals && c.vals.no_family)));
+  const noFamText = (c) => (noCalls(c) ? 'рідних немає — дзвінків немає' : c.vals && c.vals.no_family === 'нема родини' ? 'нема родини' : 'сирота');
+  const P_LABELS = Object.fromEntries([['no_family', 'Рідних немає (сирота / нема родини)'], ['no_calls', 'Рідних немає — дзвінки вимкнено'], ['p_comment', 'Примітки'], ['p_burial_point', 'Точка поховання (координати)'], ...Object.values(PERSON_FIELDS).flatMap((m) => Object.values(m).flat()).map(([k, l]) => ['p_' + k, l])]);
   const UNIT_CODES = ['А0216', 'А0878', 'А1275', 'А1325', 'А1965', 'А2062', 'А2611', 'А2613', 'А2777', 'А2802', 'А3821', 'А4210', 'А4217', 'А4548', 'А4635', 'А4656', 'А4765', 'А4822', 'А4916', 'А4935', 'А5025', 'А5074', 'А7053', 'А7382'];
   const unitCodes = () => [...new Set([...UNIT_CODES, ...cases.map((c) => c.person.military_unit_code).filter(Boolean)])].sort((a, b) => a.localeCompare(b, 'uk'));
   let tab = 'all';
@@ -292,7 +294,8 @@
       if (d.key === 'kids_form_sent') {   // кнопка «Анкета «Діти» → WhatsApp» + стан відстеження
         f.extra = kidsFormEl(c);
         const ks = kidsState(c), cl = isClosed(c);
-        if (ks.k === 'none' && !cl) {
+        if (ks.k === 'none' && noCalls(c)) { f.hint = '📵 Рідних немає — анкету надсилати нікому'; f.state = 'is-info'; }
+        else if (ks.k === 'none' && !cl) {
           const due = ks.due;
           const src = module === '300' ? 'через 30 днів після поранення' : module === 'pol' ? 'через 30 днів після звільнення'
             : c.person.burial_date ? 'через 30 днів після поховання' : c.vals.call3 ? 'після третього дзвінка' : 'через 2 місяці після сповіщення';
@@ -307,7 +310,8 @@
       }
       if (d.key === 'solutions' && !v && c.vals.problem_state === 'Вирішена') { f.hint = 'Проблему позначено «Вирішена» — опишіть, як вирішено'; f.state = 'is-due'; }
       if (d.key === 'problem_state' && !v && String(c.vals.problems || '').trim()) { f.hint = 'Оцініть стан проблеми'; f.state = 'is-due'; }
-      if (!isClosed(c) && d.remind_after && !v && c.vals[d.remind_after] && /^\d{4}-\d{2}-\d{2}/.test(c.vals[d.remind_after])) {
+      if (noCalls(c) && /^call/.test(d.key) && !v) { f.hint = '📵 Дзвінки вимкнено: рідних немає'; f.state = 'is-info'; }
+      else if (!isClosed(c) && d.remind_after && !v && c.vals[d.remind_after] && /^\d{4}-\d{2}-\d{2}/.test(c.vals[d.remind_after])) {
         const due = addDays(c.vals[d.remind_after].slice(0, 10), d.remind_days || 0);
         f.hint = `Потрібно до ${fmt(due)}`; f.state = due < today() ? 'is-overdue' : 'is-due';
       }

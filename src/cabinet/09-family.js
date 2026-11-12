@@ -6,6 +6,18 @@
     const contact = contactOf(c);
     if (!c.kin.length) {
       wrap.innerHTML = '<p class="muted">Рідних ще не додано.</p>';
+      {   // 📵 рідних немає зовсім: дзвінки 1–4 і нагадування про них вимикаються, контактна особа не вимагається
+        const lab = document.createElement('label'); lab.className = 'fam-orphan-opt fam-nocalls';
+        lab.innerHTML = '<input type="checkbox"> <b>📵 Рідних немає — дзвінки не потрібні</b> <span class="muted">(вимикає дзвінки й нагадування про них; щойно додасте родича — позначка зніметься сама)</span>';
+        const cb = lab.firstChild; cb.checked = !!c.vals.no_calls;
+        if (window.ACCESS && window.ACCESS.readOnly) cb.disabled = true;
+        cb.onchange = async () => {
+          await saveValue('no_calls', cb.checked ? today() : '');
+          if (cb.checked && c.status === 'Родину не встановлено' && statuses.some((s) => s.name === 'В роботі')) { await saveCase({ status: 'В роботі' }); $('case-status').value = 'В роботі'; }
+          c.next = nextAction(c); renderHead(); refreshStages();
+        };
+        wrap.appendChild(lab);
+      }
       if (module === '200' && NO_FAMILY_ON) {   // рідних немає: «Сирота» або «Нема родини» — позначка замість контактної особи (case_values.no_family)
         const box = document.createElement('div'); box.className = 'fam-orphan';
         box.innerHTML = '<span class="muted">Якщо рідних немає зовсім, позначте — тоді справа не вимагатиме контактної особи:</span>';
@@ -113,7 +125,8 @@
       const np = { id: res.person_id, ...kinRec };
       const r2 = { data: { id: res.relation_id, related_person_id: p.id, relation_degree: g('deg') } };
       c.kin.push({ ...r2.data, person: np });
-      if (c.vals.no_family) await saveValue('no_family', '');   // рідних знайшли — позначку «Сирота» / «Нема родини» знімаємо
+      if (c.vals.no_family) await saveValue('no_family', '');
+      if (c.vals.no_calls) await saveValue('no_calls', '');     // рідних знайшли — дзвінки знову потрібні   // рідних знайшли — позначку «Сирота» / «Нема родини» знімаємо
       if (module === '200' && c.status === 'Родину не встановлено' && statuses.some((s) => s.name === 'В роботі')) { await saveCase({ status: 'В роботі' }); $('case-status').value = 'В роботі'; }
       form.reset();    // щоб повторне «Додати» не створило того самого родича ще раз
       Persons.toast(ex ? 'Наявну картку прив’язано до справи' : 'Родича додано');

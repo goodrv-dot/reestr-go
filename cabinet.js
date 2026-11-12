@@ -247,7 +247,7 @@ window.Cabinet = (() => {
   function nextAction(c) {
     let best = null;
     if (isClosed(c)) return null;
-    defs.filter((d) => d.remind_after && d.remind_days != null).forEach((d) => {
+    defs.filter((d) => d.remind_after && d.remind_days != null && !(c.vals.no_calls && /^call/.test(d.key))).forEach((d) => {   // 📵 рідних немає — без нагадувань про дзвінки
       if (c.vals[d.key]) return;                    // уже зроблено
       const base = c.vals[d.remind_after];
       if (!base || !/^\d{4}-\d{2}-\d{2}/.test(base)) return;
@@ -255,7 +255,7 @@ window.Cabinet = (() => {
       if (!best || due < best.due) best = { key: d.key, kind: d.kind, label: d.label, due };
     });
     { const ks = kidsState(c);
-      if (ks && ks.k === 'none' && ks.due && ks.due >= KIDS_FROM && (!best || ks.due < best.due)) best = { key: 'kids_form_sent', kind: 'date', label: 'Надіслати анкету «Діти»', due: ks.due };
+      if (ks && ks.k === 'none' && !c.vals.no_calls && ks.due && ks.due >= KIDS_FROM && (!best || ks.due < best.due)) best = { key: 'kids_form_sent', kind: 'date', label: 'Надіслати анкету «Діти»', due: ks.due };
       if (ks && ks.k === 'repeat' && (!best || ks.due < best.due)) best = { key: 'kids_form_resent', kind: 'date', label: 'Анкета «Діти» — надіслати повторно', due: ks.due };
     }
     if (best) {
@@ -903,9 +903,11 @@ window.Cabinet = (() => {
   // «Сирота» / «Нема родини» — позначка у справі 200 замість контактної особи (case_values.no_family)
   // Тимчасово вимкнено (10.11.2026): команда узгоджує, як правильно. Увімкнути — NO_FAMILY_ON = true.
   const NO_FAMILY_ON = false;
-  const isOrphan = (c) => NO_FAMILY_ON && !c.kin.length && !!(c.vals && c.vals.no_family);
-  const noFamText = (c) => (c.vals && c.vals.no_family === 'нема родини' ? 'нема родини' : 'сирота');
-  const P_LABELS = Object.fromEntries([['no_family', 'Рідних немає (сирота / нема родини)'], ['p_comment', 'Примітки'], ['p_burial_point', 'Точка поховання (координати)'], ...Object.values(PERSON_FIELDS).flatMap((m) => Object.values(m).flat()).map(([k, l]) => ['p_' + k, l])]);
+  // «📵 Рідних немає — дзвінки не потрібні» (case_values.no_calls = дата): дзвінки й нагадування про них вимкнено, контактна особа не вимагається
+  const noCalls = (c) => !!(c && c.vals && c.vals.no_calls);
+  const isOrphan = (c) => !c.kin.length && (noCalls(c) || (NO_FAMILY_ON && !!(c.vals && c.vals.no_family)));
+  const noFamText = (c) => (noCalls(c) ? 'рідних немає — дзвінків немає' : c.vals && c.vals.no_family === 'нема родини' ? 'нема родини' : 'сирота');
+  const P_LABELS = Object.fromEntries([['no_family', 'Рідних немає (сирота / нема родини)'], ['no_calls', 'Рідних немає — дзвінки вимкнено'], ['p_comment', 'Примітки'], ['p_burial_point', 'Точка поховання (координати)'], ...Object.values(PERSON_FIELDS).flatMap((m) => Object.values(m).flat()).map(([k, l]) => ['p_' + k, l])]);
   const UNIT_CODES = ['А0216', 'А0878', 'А1275', 'А1325', 'А1965', 'А2062', 'А2611', 'А2613', 'А2777', 'А2802', 'А3821', 'А4210', 'А4217', 'А4548', 'А4635', 'А4656', 'А4765', 'А4822', 'А4916', 'А4935', 'А5025', 'А5074', 'А7053', 'А7382'];
   const unitCodes = () => [...new Set([...UNIT_CODES, ...cases.map((c) => c.person.military_unit_code).filter(Boolean)])].sort((a, b) => a.localeCompare(b, 'uk'));
   let tab = 'all';
@@ -1158,7 +1160,8 @@ window.Cabinet = (() => {
       if (d.key === 'kids_form_sent') {   // кнопка «Анкета «Діти» → WhatsApp» + стан відстеження
         f.extra = kidsFormEl(c);
         const ks = kidsState(c), cl = isClosed(c);
-        if (ks.k === 'none' && !cl) {
+        if (ks.k === 'none' && noCalls(c)) { f.hint = '📵 Рідних немає — анкету надсилати нікому'; f.state = 'is-info'; }
+        else if (ks.k === 'none' && !cl) {
           const due = ks.due;
           const src = module === '300' ? 'через 30 днів після поранення' : module === 'pol' ? 'через 30 днів після звільнення'
             : c.person.burial_date ? 'через 30 днів після поховання' : c.vals.call3 ? 'після третього дзвінка' : 'через 2 місяці після сповіщення';
@@ -1173,7 +1176,8 @@ window.Cabinet = (() => {
       }
       if (d.key === 'solutions' && !v && c.vals.problem_state === 'Вирішена') { f.hint = 'Проблему позначено «Вирішена» — опишіть, як вирішено'; f.state = 'is-due'; }
       if (d.key === 'problem_state' && !v && String(c.vals.problems || '').trim()) { f.hint = 'Оцініть стан проблеми'; f.state = 'is-due'; }
-      if (!isClosed(c) && d.remind_after && !v && c.vals[d.remind_after] && /^\d{4}-\d{2}-\d{2}/.test(c.vals[d.remind_after])) {
+      if (noCalls(c) && /^call/.test(d.key) && !v) { f.hint = '📵 Дзвінки вимкнено: рідних немає'; f.state = 'is-info'; }
+      else if (!isClosed(c) && d.remind_after && !v && c.vals[d.remind_after] && /^\d{4}-\d{2}-\d{2}/.test(c.vals[d.remind_after])) {
         const due = addDays(c.vals[d.remind_after].slice(0, 10), d.remind_days || 0);
         f.hint = `Потрібно до ${fmt(due)}`; f.state = due < today() ? 'is-overdue' : 'is-due';
       }
@@ -1440,6 +1444,18 @@ window.Cabinet = (() => {
     const contact = contactOf(c);
     if (!c.kin.length) {
       wrap.innerHTML = '<p class="muted">Рідних ще не додано.</p>';
+      {   // 📵 рідних немає зовсім: дзвінки 1–4 і нагадування про них вимикаються, контактна особа не вимагається
+        const lab = document.createElement('label'); lab.className = 'fam-orphan-opt fam-nocalls';
+        lab.innerHTML = '<input type="checkbox"> <b>📵 Рідних немає — дзвінки не потрібні</b> <span class="muted">(вимикає дзвінки й нагадування про них; щойно додасте родича — позначка зніметься сама)</span>';
+        const cb = lab.firstChild; cb.checked = !!c.vals.no_calls;
+        if (window.ACCESS && window.ACCESS.readOnly) cb.disabled = true;
+        cb.onchange = async () => {
+          await saveValue('no_calls', cb.checked ? today() : '');
+          if (cb.checked && c.status === 'Родину не встановлено' && statuses.some((s) => s.name === 'В роботі')) { await saveCase({ status: 'В роботі' }); $('case-status').value = 'В роботі'; }
+          c.next = nextAction(c); renderHead(); refreshStages();
+        };
+        wrap.appendChild(lab);
+      }
       if (module === '200' && NO_FAMILY_ON) {   // рідних немає: «Сирота» або «Нема родини» — позначка замість контактної особи (case_values.no_family)
         const box = document.createElement('div'); box.className = 'fam-orphan';
         box.innerHTML = '<span class="muted">Якщо рідних немає зовсім, позначте — тоді справа не вимагатиме контактної особи:</span>';
@@ -1547,7 +1563,8 @@ window.Cabinet = (() => {
       const np = { id: res.person_id, ...kinRec };
       const r2 = { data: { id: res.relation_id, related_person_id: p.id, relation_degree: g('deg') } };
       c.kin.push({ ...r2.data, person: np });
-      if (c.vals.no_family) await saveValue('no_family', '');   // рідних знайшли — позначку «Сирота» / «Нема родини» знімаємо
+      if (c.vals.no_family) await saveValue('no_family', '');
+      if (c.vals.no_calls) await saveValue('no_calls', '');     // рідних знайшли — дзвінки знову потрібні   // рідних знайшли — позначку «Сирота» / «Нема родини» знімаємо
       if (module === '200' && c.status === 'Родину не встановлено' && statuses.some((s) => s.name === 'В роботі')) { await saveCase({ status: 'В роботі' }); $('case-status').value = 'В роботі'; }
       form.reset();    // щоб повторне «Додати» не створило того самого родича ще раз
       Persons.toast(ex ? 'Наявну картку прив’язано до справи' : 'Родича додано');

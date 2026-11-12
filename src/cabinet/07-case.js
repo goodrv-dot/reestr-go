@@ -280,6 +280,7 @@
         } else if (ks.k === 'wait1') { f.hint = `⏳ Надіслано ${fmt(ks.sent)} (${ks.n} дн. тому) — чекаємо відповідь до ${fmt(ks.due)}`; f.state = 'is-kids-wait'; }
         else if (ks.k === 'repeat') { f.hint = `🔁 Не заповнили за ${ks.n} дн. — надішліть анкету повторно (кнопка нижче)`; f.state = cl ? 'is-due' : 'is-kids-repeat'; }
         else if (ks.k === 'wait2') { f.hint = `⏳ Повторно надіслано ${fmt(ks.resent)} — чекаємо до ${fmt(ks.due)}. Якщо не заповнять — більше не надсилаємо`; f.state = 'is-kids-wait'; }
+        else if (ks.k === 'nokids') { f.hint = `🚫 Родина відповіла, що дітей немає / не актуально (${fmt(ks.date)}) — більше не надсилаємо`; f.state = 'is-kids-dnd'; }
         else if (ks.k === 'dnd') { f.hint = `🔕 Не турбувати: анкету надсилали двічі (${fmt(ks.sent)}, ${fmt(ks.resent)}) — не заповнили. Більше не надсилаємо`; f.state = 'is-kids-dnd'; }
       }
       if (d.key === 'solutions' && !v && c.vals.problem_state === 'Вирішена') { f.hint = 'Проблему позначено «Вирішена» — опишіть, як вирішено'; f.state = 'is-due'; }

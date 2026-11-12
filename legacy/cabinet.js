@@ -324,6 +324,7 @@ window.Cabinet = (() => {
     const v = c.vals, d10 = (x) => String(x).slice(0, 10);
     const ago = (x) => Math.round((/* @__PURE__ */ new Date(today() + "T00:00:00Z") - /* @__PURE__ */ new Date(d10(x) + "T00:00:00Z")) / 864e5);
     if (v.kids_form_filled) return { k: "filled", date: d10(v.kids_form_filled) };
+    if (v.kids_form_none) return { k: "nokids", date: d10(v.kids_form_none) };
     if (v.kids_form_resent) {
       const n = ago(v.kids_form_resent);
       return { k: n >= KIDS_WAIT ? "dnd" : "wait2", n, sent: d10(v.kids_form_sent || v.kids_form_resent), resent: d10(v.kids_form_resent), due: addDays(d10(v.kids_form_resent), KIDS_WAIT) };
@@ -334,7 +335,7 @@ window.Cabinet = (() => {
     }
     return { k: "none", due: kidsDue(c) };
   }
-  const KIDS_LABEL = { none: "📨 Не надсилали", wait1: "⏳ Надіслано — чекаємо", repeat: "🔁 Повторити", wait2: "⏳ Повторно — чекаємо", dnd: "🔕 Не турбувати", filled: "✅ Заповнено" };
+  const KIDS_LABEL = { none: "📨 Не надсилали", wait1: "⏳ Надіслано — чекаємо", repeat: "🔁 Повторити", wait2: "⏳ Повторно — чекаємо", dnd: "🔕 Не турбувати", nokids: "🚫 Дітей немає", filled: "✅ Заповнено" };
   function nextAction(c) {
     let best = null;
     if (isClosed(c)) return null;
@@ -1747,6 +1748,9 @@ window.Cabinet = (() => {
         } else if (ks.k === "wait2") {
           f.hint = `⏳ Повторно надіслано ${fmt(ks.resent)} — чекаємо до ${fmt(ks.due)}. Якщо не заповнять — більше не надсилаємо`;
           f.state = "is-kids-wait";
+        } else if (ks.k === "nokids") {
+          f.hint = `🚫 Родина відповіла, що дітей немає / не актуально (${fmt(ks.date)}) — більше не надсилаємо`;
+          f.state = "is-kids-dnd";
         } else if (ks.k === "dnd") {
           f.hint = `🔕 Не турбувати: анкету надсилали двічі (${fmt(ks.sent)}, ${fmt(ks.resent)}) — не заповнили. Більше не надсилаємо`;
           f.state = "is-kids-dnd";
@@ -2428,20 +2432,23 @@ ${ex.name}
     if (key !== "comment") refreshStages();
     loadHistory();
   }
-  const KIDS_TEXT_DEFAULT = "Доброго дня, {ім’я}! Просимо заповнити коротку анкету про дітей — щоб ми могли запрошувати їх на наші заходи та програми підтримки: {посилання}\nДякуємо!";
-  const kidsSet = { loaded: false, url: "", text: "" };
+  const KIDS_TEXT_DEFAULT = "Доброго дня, {ім’я}!\nМене звати {оператор}, я з ГО «Ветеранський корпус Морської піхоти». Ми поруч із вашою родиною.\n\nЯкщо у вашій родині є діти до 18 років, просимо заповнити коротку анкету — так ми зможемо запрошувати їх на оздоровлення, табори та інші програми підтримки:\n{посилання}\n\nЯкщо це не стосується вашої родини — просто напишіть нам про це у відповідь.\n\nЗбережіть, будь ласка, цей номер — за ним ви завжди можете звернутися до нас з питаннями чи по підтримку.\nБудь ласка, підтвердіть коротким повідомленням, що отримали. Дякуємо.";
+  const KIDS_TEXT_SELF_DEFAULT = KIDS_TEXT_DEFAULT.replace("Ми поруч із вашою родиною.", "Дякуємо вам за службу.");
+  const kidsSet = { loaded: false, url: "", text: "", textSelf: "" };
   async function loadKidsSet(force) {
     if (kidsSet.loaded && !force) return kidsSet;
-    const { data, error } = await db.from("app_settings").select("key, value").in("key", ["kids_form_url", "kids_form_text"]);
+    const { data, error } = await db.from("app_settings").select("key, value").in("key", ["kids_form_url", "kids_form_text", "kids_form_text_self"]);
     if (error) {
       console.error(error);
       return kidsSet;
     }
     kidsSet.url = "";
     kidsSet.text = "";
+    kidsSet.textSelf = "";
     (data || []).forEach((r) => {
       if (r.key === "kids_form_url") kidsSet.url = r.value || "";
-      else kidsSet.text = r.value || "";
+      else if (r.key === "kids_form_text") kidsSet.text = r.value || "";
+      else kidsSet.textSelf = r.value || "";
     });
     kidsSet.loaded = true;
     return kidsSet;
@@ -2450,7 +2457,7 @@ ${ex.name}
     const d = String(phone || "").replace(/\D/g, "");
     return d.length >= 9 ? d : "";
   };
-  const kidsText = (tpl, k) => (tpl || KIDS_TEXT_DEFAULT).replace(/\{ім[’'`]?я\}/gi, [k.person.first_name, k.person.patronymic].filter(Boolean).join(" ") || "").replace(/\{посилання\}/gi, kidsSet.url).replace(/\{загиблий\}/gi, fio(current.person));
+  const kidsText = (k) => (k.self ? kidsSet.textSelf || KIDS_TEXT_SELF_DEFAULT : kidsSet.text || KIDS_TEXT_DEFAULT).replace(/\{ім[’'`]?я\}/gi, [k.person.first_name, k.person.patronymic].filter(Boolean).join(" ") || "").replace(/\{оператор\}/gi, staff.get(me) || "співробітник").replace(/\{посилання\}/gi, kidsSet.url).replace(/\{загиблий\}/gi, fio(current.person));
   function kidsFormEl(c) {
     const box = document.createElement("div");
     box.className = "kids-form";
@@ -2459,13 +2466,25 @@ ${ex.name}
       return box;
     }
     const ks = kidsState(c);
+    if (ks.k === "nokids") {
+      box.innerHTML = '<span class="kids-dnd">🚫 Дітей немає / не актуально — не надсилаємо</span>';
+      return box;
+    }
     if (ks.k === "dnd") {
       box.innerHTML = '<span class="kids-dnd">🔕 Не турбувати — більше не надсилаємо</span>';
       return box;
     }
     const repeat = ks.k === "repeat";
     if (ks.k === "wait1" || ks.k === "wait2") {
-      box.innerHTML = `<span class="kids-wait">⏳ Чекаємо відповідь до ${fmt(ks.due)}</span>`;
+      box.innerHTML = `<span class="kids-wait">⏳ Чекаємо відповідь до ${fmt(ks.due)}</span> `;
+      const no2 = document.createElement("button");
+      no2.type = "button";
+      no2.className = "btn-secondary btn-small";
+      no2.textContent = "🚫 Відповіли: дітей немає / не актуально";
+      no2.onclick = async () => {
+        if (!c.vals.kids_form_none) await saveValue("kids_form_none", today());
+      };
+      box.append(no2);
       return box;
     }
     const self = ["300", "pol", "vet"].includes(module) && waDigits(c.person.phone) ? [{ person: c.person, relation_degree: "сам(а)", self: true }] : [];
@@ -2498,7 +2517,7 @@ ${ex.name}
         Persons.toast("Посилання на анкету не задано — адміністратор вносить його в «Налаштування полів»");
         return;
       }
-      const href = `https://wa.me/${waDigits(k.person.phone)}?text=${encodeURIComponent(kidsText(kidsSet.text, k))}`;
+      const href = `https://wa.me/${waDigits(k.person.phone)}?text=${encodeURIComponent(kidsText(k))}`;
       if (w) {
         try {
           w.opener = null;
@@ -2509,7 +2528,15 @@ ${ex.name}
       if (!c.vals.kids_form_sent) await saveValue("kids_form_sent", today());
       else if (repeat && !c.vals.kids_form_resent) await saveValue("kids_form_resent", today());
     };
-    box.append(sel, " ", btn);
+    const no = document.createElement("button");
+    no.type = "button";
+    no.className = "btn-secondary btn-small";
+    no.textContent = "🚫 Дітей немає / не актуально";
+    no.title = "Родина відповіла, що анкета їх не стосується — більше не надсилаємо й не нагадуємо";
+    no.onclick = async () => {
+      if (!c.vals.kids_form_none) await saveValue("kids_form_none", today());
+    };
+    box.append(sel, " ", btn, " ", no);
     if (withPhone.length === 1) sel.hidden = true, box.prepend(document.createTextNode(`Кому: ${fio(withPhone[0].person)} `));
     return box;
   }
@@ -2519,7 +2546,7 @@ ${ex.name}
     box.hidden = false;
     await loadKidsSet(true);
     const { data: sm } = await db.rpc("kids_form_summary");
-    const MOD = { "200": "200", "300": "300", bzv: "БЗВ", pol: "Полон", vet: "Ветерани" }, ORDER = ["none", "wait1", "repeat", "wait2", "dnd", "filled"];
+    const MOD = { "200": "200", "300": "300", bzv: "БЗВ", pol: "Полон", vet: "Ветерани" }, ORDER = ["none", "wait1", "repeat", "wait2", "dnd", "nokids", "filled"];
     const by = {};
     (sm || []).forEach((r) => {
       (by[r.module] = by[r.module] || {})[r.state] = Number(r.n);
@@ -2527,17 +2554,18 @@ ${ex.name}
     $("kf-summary").innerHTML = !sm || !sm.length ? "" : `<table class="kf-sum"><thead><tr><th></th>${ORDER.map((k) => `<th>${KIDS_LABEL[k]}</th>`).join("")}</tr></thead><tbody>${Object.keys(MOD).filter((m) => by[m]).map((m) => `<tr><th>${MOD[m]}</th>${ORDER.map((k) => `<td>${by[m][k] || ""}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
     $("kf-url").value = kidsSet.url;
     $("kf-text").value = kidsSet.text || KIDS_TEXT_DEFAULT;
+    $("kf-text-self").value = kidsSet.textSelf || KIDS_TEXT_SELF_DEFAULT;
     $("kf-save").onclick = async (ev) => {
       const b = ev.currentTarget;
       if (b.disabled) return;
-      const url = $("kf-url").value.trim(), text = $("kf-text").value.trim();
+      const url = $("kf-url").value.trim(), text = $("kf-text").value.trim(), textSelf = $("kf-text-self").value.trim();
       if (url && !safeUrl(url)) {
         Persons.toast("Вставте повне посилання, що починається з https://");
         return;
       }
       b.disabled = true;
       const now = (/* @__PURE__ */ new Date()).toISOString();
-      const { error } = await db.from("app_settings").upsert([{ key: "kids_form_url", value: url, updated_at: now }, { key: "kids_form_text", value: text, updated_at: now }], { onConflict: "key" });
+      const { error } = await db.from("app_settings").upsert([{ key: "kids_form_url", value: url, updated_at: now }, { key: "kids_form_text", value: text, updated_at: now }, { key: "kids_form_text_self", value: textSelf, updated_at: now }], { onConflict: "key" });
       b.disabled = false;
       if (error) {
         console.error(error);
@@ -2546,6 +2574,7 @@ ${ex.name}
       }
       kidsSet.url = url;
       kidsSet.text = text;
+      kidsSet.textSelf = textSelf;
       Persons.toast("Анкету «Діти» збережено");
     };
   }

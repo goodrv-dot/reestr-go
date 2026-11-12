@@ -219,7 +219,7 @@ window.BurialMap = (() => {
   function placeLine(person, ctx = {}) {
     const el = document.createElement('div'); el.className = 'bm-line';
     if (!String(person.burial_place || '').trim()) return el;
-    const exact = person.burial_lat != null;
+    let exact = person.burial_lat != null;
     if (!person.burial_katottg && !exact) {
       el.classList.add('is-warn');
       el.textContent = '⚠ Населений пункт не визначено — напишіть так: «с. Назва, Назва р-н, Назва обл.» (кладовище — далі після коми). Тоді поховання з’явиться на карті.';
@@ -242,7 +242,28 @@ window.BurialMap = (() => {
       if (canPoint()) {
         const b = document.createElement('a'); b.href = '#'; b.className = 'btn-link'; b.textContent = exact ? ' ✋ Змінити точку' : ' ✋ Уточнити точку';
         b.onclick = (e) => { e.preventDefault(); editPoint(person, dest || { lat: 48.6, lon: 31.3, guess: true }, ctx.onChange); };
-        head.append(' · ', b);
+        // або одразу вставити координати / посилання з Google Maps (без відкриття карти)
+        const pa = document.createElement('a'); pa.href = '#'; pa.className = 'btn-link'; pa.textContent = '📌 Вставити координати';
+        pa.title = 'Скопіюйте в Google Maps координати (правою кнопкою по точці → натиснути на числа) або посилання на місце й вставте сюди';
+        pa.onclick = (e) => {
+          e.preventDefault();
+          let f = el.querySelector('.bm-paste');
+          if (f) { f.remove(); return; }
+          f = document.createElement('div'); f.className = 'bm-paste';
+          f.innerHTML = '<input type="text" placeholder="50.4501, 30.5234 або посилання Google Maps" aria-label="Координати точки поховання"> <button type="button" class="btn-primary btn-small">💾 Зберегти</button> <button type="button" class="btn-secondary btn-small">Скасувати</button>';
+          const [inp, ok, no] = [f.querySelector('input'), ...f.querySelectorAll('button')];
+          const save = async () => {
+            const c = parseCoords(inp.value);
+            if (!inUa(c)) { toast('Не вдалося розпізнати координати в Україні. Скопіюйте з Google Maps числа на кшталт 50.4501, 30.5234 або посилання на місце'); inp.focus(); return; }
+            ok.disabled = true;
+            if (await savePoint(person, c.lat, c.lon, ctx.onChange)) { f.remove(); exact = true; dest = { lat: c.lat, lon: c.lon }; build(); }
+            else ok.disabled = false;
+          };
+          ok.onclick = save; no.onclick = () => f.remove();
+          inp.onkeydown = (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); save(); } else if (ev.key === 'Escape') f.remove(); };
+          head.after(f); inp.focus();
+        };
+        head.append(' · ', b, ' · ', pa);
       }
       if (!dest) return;
       // маршрут

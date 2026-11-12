@@ -380,6 +380,7 @@ const V = globalThis.V, OPT = globalThis.OPT;
       } else if (tm && rec.relations[0]) {
         const deg = matchDegree(tm);
         if (deg) { rec.relations[0].relation_degree = deg; rec.warnings = rec.warnings.filter((w) => !/ким представник доводиться військовому/.test(w)); }
+        else if (/^інш/i.test(tm)) { rec.relations[0].relation_degree = OTHER_DEG; rec.warnings = rec.warnings.filter((w) => !/ким представник доводиться військовому/.test(w)); }   // «інше» у формі — «Інший член сім’ї / родич», без попередження
         else rec.warnings.push(`Спорідненість із військовим «${tm}» не зі списку — вкажіть вручну`);
       }
       const mb = at(r, I.milBd);
@@ -439,7 +440,7 @@ const V = globalThis.V, OPT = globalThis.OPT;
 
     const list = clean(interests).split(/\s*,\s*/).filter(Boolean);
     const known = list.filter((x) => OPT.child_interests.includes(x));
-    const unknown = list.filter((x) => !OPT.child_interests.includes(x));
+    const unknown = list.filter((x) => !OPT.child_interests.includes(x) && !/^інш/i.test(x));   // «Інше» у формі — не помилка
     if (unknown.length) rec.warnings.push(`Невідомі інтереси: ${unknown.join(', ')}`);
     const nd = clean(needs);
     return {

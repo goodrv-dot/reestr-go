@@ -885,6 +885,8 @@ window.Importer = (() => {
   }
 
   // ---------- Шаблон «Діти МП» ----------
+  // УВАГА: розбір анкет (parseKids, parseKidsV2, makeChild, mergeByPhone…) скопійовано в supabase/functions/kids-auto/parse.js
+  // (нічний автоімпорт). Змінюєте тут — перенесіть зміни й туди.
   function parseKids(rows, hdr, ctx) {
     const c = {
       ts: col(hdr, (h) => /позначка|отметка|timestamp/i.test(h)),

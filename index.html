@@ -19,7 +19,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=202611120800">
+  <link rel="stylesheet" href="style.css?v=202611120840">
 </head>
 <body>
 
@@ -683,7 +683,7 @@
         <button id="imp-form-btn" class="btn-primary" type="button">📥 Нові анкети з Google Форми «Діти»</button>
         <button class="btn-secondary imp-src-btn" type="button" data-src="kids_old">📥 Діти — стара форма (Ответы 1)</button>
         <label class="imp-form-all"><input id="imp-form-all" type="checkbox"> показати й раніше розібрані</label>
-        <p class="muted">Робот сам читає таблицю відповідей форми — файл завантажувати не треба. Показуються лише анкети, що надійшли після попереднього імпорту.</p>
+        <p class="muted">Робот сам читає таблицю відповідей форми — файл завантажувати не треба. Показуються лише анкети, що надійшли після попереднього імпорту. <b>Нова форма «Діти» імпортується автоматично щоночі</b> (робот): нові анкети потрапляють у реєстр самі, сім’ю прив’язано до справи, якщо такий боєць є в кабінеті, а «✅ Анкету заповнено» ставиться саме. Що варто перевірити — у списку «Анкета «Діти» — автоімпорт: перевірити». Вручну імпортувати нову форму не потрібно.</p>
       </div>
       <div class="imp-form">
         <b>Журнали з Google Таблиць:</b>
@@ -1706,6 +1706,6 @@
   </dialog>
   <div id="print-area" class="print-area" aria-hidden="true"></div>
   <!-- скрипти підключає boot.js: сучасні — для нових браузерів, legacy/ — для старіших iPhone (див. tools/build-legacy.mjs) -->
-  <script src="boot.js?v=202611120800"></script>
+  <script src="boot.js?v=202611120840"></script>
 </body>
 </html>

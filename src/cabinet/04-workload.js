@@ -25,7 +25,7 @@
         t.tBodies[0].appendChild(tr);
       });
     };
-    const reset = () => { quick = ''; preset = null; ['cab-search', 'cab-status', 'cab-exec', 'cab-resp', 'cab-mark', 'cab-cell', 'cab-region', 'cab-unit', 'cab-from', 'cab-to'].forEach((id) => { $(id).value = ''; }); };
+    const reset = () => { quick = ''; preset = null; ['cab-search', 'cab-status', 'cab-exec', 'cab-resp', 'cab-mark', 'cab-cell', 'cab-region', 'cab-unit', 'cab-kids', 'cab-from', 'cab-to'].forEach((id) => { $(id).value = ''; }); };
     table('cab-load-exec', stat((c) => c.executor_id || ''), (k) => (k ? staff.get(k) || '(невідомий)' : '— без виконавця —'),
       (k) => { reset(); $('cab-exec').value = k || 'none'; render(); }, false);
     table('cab-load-cell', stat((c) => c.cell_id || 0), (k) => (k ? cells.get(k) || '—' : '— без осередку —'),

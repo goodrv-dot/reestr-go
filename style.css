@@ -1359,3 +1359,21 @@ a.bell-item { text-decoration: none; box-sizing: border-box; }
 /* поля вводу — тим самим майже чорним, що й текст */
 input, select, textarea { color: var(--ink); }
 input::placeholder, textarea::placeholder { color: #7a8591; }
+/* Анкета «Діти» — стани відстеження */
+#cab-case .stage.is-kids-wait { border-left: 5px solid #2f7fb0; background: #e6f0f8; }
+#cab-case .stage.is-kids-wait .stage-hint { color: #1d5a82; font-weight: 600; }
+#cab-case .stage.is-kids-repeat { border-left: 5px solid #d9822b; background: #fdf0e1; }
+#cab-case .stage.is-kids-repeat .stage-hint { color: #9a5310; font-weight: 600; }
+#cab-case .stage.is-kids-dnd { border-left: 5px solid #8a949e; background: #eef0f2; }
+#cab-case .stage.is-kids-dnd .stage-hint { color: #4f5962; }
+.kids-wait, .kids-dnd { display: inline-block; padding: 0.3rem 0.6rem; border-radius: 6px; font-weight: 600; }
+.kids-wait { background: #e6f0f8; color: #1d5a82; }
+.kids-dnd { background: #eef0f2; color: #4f5962; }
+@media (prefers-color-scheme: dark) {
+  #cab-case .stage.is-kids-wait { background: rgba(47,127,176,.18); } #cab-case .stage.is-kids-wait .stage-hint, .kids-wait { color: #8cc4ea; }
+  #cab-case .stage.is-kids-repeat { background: rgba(217,130,43,.18); } #cab-case .stage.is-kids-repeat .stage-hint { color: #f2b778; }
+  #cab-case .stage.is-kids-dnd { background: rgba(138,148,158,.18); } #cab-case .stage.is-kids-dnd .stage-hint, .kids-dnd { color: #c3cad1; }
+  .kids-wait { background: rgba(47,127,176,.18); } .kids-dnd { background: rgba(138,148,158,.18); }
+}
+.kf-sum { border-collapse: collapse; margin: 0.5rem 0 1rem; font-size: 13px; } .kf-sum th, .kf-sum td { border: 1px solid var(--line); padding: 0.25rem 0.45rem; text-align: center; } .kf-sum thead th { font-weight: 600; } .kf-sum tbody th { text-align: left; }
+#cab-kids-form { overflow-x: auto; }

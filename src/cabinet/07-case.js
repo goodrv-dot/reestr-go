@@ -267,18 +267,20 @@
         f.onFocus = () => unitContactList(p);
       }
       if (d.key === 'kids_form_filled' && v) { f.label = '✅ ' + d.label; f.cls = 'is-kids-filled'; }   // одразу видно: анкету заповнено
-      if (d.key === 'kids_form_sent') {   // кнопка «Анкета «Діти» → WhatsApp»; підказка — лише в картці, без дзвіночка
+      if (d.key === 'kids_form_sent') {   // кнопка «Анкета «Діти» → WhatsApp» + стан відстеження
         f.extra = kidsFormEl(c);
-        const due = !v && !c.vals.kids_form_filled && !isClosed(c) ? kidsDue(c) : null;
-        if (due) {
+        const ks = kidsState(c), cl = isClosed(c);
+        if (ks.k === 'none' && !cl) {
+          const due = ks.due;
           const src = module === '300' ? 'через 30 днів після поранення' : module === 'pol' ? 'через 30 днів після звільнення'
             : c.person.burial_date ? 'через 30 днів після поховання' : c.vals.call3 ? 'після третього дзвінка' : 'через 2 місяці після сповіщення';
-          if (due >= KIDS_FROM) { f.hint = `Надішліть родині анкету «Діти» (${src}) — до ${fmt(due)}`; f.state = due < today() ? 'is-overdue' : 'is-due'; }
-          else { f.hint = 'Анкету «Діти» цій родині ще не надсилали'; f.state = 'is-due'; }
-        } else if (!v && !c.vals.kids_form_filled && !isClosed(c)) {
-          // без строку (БЗВ, ветерани, або дат ще немає) — поле з кнопкою все одно видно, без жовтої підсвітки
-          f.hint = 'Анкету «Діти» ще не надсилали — можна надіслати кнопкою нижче'; f.state = 'is-info';
-        }
+          if (due && due >= KIDS_FROM) { f.hint = `📨 Надішліть родині анкету «Діти» (${src}) — до ${fmt(due)}`; f.state = due < today() ? 'is-overdue' : 'is-due'; }
+          else if (due) { f.hint = '📨 Анкету «Діти» цій родині ще не надсилали'; f.state = 'is-due'; }
+          else { f.hint = '📨 Анкету «Діти» ще не надсилали — можна надіслати кнопкою нижче'; f.state = 'is-info'; }
+        } else if (ks.k === 'wait1') { f.hint = `⏳ Надіслано ${fmt(ks.sent)} (${ks.n} дн. тому) — чекаємо відповідь до ${fmt(ks.due)}`; f.state = 'is-kids-wait'; }
+        else if (ks.k === 'repeat') { f.hint = `🔁 Не заповнили за ${ks.n} дн. — надішліть анкету повторно (кнопка нижче)`; f.state = cl ? 'is-due' : 'is-kids-repeat'; }
+        else if (ks.k === 'wait2') { f.hint = `⏳ Повторно надіслано ${fmt(ks.resent)} — чекаємо до ${fmt(ks.due)}. Якщо не заповнять — більше не надсилаємо`; f.state = 'is-kids-wait'; }
+        else if (ks.k === 'dnd') { f.hint = `🔕 Не турбувати: анкету надсилали двічі (${fmt(ks.sent)}, ${fmt(ks.resent)}) — не заповнили. Більше не надсилаємо`; f.state = 'is-kids-dnd'; }
       }
       if (d.key === 'solutions' && !v && c.vals.problem_state === 'Вирішена') { f.hint = 'Проблему позначено «Вирішена» — опишіть, як вирішено'; f.state = 'is-due'; }
       if (d.key === 'problem_state' && !v && String(c.vals.problems || '').trim()) { f.hint = 'Оцініть стан проблеми'; f.state = 'is-due'; }

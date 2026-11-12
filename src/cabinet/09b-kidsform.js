@@ -23,6 +23,10 @@
     if (c.vals.kids_form_filled) {   // діти вже є в картці родича (анкета / імпорт) або позначено вручну
       box.innerHTML = '<span class="kids-done">✅ Анкету «Діти» заповнено — надсилати не потрібно</span>'; return box;
     }
+    const ks = kidsState(c);
+    if (ks.k === 'dnd') { box.innerHTML = '<span class="kids-dnd">🔕 Не турбувати — більше не надсилаємо</span>'; return box; }
+    const repeat = ks.k === 'repeat';
+    if (ks.k === 'wait1' || ks.k === 'wait2') { box.innerHTML = `<span class="kids-wait">⏳ Чекаємо відповідь до ${fmt(ks.due)}</span>`; return box; }
     // 300 / полон / ветерани — першим пропонуємо саму особу справи (вона жива й знає своїх дітей), далі рідних
     const self = ['300', 'pol', 'vet'].includes(module) && waDigits(c.person.phone) ? [{ person: c.person, relation_degree: 'сам(а)', self: true }] : [];
     const withPhone = [...self, ...c.kin.filter((k) => waDigits(k.person.phone))];
@@ -35,7 +39,7 @@
       if (self.length ? k === self[0] : k === contact) o.selected = true; sel.appendChild(o);
     });
     const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'btn-primary btn-small';
-    btn.textContent = '💬 Анкета «Діти» → WhatsApp';
+    btn.textContent = repeat ? '🔁 Надіслати повторно → WhatsApp' : '💬 Анкета «Діти» → WhatsApp';
     btn.title = 'Відкриє WhatsApp з цим абонентом і вже набраним повідомленням з посиланням — лишиться натиснути «Надіслати»';
     btn.onclick = async () => {
       const k = withPhone[Number(sel.value)] || withPhone[0];
@@ -46,6 +50,7 @@
       const href = `https://wa.me/${waDigits(k.person.phone)}?text=${encodeURIComponent(kidsText(kidsSet.text, k))}`;
       if (w) { try { w.opener = null; } catch (e) { /* */ } w.location.href = href; } else location.href = href;
       if (!c.vals.kids_form_sent) await saveValue('kids_form_sent', today());
+      else if (repeat && !c.vals.kids_form_resent) await saveValue('kids_form_resent', today());
     };
     box.append(sel, ' ', btn);
     if (withPhone.length === 1) sel.hidden = true, box.prepend(document.createTextNode(`Кому: ${fio(withPhone[0].person)} `));
@@ -55,8 +60,14 @@
   // Налаштування (адміністратор): посилання і текст
   async function loadKidsFormEditor() {
     const box = $('cab-kids-form'); if (!box) return;
-    box.hidden = module !== '200'; if (box.hidden) return;
+    box.hidden = false;
     await loadKidsSet(true);
+    // зведення по всіх кабінетах (лише адміністратор)
+    const { data: sm } = await db.rpc('kids_form_summary');
+    const MOD = { '200': '200', '300': '300', bzv: 'БЗВ', pol: 'Полон', vet: 'Ветерани' }, ORDER = ['none', 'wait1', 'repeat', 'wait2', 'dnd', 'filled'];
+    const by = {}; (sm || []).forEach((r) => { (by[r.module] = by[r.module] || {})[r.state] = Number(r.n); });
+    $('kf-summary').innerHTML = !sm || !sm.length ? '' : `<table class="kf-sum"><thead><tr><th></th>${ORDER.map((k) => `<th>${KIDS_LABEL[k]}</th>`).join('')}</tr></thead><tbody>${
+      Object.keys(MOD).filter((m) => by[m]).map((m) => `<tr><th>${MOD[m]}</th>${ORDER.map((k) => `<td>${by[m][k] || ''}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
     $('kf-url').value = kidsSet.url; $('kf-text').value = kidsSet.text || KIDS_TEXT_DEFAULT;
     $('kf-save').onclick = async (ev) => {
       const b = ev.currentTarget; if (b.disabled) return;

@@ -83,10 +83,11 @@
     const stSel = $('cab-status').value;
     // вибрано колір мітки — показуємо справи з цією міткою з усіма статусами (і завершені теж)
     const markColors = [...mkf].some((x) => x !== 'none');
-    const showClosed = !!preset || quick === 'closed' || !!q || markColors || statuses.some((s) => s.name === stSel && s.closed);
+    const kf = $('cab-kids').value;   // фільтр «Анкета «Діти»» — шукаємо і серед закритих (розсилки йдуть і їм)
+    const showClosed = !!preset || quick === 'closed' || !!q || markColors || !!kf || statuses.some((s) => s.name === stSel && s.closed);
     if (showClosed && !withClosed && closedTotal) {
       // «Завершені» або завершений статус — потрібні всі; пошук і мітки — лише знайдені / позначені (сервер шукає сам)
-      if (quick === 'closed' || statuses.some((s) => s.name === stSel && s.closed)) { withClosed = true; $('cab-status-line').textContent = 'Довантажуємо закриті справи…'; load(); }
+      if (quick === 'closed' || kf || statuses.some((s) => s.name === stSel && s.closed)) { withClosed = true; $('cab-status-line').textContent = 'Довантажуємо закриті справи…'; load(); }
       else wantClosed($('cab-search').value.trim(), markColors);
     }
     return cases.filter((c) => {
@@ -104,6 +105,7 @@
         // завершені справи — лише якщо на них є обрана мітка (а не «без міток»), щоб не висипати тисячі закритих
         if (markColors && isClosed(c) && !hit && !q && !preset && quick !== 'closed' && !statuses.some((s) => s.name === stSel && s.closed)) return false;
       }
+      if (kf) { const ks = kidsState(c); if (!ks || ks.k !== kf) return false; }
       if (ce === 'none' ? c.cell_id : ce && String(c.cell_id) !== ce) return false;
       { const r = c.person && c.person.region_id; if (rg === 'none' ? r : rg && String(r) !== rg) return false; }
       { const u = c.person && c.person.mp_unit_id; if (un === 'none' ? u : un && String(u) !== un) return false; }
@@ -165,7 +167,7 @@
     syncMarkFilter();
     const list = sorted(filtered());
     lastList = list;
-    const sig = [module, quick, ...['cab-search', 'cab-status', 'cab-exec', 'cab-resp', 'cab-mark', 'cab-cell', 'cab-region', 'cab-unit', 'cab-from', 'cab-to', 'cab-sort'].map((id) => $(id).value), $('cab-pin').checked, preset ? preset.label : ''].join('|');
+    const sig = [module, quick, ...['cab-search', 'cab-status', 'cab-exec', 'cab-resp', 'cab-mark', 'cab-cell', 'cab-region', 'cab-unit', 'cab-kids', 'cab-from', 'cab-to', 'cab-sort'].map((id) => $(id).value), $('cab-pin').checked, preset ? preset.label : ''].join('|');
     if (sig !== lastSig) { page = 1; lastSig = sig; }
     const pages = Math.max(1, Math.ceil(list.length / PAGE)); if (page > pages) page = pages;
     // лічильники швидких фільтрів — з урахуванням усіх інших фільтрів (виконавець, статус, осередок, пошук…)

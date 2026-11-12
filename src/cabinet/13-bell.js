@@ -164,7 +164,7 @@
   // Відкрити кабінет із готовою вибіркою справ (з дашборда)
   function openPreset(mod, ids, label) {
     module = mod; quick = ''; preset = { ids: new Set(ids), label }; withClosed = true; closedFor = mod;
-    ['cab-search', 'cab-status', 'cab-exec', 'cab-resp', 'cab-mark', 'cab-cell', 'cab-region', 'cab-unit', 'cab-from', 'cab-to'].forEach((id) => { $(id).value = ''; });
+    ['cab-search', 'cab-status', 'cab-exec', 'cab-resp', 'cab-mark', 'cab-cell', 'cab-region', 'cab-unit', 'cab-kids', 'cab-from', 'cab-to'].forEach((id) => { $(id).value = ''; });
     if (!$('cab-case').hidden) { $('cab-case').hidden = true; $('cab-list').hidden = false; current = null; }
     document.querySelector('.tab[data-tab="cabinet"]').click();
   }

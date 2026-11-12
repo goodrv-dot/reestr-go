@@ -71,7 +71,7 @@ window.Cabinet = (() => {
     try { $('cab-pin').checked = localStorage.getItem('cab_pin') !== '0'; } catch { /* ок */ }
     $('cab-pin').addEventListener('change', () => { try { localStorage.setItem('cab_pin', $('cab-pin').checked ? '1' : '0'); } catch { /* ок */ } render(); });
     $('cab-sort').addEventListener('change', () => { try { localStorage.setItem('cab_sort', $('cab-sort').value); } catch { /* ок */ } render(); });
-    ['cab-search', 'cab-status', 'cab-exec', 'cab-resp', 'cab-mark', 'cab-cell', 'cab-region', 'cab-unit', 'cab-from', 'cab-to'].forEach((id) => $(id).addEventListener('input', render));
+    ['cab-search', 'cab-status', 'cab-exec', 'cab-resp', 'cab-mark', 'cab-cell', 'cab-region', 'cab-unit', 'cab-kids', 'cab-from', 'cab-to'].forEach((id) => $(id).addEventListener('input', render));
     $('cab-date-clear').addEventListener('click', () => { $('cab-from').value = ''; $('cab-to').value = ''; render(); });
     document.querySelectorAll('.cab-quick').forEach((b) => b.addEventListener('click', () => { quick = quick === b.dataset.q ? '' : b.dataset.q; render(); }));
     $('cab-back').addEventListener('click', closeCase);
@@ -230,6 +230,18 @@ window.Cabinet = (() => {
     const c3 = d(c.vals.call3); if (c3) return c3;
     const n = d(c.vals.notice_date); return n ? addDays(n, 60) : null;
   }
+  // Стан анкети (як kids_form_state у базі): none → wait1 (чекаємо 21 день) → repeat → wait2 (ще 21 день) → dnd «Не турбувати»; filled
+  const KIDS_WAIT = 21;
+  function kidsState(c) {
+    if (!defs.some((d) => d.key === 'kids_form_sent')) return null;
+    const v = c.vals, d10 = (x) => String(x).slice(0, 10);
+    const ago = (x) => Math.round((new Date(today() + 'T00:00:00Z') - new Date(d10(x) + 'T00:00:00Z')) / 86400000);
+    if (v.kids_form_filled) return { k: 'filled', date: d10(v.kids_form_filled) };
+    if (v.kids_form_resent) { const n = ago(v.kids_form_resent); return { k: n >= KIDS_WAIT ? 'dnd' : 'wait2', n, sent: d10(v.kids_form_sent || v.kids_form_resent), resent: d10(v.kids_form_resent), due: addDays(d10(v.kids_form_resent), KIDS_WAIT) }; }
+    if (v.kids_form_sent) { const n = ago(v.kids_form_sent); return { k: n >= KIDS_WAIT ? 'repeat' : 'wait1', n, sent: d10(v.kids_form_sent), due: addDays(d10(v.kids_form_sent), KIDS_WAIT) }; }
+    return { k: 'none', due: kidsDue(c) };
+  }
+  const KIDS_LABEL = { none: '📨 Не надсилали', wait1: '⏳ Надіслано — чекаємо', repeat: '🔁 Повторити', wait2: '⏳ Повторно — чекаємо', dnd: '🔕 Не турбувати', filled: '✅ Заповнено' };
   function nextAction(c) {
     let best = null;
     if (isClosed(c)) return null;
@@ -240,9 +252,9 @@ window.Cabinet = (() => {
       const due = addDays(base.slice(0, 10), d.remind_days);
       if (!best || due < best.due) best = { key: d.key, kind: d.kind, label: d.label, due };
     });
-    if (!c.vals.kids_form_sent && !c.vals.kids_form_filled) {
-      const kd = defs.find((d) => d.key === 'kids_form_sent'), due = kd && kidsDue(c);
-      if (due && due >= KIDS_FROM && (!best || due < best.due)) best = { key: kd.key, kind: kd.kind, label: kd.label, due };
+    { const ks = kidsState(c);
+      if (ks && ks.k === 'none' && ks.due && ks.due >= KIDS_FROM && (!best || ks.due < best.due)) best = { key: 'kids_form_sent', kind: 'date', label: 'Надіслати анкету «Діти»', due: ks.due };
+      if (ks && ks.k === 'repeat' && (!best || ks.due < best.due)) best = { key: 'kids_form_resent', kind: 'date', label: 'Анкета «Діти» — надіслати повторно', due: ks.due };
     }
     if (best) {
       best.days = Math.round((new Date(best.due + 'T00:00:00Z') - new Date(today() + 'T00:00:00Z')) / 86400000);   // <0 — прострочено
@@ -480,7 +492,7 @@ window.Cabinet = (() => {
         t.tBodies[0].appendChild(tr);
       });
     };
-    const reset = () => { quick = ''; preset = null; ['cab-search', 'cab-status', 'cab-exec', 'cab-resp', 'cab-mark', 'cab-cell', 'cab-region', 'cab-unit', 'cab-from', 'cab-to'].forEach((id) => { $(id).value = ''; }); };
+    const reset = () => { quick = ''; preset = null; ['cab-search', 'cab-status', 'cab-exec', 'cab-resp', 'cab-mark', 'cab-cell', 'cab-region', 'cab-unit', 'cab-kids', 'cab-from', 'cab-to'].forEach((id) => { $(id).value = ''; }); };
     table('cab-load-exec', stat((c) => c.executor_id || ''), (k) => (k ? staff.get(k) || '(невідомий)' : '— без виконавця —'),
       (k) => { reset(); $('cab-exec').value = k || 'none'; render(); }, false);
     table('cab-load-cell', stat((c) => c.cell_id || 0), (k) => (k ? cells.get(k) || '—' : '— без осередку —'),
@@ -525,7 +537,7 @@ window.Cabinet = (() => {
     syncMarkFilter();
     $('cab-reset').addEventListener('click', () => clearFilters());
   }
-  const FILTER_IDS = ['cab-search', 'cab-status', 'cab-exec', 'cab-resp', 'cab-mark', 'cab-cell', 'cab-region', 'cab-unit', 'cab-from', 'cab-to'];
+  const FILTER_IDS = ['cab-search', 'cab-status', 'cab-exec', 'cab-resp', 'cab-mark', 'cab-cell', 'cab-region', 'cab-unit', 'cab-kids', 'cab-from', 'cab-to'];
   function clearFilters(silent) {
     if (!silent && $('cab-date-clear')) $('cab-date-clear').hidden = true;
     FILTER_IDS.forEach((id) => { const el = $(id); if (el) el.value = ''; });
@@ -644,10 +656,11 @@ window.Cabinet = (() => {
     const stSel = $('cab-status').value;
     // вибрано колір мітки — показуємо справи з цією міткою з усіма статусами (і завершені теж)
     const markColors = [...mkf].some((x) => x !== 'none');
-    const showClosed = !!preset || quick === 'closed' || !!q || markColors || statuses.some((s) => s.name === stSel && s.closed);
+    const kf = $('cab-kids').value;   // фільтр «Анкета «Діти»» — шукаємо і серед закритих (розсилки йдуть і їм)
+    const showClosed = !!preset || quick === 'closed' || !!q || markColors || !!kf || statuses.some((s) => s.name === stSel && s.closed);
     if (showClosed && !withClosed && closedTotal) {
       // «Завершені» або завершений статус — потрібні всі; пошук і мітки — лише знайдені / позначені (сервер шукає сам)
-      if (quick === 'closed' || statuses.some((s) => s.name === stSel && s.closed)) { withClosed = true; $('cab-status-line').textContent = 'Довантажуємо закриті справи…'; load(); }
+      if (quick === 'closed' || kf || statuses.some((s) => s.name === stSel && s.closed)) { withClosed = true; $('cab-status-line').textContent = 'Довантажуємо закриті справи…'; load(); }
       else wantClosed($('cab-search').value.trim(), markColors);
     }
     return cases.filter((c) => {
@@ -665,6 +678,7 @@ window.Cabinet = (() => {
         // завершені справи — лише якщо на них є обрана мітка (а не «без міток»), щоб не висипати тисячі закритих
         if (markColors && isClosed(c) && !hit && !q && !preset && quick !== 'closed' && !statuses.some((s) => s.name === stSel && s.closed)) return false;
       }
+      if (kf) { const ks = kidsState(c); if (!ks || ks.k !== kf) return false; }
       if (ce === 'none' ? c.cell_id : ce && String(c.cell_id) !== ce) return false;
       { const r = c.person && c.person.region_id; if (rg === 'none' ? r : rg && String(r) !== rg) return false; }
       { const u = c.person && c.person.mp_unit_id; if (un === 'none' ? u : un && String(u) !== un) return false; }
@@ -726,7 +740,7 @@ window.Cabinet = (() => {
     syncMarkFilter();
     const list = sorted(filtered());
     lastList = list;
-    const sig = [module, quick, ...['cab-search', 'cab-status', 'cab-exec', 'cab-resp', 'cab-mark', 'cab-cell', 'cab-region', 'cab-unit', 'cab-from', 'cab-to', 'cab-sort'].map((id) => $(id).value), $('cab-pin').checked, preset ? preset.label : ''].join('|');
+    const sig = [module, quick, ...['cab-search', 'cab-status', 'cab-exec', 'cab-resp', 'cab-mark', 'cab-cell', 'cab-region', 'cab-unit', 'cab-kids', 'cab-from', 'cab-to', 'cab-sort'].map((id) => $(id).value), $('cab-pin').checked, preset ? preset.label : ''].join('|');
     if (sig !== lastSig) { page = 1; lastSig = sig; }
     const pages = Math.max(1, Math.ceil(list.length / PAGE)); if (page > pages) page = pages;
     // лічильники швидких фільтрів — з урахуванням усіх інших фільтрів (виконавець, статус, осередок, пошук…)
@@ -1116,18 +1130,20 @@ window.Cabinet = (() => {
         f.onFocus = () => unitContactList(p);
       }
       if (d.key === 'kids_form_filled' && v) { f.label = '✅ ' + d.label; f.cls = 'is-kids-filled'; }   // одразу видно: анкету заповнено
-      if (d.key === 'kids_form_sent') {   // кнопка «Анкета «Діти» → WhatsApp»; підказка — лише в картці, без дзвіночка
+      if (d.key === 'kids_form_sent') {   // кнопка «Анкета «Діти» → WhatsApp» + стан відстеження
         f.extra = kidsFormEl(c);
-        const due = !v && !c.vals.kids_form_filled && !isClosed(c) ? kidsDue(c) : null;
-        if (due) {
+        const ks = kidsState(c), cl = isClosed(c);
+        if (ks.k === 'none' && !cl) {
+          const due = ks.due;
           const src = module === '300' ? 'через 30 днів після поранення' : module === 'pol' ? 'через 30 днів після звільнення'
             : c.person.burial_date ? 'через 30 днів після поховання' : c.vals.call3 ? 'після третього дзвінка' : 'через 2 місяці після сповіщення';
-          if (due >= KIDS_FROM) { f.hint = `Надішліть родині анкету «Діти» (${src}) — до ${fmt(due)}`; f.state = due < today() ? 'is-overdue' : 'is-due'; }
-          else { f.hint = 'Анкету «Діти» цій родині ще не надсилали'; f.state = 'is-due'; }
-        } else if (!v && !c.vals.kids_form_filled && !isClosed(c)) {
-          // без строку (БЗВ, ветерани, або дат ще немає) — поле з кнопкою все одно видно, без жовтої підсвітки
-          f.hint = 'Анкету «Діти» ще не надсилали — можна надіслати кнопкою нижче'; f.state = 'is-info';
-        }
+          if (due && due >= KIDS_FROM) { f.hint = `📨 Надішліть родині анкету «Діти» (${src}) — до ${fmt(due)}`; f.state = due < today() ? 'is-overdue' : 'is-due'; }
+          else if (due) { f.hint = '📨 Анкету «Діти» цій родині ще не надсилали'; f.state = 'is-due'; }
+          else { f.hint = '📨 Анкету «Діти» ще не надсилали — можна надіслати кнопкою нижче'; f.state = 'is-info'; }
+        } else if (ks.k === 'wait1') { f.hint = `⏳ Надіслано ${fmt(ks.sent)} (${ks.n} дн. тому) — чекаємо відповідь до ${fmt(ks.due)}`; f.state = 'is-kids-wait'; }
+        else if (ks.k === 'repeat') { f.hint = `🔁 Не заповнили за ${ks.n} дн. — надішліть анкету повторно (кнопка нижче)`; f.state = cl ? 'is-due' : 'is-kids-repeat'; }
+        else if (ks.k === 'wait2') { f.hint = `⏳ Повторно надіслано ${fmt(ks.resent)} — чекаємо до ${fmt(ks.due)}. Якщо не заповнять — більше не надсилаємо`; f.state = 'is-kids-wait'; }
+        else if (ks.k === 'dnd') { f.hint = `🔕 Не турбувати: анкету надсилали двічі (${fmt(ks.sent)}, ${fmt(ks.resent)}) — не заповнили. Більше не надсилаємо`; f.state = 'is-kids-dnd'; }
       }
       if (d.key === 'solutions' && !v && c.vals.problem_state === 'Вирішена') { f.hint = 'Проблему позначено «Вирішена» — опишіть, як вирішено'; f.state = 'is-due'; }
       if (d.key === 'problem_state' && !v && String(c.vals.problems || '').trim()) { f.hint = 'Оцініть стан проблеми'; f.state = 'is-due'; }
@@ -1554,6 +1570,10 @@ window.Cabinet = (() => {
     if (c.vals.kids_form_filled) {   // діти вже є в картці родича (анкета / імпорт) або позначено вручну
       box.innerHTML = '<span class="kids-done">✅ Анкету «Діти» заповнено — надсилати не потрібно</span>'; return box;
     }
+    const ks = kidsState(c);
+    if (ks.k === 'dnd') { box.innerHTML = '<span class="kids-dnd">🔕 Не турбувати — більше не надсилаємо</span>'; return box; }
+    const repeat = ks.k === 'repeat';
+    if (ks.k === 'wait1' || ks.k === 'wait2') { box.innerHTML = `<span class="kids-wait">⏳ Чекаємо відповідь до ${fmt(ks.due)}</span>`; return box; }
     // 300 / полон / ветерани — першим пропонуємо саму особу справи (вона жива й знає своїх дітей), далі рідних
     const self = ['300', 'pol', 'vet'].includes(module) && waDigits(c.person.phone) ? [{ person: c.person, relation_degree: 'сам(а)', self: true }] : [];
     const withPhone = [...self, ...c.kin.filter((k) => waDigits(k.person.phone))];
@@ -1566,7 +1586,7 @@ window.Cabinet = (() => {
       if (self.length ? k === self[0] : k === contact) o.selected = true; sel.appendChild(o);
     });
     const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'btn-primary btn-small';
-    btn.textContent = '💬 Анкета «Діти» → WhatsApp';
+    btn.textContent = repeat ? '🔁 Надіслати повторно → WhatsApp' : '💬 Анкета «Діти» → WhatsApp';
     btn.title = 'Відкриє WhatsApp з цим абонентом і вже набраним повідомленням з посиланням — лишиться натиснути «Надіслати»';
     btn.onclick = async () => {
       const k = withPhone[Number(sel.value)] || withPhone[0];
@@ -1577,6 +1597,7 @@ window.Cabinet = (() => {
       const href = `https://wa.me/${waDigits(k.person.phone)}?text=${encodeURIComponent(kidsText(kidsSet.text, k))}`;
       if (w) { try { w.opener = null; } catch (e) { /* */ } w.location.href = href; } else location.href = href;
       if (!c.vals.kids_form_sent) await saveValue('kids_form_sent', today());
+      else if (repeat && !c.vals.kids_form_resent) await saveValue('kids_form_resent', today());
     };
     box.append(sel, ' ', btn);
     if (withPhone.length === 1) sel.hidden = true, box.prepend(document.createTextNode(`Кому: ${fio(withPhone[0].person)} `));
@@ -1586,8 +1607,14 @@ window.Cabinet = (() => {
   // Налаштування (адміністратор): посилання і текст
   async function loadKidsFormEditor() {
     const box = $('cab-kids-form'); if (!box) return;
-    box.hidden = module !== '200'; if (box.hidden) return;
+    box.hidden = false;
     await loadKidsSet(true);
+    // зведення по всіх кабінетах (лише адміністратор)
+    const { data: sm } = await db.rpc('kids_form_summary');
+    const MOD = { '200': '200', '300': '300', bzv: 'БЗВ', pol: 'Полон', vet: 'Ветерани' }, ORDER = ['none', 'wait1', 'repeat', 'wait2', 'dnd', 'filled'];
+    const by = {}; (sm || []).forEach((r) => { (by[r.module] = by[r.module] || {})[r.state] = Number(r.n); });
+    $('kf-summary').innerHTML = !sm || !sm.length ? '' : `<table class="kf-sum"><thead><tr><th></th>${ORDER.map((k) => `<th>${KIDS_LABEL[k]}</th>`).join('')}</tr></thead><tbody>${
+      Object.keys(MOD).filter((m) => by[m]).map((m) => `<tr><th>${MOD[m]}</th>${ORDER.map((k) => `<td>${by[m][k] || ''}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
     $('kf-url').value = kidsSet.url; $('kf-text').value = kidsSet.text || KIDS_TEXT_DEFAULT;
     $('kf-save').onclick = async (ev) => {
       const b = ev.currentTarget; if (b.disabled) return;
@@ -1993,7 +2020,7 @@ window.Cabinet = (() => {
   // Відкрити кабінет із готовою вибіркою справ (з дашборда)
   function openPreset(mod, ids, label) {
     module = mod; quick = ''; preset = { ids: new Set(ids), label }; withClosed = true; closedFor = mod;
-    ['cab-search', 'cab-status', 'cab-exec', 'cab-resp', 'cab-mark', 'cab-cell', 'cab-region', 'cab-unit', 'cab-from', 'cab-to'].forEach((id) => { $(id).value = ''; });
+    ['cab-search', 'cab-status', 'cab-exec', 'cab-resp', 'cab-mark', 'cab-cell', 'cab-region', 'cab-unit', 'cab-kids', 'cab-from', 'cab-to'].forEach((id) => { $(id).value = ''; });
     if (!$('cab-case').hidden) { $('cab-case').hidden = true; $('cab-list').hidden = false; current = null; }
     document.querySelector('.tab[data-tab="cabinet"]').click();
   }

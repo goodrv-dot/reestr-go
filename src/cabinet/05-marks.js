@@ -37,7 +37,7 @@
     syncMarkFilter();
     $('cab-reset').addEventListener('click', () => clearFilters());
   }
-  const FILTER_IDS = ['cab-search', 'cab-status', 'cab-exec', 'cab-resp', 'cab-mark', 'cab-cell', 'cab-region', 'cab-unit', 'cab-from', 'cab-to'];
+  const FILTER_IDS = ['cab-search', 'cab-status', 'cab-exec', 'cab-resp', 'cab-mark', 'cab-cell', 'cab-region', 'cab-unit', 'cab-kids', 'cab-from', 'cab-to'];
   function clearFilters(silent) {
     if (!silent && $('cab-date-clear')) $('cab-date-clear').hidden = true;
     FILTER_IDS.forEach((id) => { const el = $(id); if (el) el.value = ''; });

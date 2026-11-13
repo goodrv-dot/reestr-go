@@ -1387,3 +1387,4 @@ input::placeholder, textarea::placeholder { color: #7a8591; }
 .fam-nocalls { display: block; margin: 0.4rem 0 0.6rem; padding: 0.5rem 0.7rem; border: 1px dashed var(--line); border-radius: 8px; }
 .bm-paste { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; margin: 0.3rem 0; }
 .bm-paste input { flex: 1 1 18rem; min-width: 12rem; }
+.cell-date { white-space: nowrap; font-size: 0.9rem; }

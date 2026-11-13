@@ -725,7 +725,7 @@ window.Persons = (() => {
     let query;
     try {
       ({ query } = await buildQuery(
-        'id, is_extra, is_main, cell_id, program_ids, main_program_ids, last_name, first_name, patronymic, phone, extra_phones, region_id, person_categories, family_categories, created_at, critical_count, warning_count, comment, created_by, source',
+        'id, is_extra, is_main, cell_id, program_ids, main_program_ids, last_name, first_name, patronymic, phone, extra_phones, region_id, person_categories, family_categories, created_at, critical_count, warning_count, comment, created_by, source, consent_pd_at',
         { count: 'exact' }));
     } catch (e) {
       console.error(e);
@@ -825,6 +825,10 @@ window.Persons = (() => {
       who.firstChild.textContent = staff.get(p.created_by) || '—';
       who.lastChild.textContent = sourceLabel(p.source);
       tr.appendChild(who);
+      // Дата заповнення анкети «Діти МП» (позначка часу з Google-форми = дата згоди на обробку ПД); для інших модулів — «—»
+      const kidsId = modId('Діти Морської піхоти');
+      const isKids = kidsId != null && (p.program_ids || []).map(Number).includes(Number(kidsId));
+      addCell(tr, isKids && p.consent_pd_at ? new Date(p.consent_pd_at).toLocaleDateString('uk-UA') : '—', 'cell-date');
       tbody.appendChild(tr);
     });
   }

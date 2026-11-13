@@ -43,6 +43,12 @@ window.Lists = /* @__PURE__ */ (() => {
     $("list-print").addEventListener("click", () => printList());
     $("list-excel").addEventListener("click", excel);
     $("list-delete").addEventListener("click", removeList);
+    $("list-kids-send").addEventListener("click", kidsSend);
+    $("ks-close").addEventListener("click", () => $("ks-dialog").close());
+    $("ks-dialog").addEventListener("close", () => {
+      clearInterval(ks.timer);
+      if (ks.changed && current) loadMembers();
+    });
     $("tolist-cancel").addEventListener("click", () => $("tolist-dialog").close());
     $("tolist-form").addEventListener("submit", submitToList);
     window.addEventListener("afterprint", () => document.body.classList.remove("print-mode"));
@@ -160,6 +166,7 @@ window.Lists = /* @__PURE__ */ (() => {
     });
     if (!box.children.length) box.innerHTML = '<p class="muted">Немає інших співробітників із доступом «Списки».</p>';
     $("list-delete").hidden = !canShare(l) || ro();
+    $("list-kids-send").hidden = ro() || !isKidsList(l);
     $("list-excel").hidden = !Persons.ctx().operator.can_export;
     $("list-add").hidden = ro();
     $("list-add-q").value = "";
@@ -587,6 +594,127 @@ window.Lists = /* @__PURE__ */ (() => {
     } finally {
       btn.disabled = false;
     }
+  }
+  const isKidsList = (l) => /^Анкета «Діти» (·|\(тест\))/.test(l.name || "");
+  const ks = { items: [], i: 0, sent: 0, skipped: 0, opened: false, wait: 0, timer: null, set: null, changed: false };
+  const waDigits = (phone) => {
+    const d = String(phone || "").replace(/\D/g, "");
+    return d.length >= 9 ? d : "";
+  };
+  async function kidsSend() {
+    const btn = $("list-kids-send");
+    if (btn.disabled) return;
+    btn.disabled = true;
+    try {
+      const [b, st] = await Promise.all([
+        db.rpc("kids_mail_batch", { p_list: current.id }),
+        db.from("app_settings").select("key, value").in("key", ["kids_form_url", "kids_form_text", "kids_form_text_self", "kids_form_code_entry", "kids_mail_pause"])
+      ]);
+      if (b.error) {
+        console.error(b.error);
+        toast("Не вдалося підготувати розсилку: " + (b.error.message || ""));
+        return;
+      }
+      const set = Object.fromEntries((st.data || []).map((r) => [r.key, r.value || ""]));
+      if (!set.kids_form_url || !set.kids_form_text) {
+        toast("Посилання чи текст анкети не задано — адміністратор вносить їх у «Налаштування полів»");
+        return;
+      }
+      Object.assign(ks, {
+        items: (b.data || []).filter((x) => waDigits(x.rcpt_phone)),
+        i: 0,
+        sent: 0,
+        skipped: 0,
+        opened: false,
+        wait: 0,
+        set,
+        changed: false,
+        pause: Math.max(0, Number(set.kids_mail_pause) || 60)
+      });
+      clearInterval(ks.timer);
+      $("ks-dialog").showModal();
+      ksRender();
+    } finally {
+      btn.disabled = false;
+    }
+  }
+  function ksText(x) {
+    const s = ks.set;
+    const link = s.kids_form_code_entry ? s.kids_form_url.replace(/[?#].*$/, "") + "?usp=pp_url&" + encodeURIComponent(s.kids_form_code_entry) + "=" + x.code : s.kids_form_url;
+    return (x.rcpt_self && s.kids_form_text_self || s.kids_form_text).replace(/\{ім[’'`]?я\}/gi, [x.rcpt_first, x.rcpt_patr].filter(Boolean).join(" ")).replace(/\{оператор\}/gi, ops.get(me) || "співробітник").replace(/\{посилання\}/gi, link).replace(/\{загиблий\}/gi, x.soldier || "");
+  }
+  function ksTick() {
+    clearInterval(ks.timer);
+    if (ks.wait <= 0) return;
+    ks.timer = setInterval(() => {
+      ks.wait -= 1;
+      const b = $("ks-open");
+      if (ks.wait <= 0) {
+        clearInterval(ks.timer);
+        ksRender();
+      } else if (b) b.textContent = `⏳ Пауза ${ks.wait} с`;
+    }, 1e3);
+  }
+  function ksRender() {
+    const box = $("ks-body"), n = ks.items.length;
+    if (ks.i >= n) {
+      $("ks-progress").textContent = "";
+      box.innerHTML = n ? `<p class="ks-done">Готово 🎉 Надіслано: <b>${ks.sent}</b>${ks.skipped ? `, пропущено: <b>${ks.skipped}</b> (лишились у списку)` : ""}.</p>` : "<p>У списку немає кому надсилати: усім уже надіслано, або в родини немає мобільного номера.</p>";
+      return;
+    }
+    const x = ks.items[ks.i];
+    $("ks-progress").textContent = `${ks.i + 1} з ${n} · надіслано ${ks.sent}${ks.skipped ? " · пропущено " + ks.skipped : ""}`;
+    box.innerHTML = `<div class="ks-card"><div><b class="ks-jid"></b> <span class="ks-rep" hidden>🔁 повторно</span></div>
+      <div>Кому: <b class="ks-who"></b> <span class="muted ks-deg"></span></div><div class="ks-ph"></div>
+      <details class="ks-prev"><summary>Текст повідомлення</summary><pre class="ks-text"></pre></details></div>
+      <ol class="ks-steps muted"><li>«💬 Відкрити WhatsApp» — текст уже буде набрано.</li><li>У WhatsApp натисніть <b>Надіслати</b> (Enter).</li><li>Поверніться сюди — «✅ Надіслано → далі».</li></ol>
+      <div class="ks-actions"><button type="button" id="ks-open" class="btn-primary"></button>
+      <button type="button" id="ks-ok" class="btn-primary" disabled>✅ Надіслано → далі</button>
+      <button type="button" id="ks-skip" class="btn-secondary">⏭ Пропустити</button></div>`;
+    box.querySelector(".ks-jid").textContent = x.journal_id;
+    box.querySelector(".ks-rep").hidden = x.state !== "repeat";
+    box.querySelector(".ks-who").textContent = x.rcpt_fio;
+    box.querySelector(".ks-deg").textContent = x.rcpt_self ? "(сам/сама)" : x.rcpt_degree ? `(${x.rcpt_degree})` : "";
+    box.querySelector(".ks-ph").textContent = V.formatPhone(x.rcpt_phone) || x.rcpt_phone;
+    box.querySelector(".ks-text").textContent = ksText(x);
+    const open = $("ks-open"), ok = $("ks-ok");
+    open.textContent = ks.wait > 0 ? `⏳ Пауза ${ks.wait} с` : ks.opened ? "💬 Відкрити WhatsApp ще раз" : "💬 Відкрити WhatsApp";
+    open.disabled = ks.wait > 0;
+    ok.disabled = !ks.opened;
+    open.title = "Пауза між повідомленнями — щоб WhatsApp не сприйняв розсилку як спам";
+    open.onclick = () => {
+      const w = window.open(`https://wa.me/${waDigits(x.rcpt_phone)}?text=${encodeURIComponent(ksText(x))}`, "kids-wa");
+      if (!w) {
+        toast("Браузер заблокував вікно — дозвольте спливні вікна для цього сайту");
+        return;
+      }
+      ks.opened = true;
+      ok.disabled = false;
+      open.textContent = "💬 Відкрити WhatsApp ще раз";
+    };
+    ok.onclick = async () => {
+      ok.disabled = true;
+      const { error } = await db.rpc("kids_mail_mark", { p_list: current.id, p_case: x.case_id });
+      if (error) {
+        console.error(error);
+        toast("Не вдалося позначити: " + (error.message || ""));
+        ok.disabled = false;
+        return;
+      }
+      ks.sent += 1;
+      ks.changed = true;
+      ks.i += 1;
+      ks.opened = false;
+      ks.wait = ks.i < n ? ks.pause : 0;
+      ksRender();
+      ksTick();
+    };
+    $("ks-skip").onclick = () => {
+      ks.skipped += 1;
+      ks.i += 1;
+      ks.opened = false;
+      ksRender();
+    };
   }
   async function forPerson(personId) {
     if (!db || !(window.ACCESS && window.ACCESS.lists)) return [];

@@ -121,7 +121,7 @@ window.BurialMap = /* @__PURE__ */ (() => {
       markers.set(p.code, m);
     });
     const shown = data.total - data.noGeo;
-    $("bm-sum").textContent = `На карті: ${shown} з ${data.total} поховань у ${data.places.length} населених пунктах.` + (data.noGeo ? ` Без точки на карті: ${data.noGeo} — місце поховання не вдалося однозначно визначити (див. список «Поховання — уточнити місце»).` : "");
+    $("bm-sum").textContent = `На карті: ${shown} з ${data.total} поховань у ${data.places.length} населених пунктах.` + (data.noGeo ? ` Без точки на карті: ${data.noGeo} — місце поховання не вдалося однозначно визначити (див. списки «Поховання · Виконавець»).` : "");
     if (wantFocus && wantFocus.exact) {
       const x = wantFocus.exact;
       const mk = L.marker([x.lat, x.lon]).addTo(exactLayer).bindPopup(`<div class="bm-pop"><b>🎯 ${esc(x.title)}</b><div class="muted">${fix(x.lat)}, ${fix(x.lon)}</div></div>`);

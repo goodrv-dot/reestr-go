@@ -1008,6 +1008,7 @@ window.Cabinet = (() => {
     if (!c.cell_id) crit++;
     if (k ? !k.person.phone : !isOrphan(c)) crit++;
     Object.values(PERSON_FIELDS[module] || {}).flat().forEach(([key]) => {
+      if (key === "settlement" && module !== "vet") return;
       if (p[key] === null || p[key] === void 0 || p[key] === "") CRIT.has("p-" + key) ? crit++ : soft++;
     });
     defs.forEach((d) => {
@@ -1299,7 +1300,8 @@ window.Cabinet = (() => {
         ["death_date", "Дата загибелі", "date"],
         ["military_unit_code", "Військова частина", "code"],
         ["mp_unit_id", "Бригада", "unit"],
-        ["region_id", "Регіон (область)", "region"]
+        ["region_id", "Регіон (область)", "region"],
+        ["settlement", "Місце проживання"]
       ],
       burial: [["burial_place", "Місце поховання"], ["burial_date", "Дата поховання", "date"]]
     },
@@ -1314,7 +1316,8 @@ window.Cabinet = (() => {
         ["military_unit_code", "Військова частина", "code"],
         ["mp_unit_id", "Бригада", "unit"],
         ["region_id", "Регіон (область)", "region"],
-        ["wound_date", "Дата поранення", "date"]
+        ["wound_date", "Дата поранення", "date"],
+        ["settlement", "Місце проживання"]
       ]
     },
     bzv: {
@@ -1326,7 +1329,8 @@ window.Cabinet = (() => {
         ["birth_date", "Дата народження", "date"],
         ["military_unit_code", "Військова частина", "code"],
         ["mp_unit_id", "Бригада", "unit"],
-        ["region_id", "Регіон (область)", "region"]
+        ["region_id", "Регіон (область)", "region"],
+        ["settlement", "Місце проживання"]
       ]
     },
     pol: {
@@ -1339,7 +1343,8 @@ window.Cabinet = (() => {
         ["phone", "Номер телефону", "phone"],
         ["military_unit_code", "Військова частина", "code"],
         ["mp_unit_id", "Бригада", "unit"],
-        ["region_id", "Регіон (область)", "region"]
+        ["region_id", "Регіон (область)", "region"],
+        ["settlement", "Місце проживання"]
       ]
     },
     vet: {

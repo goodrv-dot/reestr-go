@@ -143,6 +143,7 @@
     if (!c.status) crit++; if (!c.executor_id) crit++; if (!c.cell_id) crit++;
     if (k ? !k.person.phone : !isOrphan(c)) crit++;
     Object.values(PERSON_FIELDS[module] || {}).flat().forEach(([key]) => {
+      if (key === 'settlement' && module !== 'vet') return;   // місце проживання бійця — довідково, у «незаповнені» не рахуємо
       if (p[key] === null || p[key] === undefined || p[key] === '') (CRIT.has('p-' + key) ? crit++ : soft++);
     });
     defs.forEach((d) => {

@@ -399,12 +399,12 @@ window.Lists = (() => {
   }
 
   // ---------- Напівавтомат: розсилка анкети «Діти» зі списку ----------
-  // Оператор натискає «💬 Відкрити WhatsApp» → у WhatsApp уже набрано текст із посиланням → Enter;
-  // повертається → «✅ Надіслано → далі»: ставиться «Анкету надіслано» (або «повторно»), людина зникає зі списку.
+  // Оператор натискає «💬 Відкрити WhatsApp» → одразу ставиться «Анкету надіслано» (або «повторно»), людина зникає зі списку;
+  // у WhatsApp текст із посиланням уже набрано → Enter; повертається → «➡ Далі».
   // Сам сайт натиснути «Надіслати» у WhatsApp не може (і не повинен — інакше WhatsApp блокує номер).
   // Між повідомленнями — пауза (app_settings.kids_mail_pause, сек; типово 60), щоб номер не сприйняли як спам.
   const isKidsList = (l) => /^Анкета «Діти» (·|\(тест\))/.test(l.name || '');
-  const ks = { items: [], i: 0, sent: 0, skipped: 0, opened: false, wait: 0, timer: null, set: null, changed: false };
+  const ks = { items: [], i: 0, sent: 0, skipped: 0, wait: 0, timer: null, set: null, changed: false };
   const waDigits = (phone) => { const d = String(phone || '').replace(/\D/g, ''); return d.length >= 9 ? d : ''; };
   async function kidsSend() {
     const btn = $('list-kids-send'); if (btn.disabled) return; btn.disabled = true;
@@ -414,7 +414,7 @@ window.Lists = (() => {
       if (b.error) { console.error(b.error); toast('Не вдалося підготувати розсилку: ' + (b.error.message || '')); return; }
       const set = Object.fromEntries((st.data || []).map((r) => [r.key, r.value || '']));
       if (!set.kids_form_url || !set.kids_form_text) { toast('Посилання чи текст анкети не задано — адміністратор вносить їх у «Налаштування полів»'); return; }
-      Object.assign(ks, { items: (b.data || []).filter((x) => waDigits(x.rcpt_phone)), i: 0, sent: 0, skipped: 0, opened: false, wait: 0, set, changed: false,
+      Object.assign(ks, { items: (b.data || []).filter((x) => waDigits(x.rcpt_phone)), i: 0, sent: 0, skipped: 0, wait: 0, set, changed: false,
         pause: Math.max(0, Number(set.kids_mail_pause) || 60) });
       clearInterval(ks.timer);
       $('ks-dialog').showModal(); ksRender();
@@ -432,7 +432,11 @@ window.Lists = (() => {
   function ksTick() {
     clearInterval(ks.timer);
     if (ks.wait <= 0) return;
-    ks.timer = setInterval(() => { ks.wait -= 1; const b = $('ks-open'); if (ks.wait <= 0) { clearInterval(ks.timer); ksRender(); } else if (b) b.textContent = `⏳ Пауза ${ks.wait} с`; }, 1000);
+    ks.timer = setInterval(() => {
+      ks.wait -= 1; const b = $('ks-next');
+      if (ks.wait <= 0) { clearInterval(ks.timer); if (b) { b.disabled = false; b.textContent = '➡ Далі'; } }
+      else if (b) b.textContent = `⏳ Далі через ${ks.wait} с`;
+    }, 1000);
   }
   function ksRender() {
     const box = $('ks-body'), n = ks.items.length;
@@ -447,9 +451,10 @@ window.Lists = (() => {
     box.innerHTML = `<div class="ks-card"><div><b class="ks-jid"></b> <span class="ks-rep" hidden>🔁 повторно</span></div>
       <div>Кому: <b class="ks-who"></b> <span class="muted ks-deg"></span></div><div class="ks-ph"></div>
       <details class="ks-prev"><summary>Текст повідомлення</summary><pre class="ks-text"></pre></details></div>
-      <ol class="ks-steps muted"><li>«💬 Відкрити WhatsApp» — текст уже буде набрано.</li><li>У WhatsApp натисніть <b>Надіслати</b> (Enter).</li><li>Поверніться сюди — «✅ Надіслано → далі».</li></ol>
+      <ol class="ks-steps muted"><li>«💬 Відкрити WhatsApp» — текст уже набрано, позначка «надіслано» ставиться одразу.</li><li>У WhatsApp натисніть <b>Надіслати</b> (Enter).</li><li>Поверніться сюди — «➡ Далі».</li></ol>
+      <p class="ks-marked" hidden>✅ Позначено «надіслано» — людина прибрана зі списку.</p>
       <div class="ks-actions"><button type="button" id="ks-open" class="btn-primary"></button>
-      <button type="button" id="ks-ok" class="btn-primary" disabled>✅ Надіслано → далі</button>
+      <button type="button" id="ks-next" class="btn-primary" hidden>➡ Далі</button>
       <button type="button" id="ks-skip" class="btn-secondary">⏭ Пропустити</button></div>`;
     box.querySelector('.ks-jid').textContent = x.journal_id;
     box.querySelector('.ks-rep').hidden = x.state !== 'repeat';
@@ -457,24 +462,32 @@ window.Lists = (() => {
     box.querySelector('.ks-deg').textContent = x.rcpt_self ? '(сам/сама)' : x.rcpt_degree ? `(${x.rcpt_degree})` : '';
     box.querySelector('.ks-ph').textContent = V.formatPhone(x.rcpt_phone) || x.rcpt_phone;
     box.querySelector('.ks-text').textContent = ksText(x);
-    const open = $('ks-open'), ok = $('ks-ok');
-    open.textContent = ks.wait > 0 ? `⏳ Пауза ${ks.wait} с` : (ks.opened ? '💬 Відкрити WhatsApp ще раз' : '💬 Відкрити WhatsApp');
-    open.disabled = ks.wait > 0; ok.disabled = !ks.opened;
-    open.title = 'Пауза між повідомленнями — щоб WhatsApp не сприйняв розсилку як спам';
-    open.onclick = () => {
+    const open = $('ks-open'), next = $('ks-next'), skip = $('ks-skip');
+    const showMarked = () => {
+      box.querySelector('.ks-marked').hidden = false; skip.hidden = true;
+      open.className = 'btn-secondary'; open.textContent = '💬 Відкрити WhatsApp ще раз';
+      next.hidden = false; next.disabled = ks.wait > 0 && ks.i + 1 < n;
+      next.textContent = next.disabled ? `⏳ Далі через ${ks.wait} с` : '➡ Далі';
+    };
+    open.textContent = '💬 Відкрити WhatsApp';
+    open.title = 'Відкриє WhatsApp з набраним повідомленням і одразу позначить «надіслано»';
+    if (x.marked) showMarked();
+    open.onclick = async () => {
       // одна й та сама вкладка «kids-wa» для всіх — не плодимо вкладок
       const w = window.open(`https://wa.me/${waDigits(x.rcpt_phone)}?text=${encodeURIComponent(ksText(x))}`, 'kids-wa');
       if (!w) { toast('Браузер заблокував вікно — дозвольте спливні вікна для цього сайту'); return; }
-      ks.opened = true; ok.disabled = false; open.textContent = '💬 Відкрити WhatsApp ще раз';
-    };
-    ok.onclick = async () => {
-      ok.disabled = true;
+      if (x.marked) return;
+      // позначку ставимо одразу при відкритті WhatsApp (як кнопка в справі) — щоб не забути й не надіслати двічі
+      open.disabled = true;
       const { error } = await db.rpc('kids_mail_mark', { p_list: current.id, p_case: x.case_id });
-      if (error) { console.error(error); toast('Не вдалося позначити: ' + (error.message || '')); ok.disabled = false; return; }
-      ks.sent += 1; ks.changed = true; ks.i += 1; ks.opened = false; ks.wait = ks.i < n ? ks.pause : 0;
-      ksRender(); ksTick();
+      open.disabled = false;
+      if (error) { console.error(error); toast('WhatsApp відкрито, але позначку «надіслано» поставити не вдалося: ' + (error.message || '') + '. Натисніть «💬» ще раз'); return; }
+      x.marked = true; ks.sent += 1; ks.changed = true; ks.wait = ks.pause;
+      $('ks-progress').textContent = `${ks.i + 1} з ${n} · надіслано ${ks.sent}${ks.skipped ? ' · пропущено ' + ks.skipped : ''}`;
+      showMarked(); ksTick();
     };
-    $('ks-skip').onclick = () => { ks.skipped += 1; ks.i += 1; ks.opened = false; ksRender(); };
+    next.onclick = () => { ks.i += 1; ksRender(); };
+    skip.onclick = () => { ks.skipped += 1; ks.i += 1; ksRender(); };
   }
 
   // У картці особи: в яких списках людина є

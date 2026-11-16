@@ -12,8 +12,8 @@
   const PERSON_FIELDS = {
     '200': {
       person: [['last_name', 'Прізвище'], ['first_name', 'Ім’я'], ['patronymic', 'По батькові'], ['callsign', 'Позивний'], ['birth_date', 'Дата народження', 'date'],
-        ['death_date', 'Дата загибелі', 'date'], ['military_unit_code', 'Військова частина', 'code'], ['mp_unit_id', 'Бригада', 'unit'], ['region_id', 'Регіон (область)', 'region'],
-        ['settlement', 'Місце проживання']],
+        ['death_date', 'Дата загибелі', 'date'], ['military_unit_code', 'Військова частина', 'code'], ['mp_unit_id', 'Бригада', 'unit'], ['region_id', 'Регіон (область)', 'region']],
+      // «Місце проживання» бійця в 200 не показуємо: з журналу там та сама адреса, що в родича (працюємо з адресою в «Родині»)
       burial: [['burial_place', 'Місце поховання'], ['burial_date', 'Дата поховання', 'date']]
     },
     '300': {

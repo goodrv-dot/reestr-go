@@ -26,7 +26,8 @@
     .replace(/\{посилання\}/gi, kidsLink(current))
     .replace(/\{загиблий\}/gi, fio(current.person));
 
-  function kidsFormEl(c) {
+  // extra — анкету вже надіслано, але треба написати ще й іншому родичу (напр., додали дружину): позначки не змінюємо
+  function kidsFormEl(c, extra) {
     const box = document.createElement('div'); box.className = 'kids-form';
     if (c.vals.kids_form_filled) {   // діти вже є в картці родича (анкета / імпорт) або позначено вручну
       box.innerHTML = '<span class="kids-done">✅ Анкету «Діти» заповнено — надсилати не потрібно</span>'; return box;
@@ -34,9 +35,14 @@
     const ks = kidsState(c);
     if (ks.k === 'nokids') { box.innerHTML = '<span class="kids-dnd">🚫 Дітей немає / не актуально — не надсилаємо</span>'; return box; }
     if (ks.k === 'dnd') { box.innerHTML = '<span class="kids-dnd">🔕 Не турбувати — більше не надсилаємо</span>'; return box; }
-    const repeat = ks.k === 'repeat';
-    if (ks.k === 'wait1' || ks.k === 'wait2') {
+    const repeat = ks.k === 'repeat' && !extra;
+    if ((ks.k === 'wait1' || ks.k === 'wait2') && !extra) {
       box.innerHTML = `<span class="kids-wait">⏳ Чекаємо відповідь до ${fmt(ks.due)}</span> `;
+      const more = document.createElement('button'); more.type = 'button'; more.className = 'btn-secondary btn-small';
+      more.textContent = '💬 Надіслати ще іншому родичу';
+      more.title = 'Напр., додали родича вже після розсилки — анкету можна надіслати і йому; позначки «надіслано» й термін не змінюються';
+      more.onclick = () => box.replaceWith(kidsFormEl(c, true));
+      box.append(more, ' ');
       const no = document.createElement('button'); no.type = 'button'; no.className = 'btn-secondary btn-small';
       no.textContent = '🚫 Відповіли: дітей немає / не актуально';
       no.onclick = async () => { if (!c.vals.kids_form_none) await saveValue('kids_form_none', today()); };
@@ -56,7 +62,7 @@
       if (!k.extra && (self.length ? k.self : contact && k.person.id === contact.person.id)) o.selected = true; sel.appendChild(o);
     });
     const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'btn-primary btn-small';
-    btn.textContent = repeat ? '🔁 Надіслати повторно → WhatsApp' : '💬 Анкета «Діти» → WhatsApp';
+    btn.textContent = extra ? '💬 Надіслати цьому родичу → WhatsApp' : repeat ? '🔁 Надіслати повторно → WhatsApp' : '💬 Анкета «Діти» → WhatsApp';
     btn.title = 'Відкриє WhatsApp з цим абонентом і вже набраним повідомленням з посиланням — лишиться натиснути «Надіслати»';
     btn.onclick = async () => {
       const k = withPhone[Number(sel.value)] || withPhone[0];
@@ -66,6 +72,7 @@
       if (!kidsSet.url) { if (w) w.close(); Persons.toast('Посилання на анкету не задано — адміністратор вносить його в «Налаштування полів»'); return; }
       const href = `https://wa.me/${waDigits(k.phone)}?text=${encodeURIComponent(kidsText(k))}`;
       if (w) { try { w.opener = null; } catch (e) { /* */ } w.location.href = href; } else location.href = href;
+      if (extra) { Persons.toast('Відкрито WhatsApp — позначки анкети не змінюються'); return; }
       if (!c.vals.kids_form_sent) await saveValue('kids_form_sent', today());
       else if (repeat && !c.vals.kids_form_resent) await saveValue('kids_form_resent', today());
     };
@@ -74,7 +81,10 @@
     no.textContent = '🚫 Дітей немає / не актуально';
     no.title = 'Родина відповіла, що анкета їх не стосується — більше не надсилаємо й не нагадуємо';
     no.onclick = async () => { if (!c.vals.kids_form_none) await saveValue('kids_form_none', today()); };
-    box.append(sel, ' ', btn, ' ', no);
+    if (extra) {
+      const back = document.createElement('button'); back.type = 'button'; back.className = 'btn-link'; back.textContent = 'скасувати';
+      back.onclick = () => box.replaceWith(kidsFormEl(c)); box.append(sel, ' ', btn, ' ', back);
+    } else box.append(sel, ' ', btn, ' ', no);
     if (withPhone.length === 1) sel.hidden = true, box.prepend(document.createTextNode(`Кому: ${fio(withPhone[0].person)} `));
     return box;
   }

@@ -2546,7 +2546,7 @@ ${ex.name}
   const caseCode = (c) => String(c.id).replace(/-/g, "").slice(0, 8).toUpperCase();
   const kidsLink = (c) => kidsSet.entry && kidsSet.url ? kidsSet.url.replace(/[?#].*$/, "") + "?usp=pp_url&" + encodeURIComponent(kidsSet.entry) + "=" + caseCode(c) : kidsSet.url;
   const kidsText = (k) => (k.self ? kidsSet.textSelf || KIDS_TEXT_SELF_DEFAULT : kidsSet.text || KIDS_TEXT_DEFAULT).replace(/\{ім[’'`]?я\}/gi, [k.person.first_name, k.person.patronymic].filter(Boolean).join(" ") || "").replace(/\{оператор\}/gi, staff.get(me) || "співробітник").replace(/\{посилання\}/gi, kidsLink(current)).replace(/\{загиблий\}/gi, fio(current.person));
-  function kidsFormEl(c) {
+  function kidsFormEl(c, extra) {
     const box = document.createElement("div");
     box.className = "kids-form";
     if (c.vals.kids_form_filled) {
@@ -2562,9 +2562,16 @@ ${ex.name}
       box.innerHTML = '<span class="kids-dnd">🔕 Не турбувати — більше не надсилаємо</span>';
       return box;
     }
-    const repeat = ks.k === "repeat";
-    if (ks.k === "wait1" || ks.k === "wait2") {
+    const repeat = ks.k === "repeat" && !extra;
+    if ((ks.k === "wait1" || ks.k === "wait2") && !extra) {
       box.innerHTML = `<span class="kids-wait">⏳ Чекаємо відповідь до ${fmt(ks.due)}</span> `;
+      const more = document.createElement("button");
+      more.type = "button";
+      more.className = "btn-secondary btn-small";
+      more.textContent = "💬 Надіслати ще іншому родичу";
+      more.title = "Напр., додали родича вже після розсилки — анкету можна надіслати і йому; позначки «надіслано» й термін не змінюються";
+      more.onclick = () => box.replaceWith(kidsFormEl(c, true));
+      box.append(more, " ");
       const no2 = document.createElement("button");
       no2.type = "button";
       no2.className = "btn-secondary btn-small";
@@ -2594,7 +2601,7 @@ ${ex.name}
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "btn-primary btn-small";
-    btn.textContent = repeat ? "🔁 Надіслати повторно → WhatsApp" : "💬 Анкета «Діти» → WhatsApp";
+    btn.textContent = extra ? "💬 Надіслати цьому родичу → WhatsApp" : repeat ? "🔁 Надіслати повторно → WhatsApp" : "💬 Анкета «Діти» → WhatsApp";
     btn.title = "Відкриє WhatsApp з цим абонентом і вже набраним повідомленням з посиланням — лишиться натиснути «Надіслати»";
     btn.onclick = async () => {
       const k = withPhone[Number(sel.value)] || withPhone[0];
@@ -2613,6 +2620,10 @@ ${ex.name}
         }
         w.location.href = href;
       } else location.href = href;
+      if (extra) {
+        Persons.toast("Відкрито WhatsApp — позначки анкети не змінюються");
+        return;
+      }
       if (!c.vals.kids_form_sent) await saveValue("kids_form_sent", today());
       else if (repeat && !c.vals.kids_form_resent) await saveValue("kids_form_resent", today());
     };
@@ -2624,7 +2635,14 @@ ${ex.name}
     no.onclick = async () => {
       if (!c.vals.kids_form_none) await saveValue("kids_form_none", today());
     };
-    box.append(sel, " ", btn, " ", no);
+    if (extra) {
+      const back = document.createElement("button");
+      back.type = "button";
+      back.className = "btn-link";
+      back.textContent = "скасувати";
+      back.onclick = () => box.replaceWith(kidsFormEl(c));
+      box.append(sel, " ", btn, " ", back);
+    } else box.append(sel, " ", btn, " ", no);
     if (withPhone.length === 1) sel.hidden = true, box.prepend(document.createTextNode(`Кому: ${fio(withPhone[0].person)} `));
     return box;
   }

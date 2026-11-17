@@ -1404,3 +1404,11 @@ input::placeholder, textarea::placeholder { color: #7a8591; }
 :root[data-theme="dark"] .tag-adult { background: #4a2a17; color: #ffc9a3; border-color: #7a4524; }
 :root[data-theme="dark"] .row-card.is-adult-child { background: #2e1d12; }
 :root[data-theme="dark"] .child-adult-warn { color: #ffb37f; }
+.cab-mylists { background: var(--white); border: 1px solid var(--line); border-left: 6px solid var(--sea, #1f5f8b); border-radius: 10px; padding: 0.45rem 0.8rem; margin: 0 0 0.7rem; }
+.cab-mylists h2 { font-size: 0.95rem; margin: 0 0 0.3rem; }
+.mylists { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.25rem; }
+.mylist { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem 0.6rem; }
+.mylist-name { font-weight: 600; text-align: left; }
+.mylist-n { font-size: 0.85rem; color: var(--muted); }
+.mylist-n.mylist-over { color: var(--err); font-weight: 600; }
+.mylist-kids .mylist-name { color: var(--sea, #1f5f8b); }

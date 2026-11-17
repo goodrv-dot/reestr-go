@@ -1281,6 +1281,7 @@ window.Cabinet = (() => {
     }
     $("cab-empty").hidden = list.length > 0;
     renderToday();
+    renderMyLists();
   }
   const SECTIONS = {
     "200": [["person", "Особа"], ["notice", "Сповіщення"], ["family", "Родина"], ["burial", "Поховання"], ["support", "Супровід"], ["awards", "Нагороди і юридичне"], ["problems", "Проблеми"], ["other", "Інше"]],
@@ -2991,6 +2992,52 @@ ${ex.name}
     }
     if (c) openCase(c.id);
     else Persons.toast(`Справу ${jid} не знайдено або немає доступу`);
+  }
+  let myListsAt = 0, myLists = [];
+  async function renderMyLists(force) {
+    const box = $("cab-mylists");
+    if (!box || !db || !me) return;
+    if (force || Date.now() - myListsAt > 6e4) {
+      const { data, error } = await db.from("person_lists").select("id, name, due_date, status, person_list_members(count)").or(`owner_id.eq.${me},shared_with.cs.{${me}}`).order("name");
+      if (error) {
+        console.error(error);
+        return;
+      }
+      myListsAt = Date.now();
+      myLists = (data || []).map((l) => ({ ...l, n: l.person_list_members && l.person_list_members[0] && l.person_list_members[0].count || 0 })).filter((l) => l.n > 0 && l.status !== "Виконано" && l.status !== "Архів");
+    }
+    box.hidden = !myLists.length;
+    box.innerHTML = "";
+    if (!myLists.length) return;
+    const kids = (l) => /^Анкета «Діти» (·|\(тест\))/.test(l.name);
+    const order = (l) => kids(l) ? 0 : /^Адреси/.test(l.name) ? 1 : /^Поховання/.test(l.name) ? 2 : 3;
+    const h = document.createElement("h2");
+    h.textContent = "Мої списки";
+    box.appendChild(h);
+    const ul = document.createElement("ul");
+    ul.className = "mylists";
+    [...myLists].sort((a, b) => order(a) - order(b) || a.name.localeCompare(b.name, "uk")).forEach((l) => {
+      const li = document.createElement("li");
+      li.className = "mylist" + (kids(l) ? " mylist-kids" : "");
+      const due = l.due_date && l.due_date < today() ? " mylist-over" : "";
+      li.innerHTML = `<button type="button" class="btn-link mylist-name"></button> <span class="mylist-n${due}"></span> <span class="mylist-act"></span>`;
+      const nm2 = li.querySelector(".mylist-name");
+      nm2.textContent = l.name.replace(/ — до виконання$/, "");
+      nm2.title = "Відкрити список";
+      nm2.onclick = () => Lists.openById(l.id);
+      li.querySelector(".mylist-n").textContent = `${l.n} ${plural(l.n, "особа", "особи", "осіб")}`;
+      if (kids(l)) {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "btn-primary btn-small";
+        b.textContent = "▶ Розіслати";
+        b.title = "Відкрити список і почати розсилку анкети через WhatsApp";
+        b.onclick = () => Lists.openById(l.id, true);
+        li.querySelector(".mylist-act").appendChild(b);
+      }
+      ul.appendChild(li);
+    });
+    box.appendChild(ul);
   }
   const NOTE = {
     overdue: ["Прострочено", "n-over"],

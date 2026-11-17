@@ -290,5 +290,6 @@
     }
     $('cab-empty').hidden = list.length > 0;
     renderToday();
+    renderMyLists();
   }
 

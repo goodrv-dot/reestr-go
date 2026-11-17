@@ -100,7 +100,8 @@ window.Lists = (() => {
 
   // ---------- Один список ----------
   async function openList(id) {
-    current = lists.find((x) => x.id === id); if (!current) return;
+    current = lists.find((x) => x.id === id); if (!current) { pendingSend = false; return; }
+    if (pendingSend) { pendingSend = false; if (isKidsList(current) && !ro()) setTimeout(kidsSend, 0); }
     $('lists-index').hidden = true; $('list-one').hidden = false;
     window.scrollTo(0, 0);
     const l = current, f = $('list-meta');
@@ -511,5 +512,12 @@ window.Lists = (() => {
     return (data || []).filter((x) => x.list);
   }
 
-  return { init, load, addDialog, forPerson };
+  // З кабінету («Мої списки»): відкрити список за id; send — одразу почати розсилку анкети «Діти»
+  let pendingSend = false;
+  function openById(id, send) {
+    window.__listsFrom = 'cabinet'; current = { id }; pendingSend = !!send;
+    const t = document.querySelector('.tab[data-tab="lists"]');
+    t.click();
+  }
+  return { init, load, addDialog, forPerson, openById };
 })();

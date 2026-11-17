@@ -414,7 +414,15 @@ window.Lists = (() => {
       if (b.error) { console.error(b.error); toast('Не вдалося підготувати розсилку: ' + (b.error.message || '')); return; }
       const set = Object.fromEntries((st.data || []).map((r) => [r.key, r.value || '']));
       if (!set.kids_form_url || !set.kids_form_text) { toast('Посилання чи текст анкети не задано — адміністратор вносить їх у «Налаштування полів»'); return; }
-      Object.assign(ks, { items: (b.data || []).filter((x) => waDigits(x.rcpt_phone)), i: 0, sent: 0, skipped: 0, wait: 0, set, changed: false,
+      // додаткові номери отримувачів («Ще телефон» — часто саме для месенджерів)
+      const ids = [...new Set((b.data || []).map((x) => x.rcpt_id))];
+      const ex = new Map();
+      for (let i = 0; i < ids.length; i += 100) {
+        const { data: ep } = await db.from('persons').select('id, extra_phones').in('id', ids.slice(i, i + 100));
+        (ep || []).forEach((r) => ex.set(r.id, (r.extra_phones || []).filter((x) => waDigits(x))));
+      }
+      (b.data || []).forEach((x) => { x.phones = [x.rcpt_phone, ...(ex.get(x.rcpt_id) || [])].filter((ph, i, a) => waDigits(ph) && a.indexOf(ph) === i); x.phone = x.phones[0]; });
+      Object.assign(ks, { items: (b.data || []).filter((x) => x.phones.length), i: 0, sent: 0, skipped: 0, wait: 0, set, changed: false,
         pause: Math.max(0, Number(set.kids_mail_pause) || 60) });
       clearInterval(ks.timer);
       $('ks-dialog').showModal(); ksRender();
@@ -460,7 +468,13 @@ window.Lists = (() => {
     box.querySelector('.ks-rep').hidden = x.state !== 'repeat';
     box.querySelector('.ks-who').textContent = x.rcpt_fio;
     box.querySelector('.ks-deg').textContent = x.rcpt_self ? '(сам/сама)' : x.rcpt_degree ? `(${x.rcpt_degree})` : '';
-    box.querySelector('.ks-ph').textContent = V.formatPhone(x.rcpt_phone) || x.rcpt_phone;
+    { const ph = box.querySelector('.ks-ph');
+      if (x.phones.length > 1) {   // кілька номерів — оператор обирає, на який WhatsApp
+        const sel = document.createElement('select'); sel.setAttribute('aria-label', 'Номер для WhatsApp');
+        x.phones.forEach((p, i) => sel.add(new Option(`${V.formatPhone(p) || p}${i ? ' (дод.)' : ' (основний)'}`, p)));
+        sel.value = x.phone; sel.onchange = () => { x.phone = sel.value; };
+        ph.append('Номер: ', sel);
+      } else ph.textContent = V.formatPhone(x.phone) || x.phone; }
     box.querySelector('.ks-text').textContent = ksText(x);
     const open = $('ks-open'), next = $('ks-next'), skip = $('ks-skip');
     const showMarked = () => {
@@ -474,7 +488,7 @@ window.Lists = (() => {
     if (x.marked) showMarked();
     open.onclick = async () => {
       // одна й та сама вкладка «kids-wa» для всіх — не плодимо вкладок
-      const w = window.open(`https://wa.me/${waDigits(x.rcpt_phone)}?text=${encodeURIComponent(ksText(x))}`, 'kids-wa');
+      const w = window.open(`https://wa.me/${waDigits(x.phone)}?text=${encodeURIComponent(ksText(x))}`, 'kids-wa');
       if (!w) { toast('Браузер заблокував вікно — дозвольте спливні вікна для цього сайту'); return; }
       if (x.marked) return;
       // позначку ставимо одразу при відкритті WhatsApp (як кнопка в справі) — щоб не забути й не надіслати двічі

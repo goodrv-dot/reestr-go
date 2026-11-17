@@ -17,7 +17,7 @@
     const chunks = []; for (let i = 0; i < pids.length; i += 150) chunks.push(pids.slice(i, i + 150));
     for (let i = 0; i < chunks.length; i += 4) {
       const res = await Promise.all(chunks.slice(i, i + 4).map((part) => db.from('military_relations')
-        .select('id, related_person_id, relation_degree, created_at, person:persons!military_relations_person_id_fkey(id, last_name, first_name, patronymic, phone, settlement)')
+        .select('id, related_person_id, relation_degree, created_at, person:persons!military_relations_person_id_fkey(id, last_name, first_name, patronymic, phone, extra_phones, settlement)')
         .in('related_person_id', part).order('created_at')));
       res.forEach(({ data }) => (data || []).forEach((r) => { if (r.person) kin.set(r.related_person_id, [...(kin.get(r.related_person_id) || []), r]); }));
     }

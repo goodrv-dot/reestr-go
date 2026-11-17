@@ -44,14 +44,16 @@
     }
     // 300 / полон / ветерани — першим пропонуємо саму особу справи (вона жива й знає своїх дітей), далі рідних
     const self = ['300', 'pol', 'vet'].includes(module) && waDigits(c.person.phone) ? [{ person: c.person, relation_degree: 'сам(а)', self: true }] : [];
-    const withPhone = [...self, ...c.kin.filter((k) => waDigits(k.person.phone))];
+    // кожен номер — окремий варіант (основний + «Ще телефон»: часто один для дзвінків, інший для месенджерів)
+    const withPhone = [...self, ...c.kin].flatMap((k) => [k.person.phone, ...(k.self ? [] : k.person.extra_phones || [])]
+      .filter((ph, i, a) => waDigits(ph) && a.indexOf(ph) === i).map((ph, i) => ({ ...k, phone: ph, extra: i > 0 })));
     if (!withPhone.length) { box.innerHTML = (['300', 'pol', 'vet'].includes(module) ? '<span class="muted">Щоб надіслати анкету, внесіть телефон особи або додайте в «Родині» родича з телефоном.</span>' : '<span class="muted">Щоб надіслати анкету, додайте в «Родині» родича з телефоном.</span>'); return box; }
     const contact = contactOf(c);
     const sel = document.createElement('select'); sel.setAttribute('aria-label', 'Кому надіслати');
     withPhone.forEach((k, i) => {
       const o = document.createElement('option'); o.value = String(i);
-      o.textContent = `${fio(k.person)}${k.relation_degree ? ' (' + k.relation_degree + ')' : ''} · ${V.formatPhone(k.person.phone) || k.person.phone}`;
-      if (self.length ? k === self[0] : k === contact) o.selected = true; sel.appendChild(o);
+      o.textContent = `${fio(k.person)}${k.relation_degree ? ' (' + k.relation_degree + ')' : ''} · ${V.formatPhone(k.phone) || k.phone}${k.extra ? ' (дод.)' : ''}`;
+      if (!k.extra && (self.length ? k.self : contact && k.person.id === contact.person.id)) o.selected = true; sel.appendChild(o);
     });
     const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'btn-primary btn-small';
     btn.textContent = repeat ? '🔁 Надіслати повторно → WhatsApp' : '💬 Анкета «Діти» → WhatsApp';
@@ -62,7 +64,7 @@
       const w = window.open('', '_blank');
       await loadKidsSet();
       if (!kidsSet.url) { if (w) w.close(); Persons.toast('Посилання на анкету не задано — адміністратор вносить його в «Налаштування полів»'); return; }
-      const href = `https://wa.me/${waDigits(k.person.phone)}?text=${encodeURIComponent(kidsText(k))}`;
+      const href = `https://wa.me/${waDigits(k.phone)}?text=${encodeURIComponent(kidsText(k))}`;
       if (w) { try { w.opener = null; } catch (e) { /* */ } w.location.href = href; } else location.href = href;
       if (!c.vals.kids_form_sent) await saveValue('kids_form_sent', today());
       else if (repeat && !c.vals.kids_form_resent) await saveValue('kids_form_resent', today());

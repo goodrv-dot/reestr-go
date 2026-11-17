@@ -44,6 +44,7 @@
         <button type="button" class="btn-link fam-name" title="Відкрити картку в реєстрі"></button>
         <label>Спорідненість<select data-f="deg">${OPT.relation_degree.map((o) => `<option>${esc(o)}</option>`).join('')}</select></label>
         <label>Телефон<input data-f="phone" type="tel"></label>
+        <label title="Другий (третій…) номер: напр., окремий для WhatsApp / Viber. Кілька — через кому">Ще телефон<input data-f="phone2" type="tel" placeholder="напр., для месенджерів"></label>
         <label>Населений пункт, адреса<input data-f="settlement"></label>
         <label class="fam-contact"><input type="radio" name="fam-contact"> контактна особа</label>`;
       const q = (f) => row.querySelector(`[data-f="${f}"]`);
@@ -61,6 +62,23 @@
       q('phone').onchange = async () => {
         const ph = phoneOf(q('phone')); if (ph === undefined) return;
         if (await updPerson(k.person.id, { phone: ph })) { k.person.phone = ph; refreshStages(); renderHead(); }
+      };
+      // додаткові номери (persons.extra_phones): «Ще телефон», кілька — через кому
+      const showExtra = () => {
+        const ex = k.person.extra_phones || [];
+        q('phone2').value = ex.map((x) => V.formatPhone(x) || x).join(', ');
+        const lab = q('phone2').parentElement, links = ex.map((x) => callLink(x)).filter(Boolean);
+        const h = document.createElement('span'); h.append('Ще телефон'); links.forEach((l) => h.append(' ', l));
+        lab.replaceChild(h, lab.firstChild);
+      };
+      showExtra();
+      q('phone2').onchange = async () => {
+        const el = q('phone2'), raw = el.value.trim();
+        const { phones, bad } = raw ? V.extractPhones(raw) : { phones: [], bad: [] };
+        el.classList.toggle('is-bad', bad.length > 0);
+        if (bad.length) { Persons.toast(`Номер «${bad.join(', ')}» не розпізнано — не збережено. Приклад: 050 123 45 67`); el.focus(); return; }
+        const list = [...new Set(phones.map((x) => x.value))].filter((x) => x !== k.person.phone);
+        if (await updPerson(k.person.id, { extra_phones: list })) { k.person.extra_phones = list; showExtra(); Persons.toast('Збережено'); }
       };
       q('settlement').onchange = async () => {
         const v = q('settlement').value.trim() || null;

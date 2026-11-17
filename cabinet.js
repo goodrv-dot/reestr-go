@@ -114,7 +114,7 @@ window.Cabinet = (() => {
     const chunks = []; for (let i = 0; i < pids.length; i += 150) chunks.push(pids.slice(i, i + 150));
     for (let i = 0; i < chunks.length; i += 4) {
       const res = await Promise.all(chunks.slice(i, i + 4).map((part) => db.from('military_relations')
-        .select('id, related_person_id, relation_degree, created_at, person:persons!military_relations_person_id_fkey(id, last_name, first_name, patronymic, phone, settlement)')
+        .select('id, related_person_id, relation_degree, created_at, person:persons!military_relations_person_id_fkey(id, last_name, first_name, patronymic, phone, extra_phones, settlement)')
         .in('related_person_id', part).order('created_at')));
       res.forEach(({ data }) => (data || []).forEach((r) => { if (r.person) kin.set(r.related_person_id, [...(kin.get(r.related_person_id) || []), r]); }));
     }
@@ -1485,6 +1485,7 @@ window.Cabinet = (() => {
         <button type="button" class="btn-link fam-name" title="Відкрити картку в реєстрі"></button>
         <label>Спорідненість<select data-f="deg">${OPT.relation_degree.map((o) => `<option>${esc(o)}</option>`).join('')}</select></label>
         <label>Телефон<input data-f="phone" type="tel"></label>
+        <label title="Другий (третій…) номер: напр., окремий для WhatsApp / Viber. Кілька — через кому">Ще телефон<input data-f="phone2" type="tel" placeholder="напр., для месенджерів"></label>
         <label>Населений пункт, адреса<input data-f="settlement"></label>
         <label class="fam-contact"><input type="radio" name="fam-contact"> контактна особа</label>`;
       const q = (f) => row.querySelector(`[data-f="${f}"]`);
@@ -1502,6 +1503,23 @@ window.Cabinet = (() => {
       q('phone').onchange = async () => {
         const ph = phoneOf(q('phone')); if (ph === undefined) return;
         if (await updPerson(k.person.id, { phone: ph })) { k.person.phone = ph; refreshStages(); renderHead(); }
+      };
+      // додаткові номери (persons.extra_phones): «Ще телефон», кілька — через кому
+      const showExtra = () => {
+        const ex = k.person.extra_phones || [];
+        q('phone2').value = ex.map((x) => V.formatPhone(x) || x).join(', ');
+        const lab = q('phone2').parentElement, links = ex.map((x) => callLink(x)).filter(Boolean);
+        const h = document.createElement('span'); h.append('Ще телефон'); links.forEach((l) => h.append(' ', l));
+        lab.replaceChild(h, lab.firstChild);
+      };
+      showExtra();
+      q('phone2').onchange = async () => {
+        const el = q('phone2'), raw = el.value.trim();
+        const { phones, bad } = raw ? V.extractPhones(raw) : { phones: [], bad: [] };
+        el.classList.toggle('is-bad', bad.length > 0);
+        if (bad.length) { Persons.toast(`Номер «${bad.join(', ')}» не розпізнано — не збережено. Приклад: 050 123 45 67`); el.focus(); return; }
+        const list = [...new Set(phones.map((x) => x.value))].filter((x) => x !== k.person.phone);
+        if (await updPerson(k.person.id, { extra_phones: list })) { k.person.extra_phones = list; showExtra(); Persons.toast('Збережено'); }
       };
       q('settlement').onchange = async () => {
         const v = q('settlement').value.trim() || null;
@@ -1637,14 +1655,16 @@ window.Cabinet = (() => {
     }
     // 300 / полон / ветерани — першим пропонуємо саму особу справи (вона жива й знає своїх дітей), далі рідних
     const self = ['300', 'pol', 'vet'].includes(module) && waDigits(c.person.phone) ? [{ person: c.person, relation_degree: 'сам(а)', self: true }] : [];
-    const withPhone = [...self, ...c.kin.filter((k) => waDigits(k.person.phone))];
+    // кожен номер — окремий варіант (основний + «Ще телефон»: часто один для дзвінків, інший для месенджерів)
+    const withPhone = [...self, ...c.kin].flatMap((k) => [k.person.phone, ...(k.self ? [] : k.person.extra_phones || [])]
+      .filter((ph, i, a) => waDigits(ph) && a.indexOf(ph) === i).map((ph, i) => ({ ...k, phone: ph, extra: i > 0 })));
     if (!withPhone.length) { box.innerHTML = (['300', 'pol', 'vet'].includes(module) ? '<span class="muted">Щоб надіслати анкету, внесіть телефон особи або додайте в «Родині» родича з телефоном.</span>' : '<span class="muted">Щоб надіслати анкету, додайте в «Родині» родича з телефоном.</span>'); return box; }
     const contact = contactOf(c);
     const sel = document.createElement('select'); sel.setAttribute('aria-label', 'Кому надіслати');
     withPhone.forEach((k, i) => {
       const o = document.createElement('option'); o.value = String(i);
-      o.textContent = `${fio(k.person)}${k.relation_degree ? ' (' + k.relation_degree + ')' : ''} · ${V.formatPhone(k.person.phone) || k.person.phone}`;
-      if (self.length ? k === self[0] : k === contact) o.selected = true; sel.appendChild(o);
+      o.textContent = `${fio(k.person)}${k.relation_degree ? ' (' + k.relation_degree + ')' : ''} · ${V.formatPhone(k.phone) || k.phone}${k.extra ? ' (дод.)' : ''}`;
+      if (!k.extra && (self.length ? k.self : contact && k.person.id === contact.person.id)) o.selected = true; sel.appendChild(o);
     });
     const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'btn-primary btn-small';
     btn.textContent = repeat ? '🔁 Надіслати повторно → WhatsApp' : '💬 Анкета «Діти» → WhatsApp';
@@ -1655,7 +1675,7 @@ window.Cabinet = (() => {
       const w = window.open('', '_blank');
       await loadKidsSet();
       if (!kidsSet.url) { if (w) w.close(); Persons.toast('Посилання на анкету не задано — адміністратор вносить його в «Налаштування полів»'); return; }
-      const href = `https://wa.me/${waDigits(k.person.phone)}?text=${encodeURIComponent(kidsText(k))}`;
+      const href = `https://wa.me/${waDigits(k.phone)}?text=${encodeURIComponent(kidsText(k))}`;
       if (w) { try { w.opener = null; } catch (e) { /* */ } w.location.href = href; } else location.href = href;
       if (!c.vals.kids_form_sent) await saveValue('kids_form_sent', today());
       else if (repeat && !c.vals.kids_form_resent) await saveValue('kids_form_resent', today());

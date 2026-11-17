@@ -56,6 +56,17 @@ window.Lists = /* @__PURE__ */ (() => {
     fb.hidden = ro();
     fb.addEventListener("click", () => addDialog({ filter: true, label: `Усі особи за поточним пошуком і фільтрами: ${$("count").textContent || ""}`.trim() }));
   }
+  const OVER_RE = / · (⚠ ПРОСТРОЧЕНО: перенесено на .+)$/;
+  function nameInto(el, name) {
+    const m = String(name || "").match(OVER_RE);
+    el.textContent = m ? name.slice(0, m.index) : name;
+    if (m) {
+      const sp = document.createElement("span");
+      sp.className = "list-overdue";
+      sp.textContent = m[1];
+      el.append(" ", sp);
+    }
+  }
   const debounce = (f, ms) => {
     let t;
     return (...a) => {
@@ -98,7 +109,7 @@ window.Lists = /* @__PURE__ */ (() => {
     lists.forEach((l) => {
       const tr = document.createElement("tr");
       tr.innerHTML = '<td><b></b><br><span class="muted"></span></td><td><span class="list-st"></span></td><td></td><td></td><td></td>';
-      tr.children[0].firstChild.textContent = l.name;
+      nameInto(tr.children[0].firstChild, l.name);
       tr.children[0].lastChild.textContent = l.description || "";
       const st = tr.children[1].firstChild;
       st.textContent = l.status;
@@ -146,7 +157,7 @@ window.Lists = /* @__PURE__ */ (() => {
     $("list-one").hidden = false;
     window.scrollTo(0, 0);
     const l = current, f = $("list-meta");
-    $("list-title").textContent = l.name;
+    nameInto($("list-title"), l.name);
     $("list-owner").textContent = `Автор: ${ops.get(l.owner_id) || "—"} · створено ${fmt(l.created_at)}`;
     f.name.value = l.name;
     f.description.value = l.description || "";

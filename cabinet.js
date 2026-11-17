@@ -1978,7 +1978,9 @@ window.Cabinet = (() => {
       const due = l.due_date && l.due_date < today() ? ' mylist-over' : '';
       li.innerHTML = `<button type="button" class="btn-link mylist-name"></button> <span class="mylist-n${due}"></span> <span class="mylist-act"></span>`;
       const nm = li.querySelector('.mylist-name');
-      nm.textContent = l.name.replace(/ — до виконання$/, '');
+      const om = l.name.match(/ · (⚠ ПРОСТРОЧЕНО: перенесено на .+)$/);
+      nm.textContent = (om ? l.name.slice(0, om.index) : l.name).replace(/ — до виконання$/, '');
+      if (om) { const sp = document.createElement('span'); sp.className = 'list-overdue'; sp.textContent = om[1]; nm.after(' ', sp); }
       nm.title = 'Відкрити список'; nm.onclick = () => Lists.openById(l.id);
       li.querySelector('.mylist-n').textContent = `${l.n} ${plural(l.n, 'особа', 'особи', 'осіб')}`;
       if (kids(l)) {

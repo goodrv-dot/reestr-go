@@ -3040,7 +3040,14 @@ ${ex.name}
       const due = l.due_date && l.due_date < today() ? " mylist-over" : "";
       li.innerHTML = `<button type="button" class="btn-link mylist-name"></button> <span class="mylist-n${due}"></span> <span class="mylist-act"></span>`;
       const nm2 = li.querySelector(".mylist-name");
-      nm2.textContent = l.name.replace(/ — до виконання$/, "");
+      const om = l.name.match(/ · (⚠ ПРОСТРОЧЕНО: перенесено на .+)$/);
+      nm2.textContent = (om ? l.name.slice(0, om.index) : l.name).replace(/ — до виконання$/, "");
+      if (om) {
+        const sp = document.createElement("span");
+        sp.className = "list-overdue";
+        sp.textContent = om[1];
+        nm2.after(" ", sp);
+      }
       nm2.title = "Відкрити список";
       nm2.onclick = () => Lists.openById(l.id);
       li.querySelector(".mylist-n").textContent = `${l.n} ${plural(l.n, "особа", "особи", "осіб")}`;

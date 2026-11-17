@@ -1412,3 +1412,4 @@ input::placeholder, textarea::placeholder { color: #7a8591; }
 .mylist-n { font-size: 0.85rem; color: var(--muted); }
 .mylist-n.mylist-over { color: var(--err); font-weight: 600; }
 .mylist-kids .mylist-name { color: var(--sea, #1f5f8b); }
+.list-overdue { color: var(--err, #c62828); font-weight: 700; white-space: nowrap; }

@@ -354,6 +354,28 @@ window.Persons = /* @__PURE__ */ (() => {
       <button type="button" class="btn-link btn-remove">Прибрати</button>`;
     row.querySelector('[data-k="birth_date"]').value = c.birth_date || "";
     row.querySelector('[data-k="full_name"]').value = c.full_name || "";
+    const bdIn = row.querySelector('[data-k="birth_date"]');
+    const markAdult = () => {
+      const v = bdIn.value;
+      let age = null;
+      if (v) {
+        const b = /* @__PURE__ */ new Date(v + "T00:00:00"), t = /* @__PURE__ */ new Date();
+        age = t.getFullYear() - b.getFullYear() - (t < new Date(t.getFullYear(), b.getMonth(), b.getDate()) ? 1 : 0);
+      }
+      const adult = age !== null && age >= 18;
+      row.classList.toggle("is-adult-child", adult);
+      let w = row.querySelector(".child-adult-warn");
+      if (adult) {
+        if (!w) {
+          w = document.createElement("p");
+          w.className = "child-adult-warn";
+          row.prepend(w);
+        }
+        w.textContent = `🔞 ${age} років — старше 18. Перевірте: можливо, це не дитина (у програмі «Діти МП» — до 18 років)`;
+      } else if (w) w.remove();
+    };
+    bdIn.addEventListener("change", markAdult);
+    markAdult();
     fillSelect(row.querySelector('[data-k="sex"]'), OPT.child_sex, c.sex || "Не вказано");
     const rr = row.querySelector('[data-k="rep_relation"]');
     rr.add(new Option("Не вказано", ""));
@@ -734,7 +756,7 @@ window.Persons = /* @__PURE__ */ (() => {
     let query;
     try {
       ({ query } = await buildQuery(
-        "id, is_extra, is_main, cell_id, program_ids, main_program_ids, last_name, first_name, patronymic, phone, extra_phones, region_id, person_categories, family_categories, created_at, critical_count, warning_count, comment, created_by, source, consent_pd_at",
+        "id, is_extra, is_main, cell_id, program_ids, main_program_ids, last_name, first_name, patronymic, phone, extra_phones, region_id, person_categories, family_categories, created_at, critical_count, warning_count, comment, created_by, source, consent_pd_at, children_ages",
         { count: "exact" }
       ));
     } catch (e) {
@@ -789,6 +811,15 @@ window.Persons = /* @__PURE__ */ (() => {
         wrap.className = "mods";
         wrap.appendChild(badges);
         nm.appendChild(wrap);
+      }
+      const adult = (p.children_ages || []).filter((x) => x >= 18);
+      if (adult.length) {
+        const t = document.createElement("span");
+        t.className = "tag tag-adult";
+        t.textContent = `🔞 дитина ${adult.join(", ")} р.`;
+        t.title = "Серед дітей у картці є старші за 18 років — перевірте (у програмі «Діти МП» — до 18)";
+        nm.append(" ", t);
+        tr.classList.add("has-adult-child");
       }
       const pm = primaryModule(p.program_ids, p.main_program_ids);
       if (pm && pm !== "mlinked") tr.dataset.module = pm;

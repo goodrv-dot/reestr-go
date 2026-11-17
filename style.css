@@ -1396,3 +1396,11 @@ input::placeholder, textarea::placeholder { color: #7a8591; }
 .ks-steps { margin: 0.3rem 0 0.7rem 1.2rem; padding: 0; font-size: 0.88rem; }
 .ks-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .ks-done { font-size: 1.05rem; }
+.tag-adult { background: #fde7d9; color: #8a3200; border-color: #f2b28c; }
+.row-card.is-adult-child { border-color: #e07a3a; background: #fff5ee; }
+.child-adult-warn { margin: 0 0 0.4rem; color: #8a3200; font-weight: 600; font-size: 0.9rem; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .tag-adult { background: #4a2a17; color: #ffc9a3; border-color: #7a4524; }
+  :root:not([data-theme="light"]) .row-card.is-adult-child { background: #2e1d12; } :root:not([data-theme="light"]) .child-adult-warn { color: #ffb37f; } }
+:root[data-theme="dark"] .tag-adult { background: #4a2a17; color: #ffc9a3; border-color: #7a4524; }
+:root[data-theme="dark"] .row-card.is-adult-child { background: #2e1d12; }
+:root[data-theme="dark"] .child-adult-warn { color: #ffb37f; }

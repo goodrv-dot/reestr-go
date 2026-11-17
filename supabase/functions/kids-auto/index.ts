@@ -264,16 +264,19 @@ Deno.serve(async (req) => {
     if (review.length) {
       let { data: l } = await db.from('person_lists').select('id').eq('name', REVIEW_LIST).maybeSingle();
       if (!l) {
-        const { data: tpl } = await db.from('person_lists').select('owner_id, shared_with').eq('id', 20).maybeSingle();
-        ({ data: l } = await db.from('person_lists').insert({ name: REVIEW_LIST, owner_id: tpl?.owner_id, shared_with: tpl?.shared_with || [],
+        // власник службових списків — app_settings.lists_robot_owner (список №20, звідки брали раніше, видалено)
+        const { data: own } = await db.from('app_settings').select('value').eq('key', 'lists_robot_owner').maybeSingle();
+        let err;
+        ({ data: l, error: err } = await db.from('person_lists').insert({ name: REVIEW_LIST, owner_id: own?.value || null, shared_with: [],
           description: 'Анкети «Діти», які робот імпортував автоматично, але щось варто перевірити (у примітці — що саме). Після перевірки приберіть людину зі списку. Рядки з помилками (без ПІБ, без дати народження дитини) робот не записує — їх видно в адміністратора.' }).select('id').single());
+        if (err) { console.error(err); summary.reviewFail = true; }
       }
       if (l) { const { error } = await db.from('person_list_members').upsert(review.map((x) => ({ list_id: l.id, ...x })), { onConflict: 'list_id,person_id', ignoreDuplicates: true }); if (error) console.error(error); }
       summary.review = review.length;
     }
     if (batch) await db.from('import_batches').update({ rows_imported: summary.records - summary.error, rows_skipped: summary.error }).eq('id', batch.id);
     const status = `ок: анкет ${summary.fresh}, нових карток ${summary.new}, доповнено ${summary.update}, дітей додано ${summary.kids}, прив’язано до справ ${summary.linked}` +
-      (summary.review ? `, перевірити ${summary.review}` : '') + (summary.error ? `, не записано (помилки) ${summary.error}` : '');
+      (summary.review ? `, перевірити ${summary.review}` + (summary.reviewFail ? ' (список «перевірити» створити не вдалося!)' : '') : '') + (summary.error ? `, не записано (помилки) ${summary.error}` : '');
     await setState('kids_auto_last', new Date().toISOString()); await setState('kids_auto_status', status);
     return json({ ok: true, summary });
   } catch (e) {

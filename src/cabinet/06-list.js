@@ -83,11 +83,12 @@
     const stSel = $('cab-status').value;
     // вибрано колір мітки — показуємо справи з цією міткою з усіма статусами (і завершені теж)
     const markColors = [...mkf].some((x) => x !== 'none');
-    const kf = $('cab-kids').value;   // фільтр «Анкета «Діти»» — шукаємо і серед закритих (розсилки йдуть і їм)
-    const showClosed = !!preset || quick === 'closed' || !!q || markColors || !!kf || statuses.some((s) => s.name === stSel && s.closed);
+    const kf = $('cab-kids').value;
+    const af = $('cab-award').value;   // фільтр «Нагороди» — теж серед закритих (нагороди вручають і по архівних справах)   // фільтр «Анкета «Діти»» — шукаємо і серед закритих (розсилки йдуть і їм)
+    const showClosed = !!preset || quick === 'closed' || !!q || markColors || !!kf || !!af || statuses.some((s) => s.name === stSel && s.closed);
     if (showClosed && !withClosed && closedTotal) {
       // «Завершені» або завершений статус — потрібні всі; пошук і мітки — лише знайдені / позначені (сервер шукає сам)
-      if (quick === 'closed' || kf || statuses.some((s) => s.name === stSel && s.closed)) { withClosed = true; $('cab-status-line').textContent = 'Довантажуємо закриті справи…'; load(); }
+      if (quick === 'closed' || kf || af || statuses.some((s) => s.name === stSel && s.closed)) { withClosed = true; $('cab-status-line').textContent = 'Довантажуємо закриті справи…'; load(); }
       else wantClosed($('cab-search').value.trim(), markColors);
     }
     return cases.filter((c) => {
@@ -106,6 +107,7 @@
         if (markColors && isClosed(c) && !hit && !q && !preset && quick !== 'closed' && !statuses.some((s) => s.name === stSel && s.closed)) return false;
       }
       if (kf) { const ks = kidsState(c); if (!ks || ks.k !== kf) return false; }
+      if (af && !awardMatch(c, af)) return false;
       if (ce === 'none' ? c.cell_id : ce && String(c.cell_id) !== ce) return false;
       { const r = c.person && c.person.region_id; if (rg === 'none' ? r : rg && String(r) !== rg) return false; }
       { const u = c.person && c.person.mp_unit_id; if (un === 'none' ? u : un && String(u) !== un) return false; }
@@ -168,7 +170,7 @@
     syncMarkFilter();
     const list = sorted(filtered());
     lastList = list;
-    const sig = [module, quick, ...['cab-search', 'cab-status', 'cab-exec', 'cab-resp', 'cab-mark', 'cab-cell', 'cab-region', 'cab-unit', 'cab-kids', 'cab-from', 'cab-to', 'cab-sort'].map((id) => $(id).value), $('cab-pin').checked, preset ? preset.label : ''].join('|');
+    const sig = [module, quick, ...['cab-search', 'cab-status', 'cab-exec', 'cab-resp', 'cab-mark', 'cab-cell', 'cab-region', 'cab-unit', 'cab-kids', 'cab-award', 'cab-from', 'cab-to', 'cab-sort'].map((id) => $(id).value), $('cab-pin').checked, preset ? preset.label : ''].join('|');
     if (sig !== lastSig) { page = 1; lastSig = sig; }
     const pages = Math.max(1, Math.ceil(list.length / PAGE)); if (page > pages) page = pages;
     // лічильники швидких фільтрів — з урахуванням усіх інших фільтрів (виконавець, статус, осередок, пошук…)
@@ -231,6 +233,7 @@
         const d = dateOf(c); if (d && module !== 'vet') lines.push(ui().dateWord + ' ' + fmt(d));
         lines.forEach((t) => { const m = document.createElement('span'); m.className = 'muted cab-date'; m.textContent = t; tr.children[1].append(document.createElement('br'), m); }); }
       tr.children[1].append(document.createElement('br'), markDots(c));
+      if (awardsOf(c).length) { const b = document.createElement('span'); b.className = 'cab-award-mark'; b.textContent = '🎖 ' + awardsChip(c); b.title = 'Нагороди:\n' + awardsText(c); tr.children[1].append(' ', b); }
       if (isNew(c)) { const b = document.createElement('span'); b.className = 'cab-new-mark'; b.textContent = 'нова'; b.title = 'Справу передано у ваш осередок'; tr.children[1].append(' ', b); }
       tr.children[2].innerHTML = rec ? '<span></span><br><span class="muted"></span>' : (isOrphan(c) ? `<span class="muted">${noFamText(c)}</span>` : '<span class="muted">родину не встановлено</span>');
       if (rec) {

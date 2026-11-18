@@ -66,6 +66,10 @@
       fill('cab-region', [['none', '— без регіону —'], ...[...regions].map(([id, n]) => [String(id), n])], 'Усі регіони'); }
     { const { units } = Persons.ctx();
       fill('cab-unit', [['none', '— без бригади —'], ...[...units].map(([id, n]) => [String(id), n])], 'Усі бригади'); }
+    { const sel = $('cab-award'), v = sel.value;
+      sel.querySelectorAll('option[data-t]').forEach((o) => o.remove());
+      awardTypes.forEach((t) => { const o = new Option('· ' + t.name, 't:' + t.id); o.dataset.t = '1'; sel.add(o); });
+      sel.value = v; }
     if (isAdmin) {
       const people = [...staff].sort((a, b) => a[1].localeCompare(b[1], 'uk'));
       fill('bk-exec', [['none', '— прибрати виконавця —'], ...people], 'Виконавець: не змінювати');

@@ -15,6 +15,8 @@ window.Cabinet = (() => {
   } catch (e) {
   }
   let defs = [], statuses = [], staff = /* @__PURE__ */ new Map(), cases = [];
+  let awardTypes = [];
+  const AWARD_SEL = "case_awards(id, award_type_id, award_other, posthumous, status, recipient_person_id, handed_at, handed_by, doc_no, note)";
   let listY = null, lastOpened = null;
   let marks = /* @__PURE__ */ new Map();
   const MARK_COLORS = ["#d64545", "#e8912d", "#e3c13b", "#3f9a5a", "#3b7dd8"];
@@ -111,7 +113,7 @@ window.Cabinet = (() => {
       }
       render();
     });
-    ["cab-search", "cab-status", "cab-exec", "cab-resp", "cab-mark", "cab-cell", "cab-region", "cab-unit", "cab-kids", "cab-from", "cab-to"].forEach((id) => $(id).addEventListener("input", render));
+    ["cab-search", "cab-status", "cab-exec", "cab-resp", "cab-mark", "cab-cell", "cab-region", "cab-unit", "cab-kids", "cab-award", "cab-from", "cab-to"].forEach((id) => $(id).addEventListener("input", render));
     $("cab-date-clear").addEventListener("click", () => {
       $("cab-from").value = "";
       $("cab-to").value = "";
@@ -165,7 +167,7 @@ window.Cabinet = (() => {
   let withClosed = false, closedTotal = 0, closedFor = "";
   let lastFull = 0, syncAt = "", loadedKey = "", fullSeq = 0;
   const extraDone = /* @__PURE__ */ new Set();
-  const CASE_SEL = "*, person:persons!cases_person_id_fkey(id, last_name, first_name, patronymic, military_status, death_date, burial_date, wounded, wound_date, birth_date, callsign, burial_place, burial_katottg, burial_lat, burial_lon, military_unit_code, mp_unit_id, region_id, settlement, phone, comment, import_batch_id), case_values(stage_key, value)";
+  const CASE_SEL = "*, person:persons!cases_person_id_fkey(id, last_name, first_name, patronymic, military_status, death_date, burial_date, wounded, wound_date, birth_date, callsign, burial_place, burial_katottg, burial_lat, burial_lon, military_unit_code, mp_unit_id, region_id, settlement, phone, comment, import_batch_id), case_values(stage_key, value), " + AWARD_SEL;
   async function fetchKin(pids) {
     const kin = /* @__PURE__ */ new Map();
     const chunks = [];
@@ -233,14 +235,16 @@ window.Cabinet = (() => {
     $("cab-status-line").textContent = "Завантажуємо…";
     $("cab-date-label").textContent = `Дата ${ui().dateWord}:`;
     $("cab-sort").querySelector('[value="date"]').textContent = `за датою ${ui().dateWord}`;
-    const [d, st, ops] = await Promise.all([
+    const [d, st, ops, aw] = await Promise.all([
       db.from("case_stage_defs").select("*").eq("module", module).eq("active", true).order("sort"),
       db.from("case_statuses").select("*").eq("module", module).order("sort"),
-      db.from("operators").select("user_id, full_name, active").order("full_name")
+      db.from("operators").select("user_id, full_name, active").order("full_name"),
+      db.from("award_types").select("id, name").eq("active", true).order("sort")
     ]);
     if (my !== loadSeq) return;
     defs = d.data || [];
     statuses = st.data || [];
+    awardTypes = aw.data || [];
     staff = new Map((ops.data || []).map((o) => [o.user_id, o.full_name]));
     if (withClosed && closedFor !== module) withClosed = false;
     closedFor = module;
@@ -487,6 +491,16 @@ window.Cabinet = (() => {
       const { units } = Persons.ctx();
       fill("cab-unit", [["none", "— без бригади —"], ...[...units].map(([id, n]) => [String(id), n])], "Усі бригади");
     }
+    {
+      const sel = $("cab-award"), v = sel.value;
+      sel.querySelectorAll("option[data-t]").forEach((o) => o.remove());
+      awardTypes.forEach((t) => {
+        const o = new Option("· " + t.name, "t:" + t.id);
+        o.dataset.t = "1";
+        sel.add(o);
+      });
+      sel.value = v;
+    }
     if (isAdmin) {
       const people = [...staff].sort((a, b) => a[1].localeCompare(b[1], "uk"));
       fill("bk-exec", [["none", "— прибрати виконавця —"], ...people], "Виконавець: не змінювати");
@@ -711,7 +725,7 @@ window.Cabinet = (() => {
     const reset = () => {
       quick = "";
       preset = null;
-      ["cab-search", "cab-status", "cab-exec", "cab-resp", "cab-mark", "cab-cell", "cab-region", "cab-unit", "cab-kids", "cab-from", "cab-to"].forEach((id) => {
+      ["cab-search", "cab-status", "cab-exec", "cab-resp", "cab-mark", "cab-cell", "cab-region", "cab-unit", "cab-kids", "cab-award", "cab-from", "cab-to"].forEach((id) => {
         $(id).value = "";
       });
     };
@@ -788,7 +802,7 @@ window.Cabinet = (() => {
     syncMarkFilter();
     $("cab-reset").addEventListener("click", () => clearFilters());
   }
-  const FILTER_IDS = ["cab-search", "cab-status", "cab-exec", "cab-resp", "cab-mark", "cab-cell", "cab-region", "cab-unit", "cab-kids", "cab-from", "cab-to"];
+  const FILTER_IDS = ["cab-search", "cab-status", "cab-exec", "cab-resp", "cab-mark", "cab-cell", "cab-region", "cab-unit", "cab-kids", "cab-award", "cab-from", "cab-to"];
   function clearFilters(silent) {
     if (!silent && $("cab-date-clear")) $("cab-date-clear").hidden = true;
     FILTER_IDS.forEach((id) => {
@@ -936,9 +950,10 @@ window.Cabinet = (() => {
     const stSel = $("cab-status").value;
     const markColors = [...mkf].some((x) => x !== "none");
     const kf = $("cab-kids").value;
-    const showClosed = !!preset || quick === "closed" || !!q || markColors || !!kf || statuses.some((s) => s.name === stSel && s.closed);
+    const af = $("cab-award").value;
+    const showClosed = !!preset || quick === "closed" || !!q || markColors || !!kf || !!af || statuses.some((s) => s.name === stSel && s.closed);
     if (showClosed && !withClosed && closedTotal) {
-      if (quick === "closed" || kf || statuses.some((s) => s.name === stSel && s.closed)) {
+      if (quick === "closed" || kf || af || statuses.some((s) => s.name === stSel && s.closed)) {
         withClosed = true;
         $("cab-status-line").textContent = "Довантажуємо закриті справи…";
         load();
@@ -966,6 +981,7 @@ window.Cabinet = (() => {
         const ks = kidsState(c);
         if (!ks || ks.k !== kf) return false;
       }
+      if (af && !awardMatch(c, af)) return false;
       if (ce === "none" ? c.cell_id : ce && String(c.cell_id) !== ce) return false;
       {
         const r = c.person && c.person.region_id;
@@ -1038,7 +1054,7 @@ window.Cabinet = (() => {
     syncMarkFilter();
     const list = sorted(filtered());
     lastList = list;
-    const sig = [module, quick, ...["cab-search", "cab-status", "cab-exec", "cab-resp", "cab-mark", "cab-cell", "cab-region", "cab-unit", "cab-kids", "cab-from", "cab-to", "cab-sort"].map((id) => $(id).value), $("cab-pin").checked, preset ? preset.label : ""].join("|");
+    const sig = [module, quick, ...["cab-search", "cab-status", "cab-exec", "cab-resp", "cab-mark", "cab-cell", "cab-region", "cab-unit", "cab-kids", "cab-award", "cab-from", "cab-to", "cab-sort"].map((id) => $(id).value), $("cab-pin").checked, preset ? preset.label : ""].join("|");
     if (sig !== lastSig) {
       page = 1;
       lastSig = sig;
@@ -1170,6 +1186,13 @@ window.Cabinet = (() => {
         });
       }
       tr.children[1].append(document.createElement("br"), markDots(c));
+      if (awardsOf(c).length) {
+        const b = document.createElement("span");
+        b.className = "cab-award-mark";
+        b.textContent = "🎖 " + awardsChip(c);
+        b.title = "Нагороди:\n" + awardsText(c);
+        tr.children[1].append(" ", b);
+      }
       if (isNew(c)) {
         const b = document.createElement("span");
         b.className = "cab-new-mark";
@@ -1285,10 +1308,10 @@ window.Cabinet = (() => {
   }
   const SECTIONS = {
     "200": [["person", "Особа"], ["notice", "Сповіщення"], ["family", "Родина"], ["burial", "Поховання"], ["support", "Супровід"], ["awards", "Нагороди і юридичне"], ["problems", "Проблеми"], ["other", "Інше"]],
-    "300": [["person", "Особа"], ["treat", "Лікування"], ["docs", "Документи"], ["family", "Родина"], ["problems", "Проблеми"], ["other", "Інше"]],
-    bzv: [["person", "Особа"], ["notice", "Сповіщення"], ["search", "Пошук"], ["family", "Родина"], ["problems", "Проблеми"], ["other", "Інше"]],
-    pol: [["person", "Особа"], ["release", "Звільнення"], ["treat", "Реінтеграція і лікування"], ["docs", "Документи"], ["family", "Родина"], ["problems", "Проблеми"], ["other", "Інше"]],
-    vet: [["person", "Особа"], ["state", "Стан і інвалідність"], ["family", "Родина"], ["problems", "Проблеми"], ["other", "Інше"]]
+    "300": [["person", "Особа"], ["treat", "Лікування"], ["docs", "Документи"], ["family", "Родина"], ["awards", "Нагороди"], ["problems", "Проблеми"], ["other", "Інше"]],
+    bzv: [["person", "Особа"], ["notice", "Сповіщення"], ["search", "Пошук"], ["family", "Родина"], ["awards", "Нагороди"], ["problems", "Проблеми"], ["other", "Інше"]],
+    pol: [["person", "Особа"], ["release", "Звільнення"], ["treat", "Реінтеграція і лікування"], ["docs", "Документи"], ["family", "Родина"], ["awards", "Нагороди"], ["problems", "Проблеми"], ["other", "Інше"]],
+    vet: [["person", "Особа"], ["state", "Стан і інвалідність"], ["family", "Родина"], ["awards", "Нагороди"], ["problems", "Проблеми"], ["other", "Інше"]]
   };
   const PERSON_FIELDS = {
     "200": {
@@ -1828,7 +1851,7 @@ window.Cabinet = (() => {
   function renderStages() {
     stagesPending = false;
     const c = current;
-    const secs = SECTIONS[module].filter(([k]) => k === "family" || sectionFields(k).length);
+    const secs = SECTIONS[module].filter(([k]) => k === "family" || k === "awards" || sectionFields(k).length);
     if (tab !== "all" && !secs.some(([k]) => k === tab)) tab = "all";
     const tabs = $("case-tabs");
     tabs.innerHTML = "";
@@ -1850,7 +1873,7 @@ window.Cabinet = (() => {
     chip("all", "Усі розділи", `${all.filter(isFilled).length}/${all.length}`, false);
     secs.forEach(([k, label]) => {
       const fs = sectionFields(k);
-      chip(k, label, k === "family" ? isOrphan(c) ? noFamText(c) : String(c.kin.length) : `${fs.filter(isFilled).length}/${fs.length}`, fs.some((f) => f.state === "is-overdue"));
+      chip(k, label, k === "family" ? isOrphan(c) ? noFamText(c) : String(c.kin.length) : k === "awards" && !fs.length ? awardsChip(c) || "0" : `${fs.filter(isFilled).length}/${fs.length}`, fs.some((f) => f.state === "is-overdue"));
     });
     const box = $("case-stages");
     box.innerHTML = "";
@@ -1862,6 +1885,7 @@ window.Cabinet = (() => {
         box.appendChild(h);
       }
       if (k === "family") box.appendChild(familyEl());
+      if (k === "awards") box.appendChild(awardsEl());
       const fs = sectionFields(k);
       const shown = fs.filter((f) => isFilled(f) || f.hint), hidden = fs.filter((f) => !isFilled(f) && !f.hint);
       if (shown.length) {
@@ -2684,6 +2708,150 @@ ${ex.name}
       Persons.toast("Анкету «Діти» збережено");
     };
   }
+  const AWARD_ST = ["подано", "погоджено", "є", "вручено", "відмовлено", "не подаємо"];
+  const AWARD_ST_LABEL = { "подано": "📝 подано", "погоджено": "👍 погоджено", "є": "🎖 є (ще не вручено)", "вручено": "✅ вручено", "відмовлено": "✖ відмовлено", "не подаємо": "— не подаємо" };
+  const awardsOf = (c) => c.case_awards || (c.case_awards = []);
+  const awardName = (a) => {
+    const t = awardTypes.find((x) => x.id === a.award_type_id);
+    return [t ? t.name : "Нагорода", a.award_other].filter(Boolean).join(": ");
+  };
+  const awardsText = (c) => awardsOf(c).map((a) => `${awardName(a)} — ${a.status}${a.posthumous ? " (посмертно)" : ""}`).join("\n");
+  function awardMatch(c, f) {
+    const xs = awardsOf(c);
+    if (f === "none") return !xs.some((a) => !["відмовлено", "не подаємо"].includes(a.status));
+    if (f === "any") return xs.some((a) => !["відмовлено", "не подаємо"].includes(a.status));
+    if (f === "handed") return xs.some((a) => a.status === "вручено");
+    if (f === "notyet") return xs.some((a) => a.status === "є" || a.status === "погоджено");
+    if (f === "submitted") return xs.some((a) => a.status === "подано");
+    if (f === "refused") return xs.some((a) => a.status === "відмовлено" || a.status === "не подаємо");
+    if (f.startsWith("t:")) return xs.some((a) => String(a.award_type_id) === f.slice(2));
+    return true;
+  }
+  function awardsChip(c) {
+    const xs = awardsOf(c);
+    if (!xs.length) return "";
+    const h = xs.filter((a) => a.status === "вручено").length;
+    const live = xs.filter((a) => !["відмовлено", "не подаємо"].includes(a.status)).length;
+    return live ? h === live ? `✅ ${h}` : `${h}/${live}` : "—";
+  }
+  function awardsEl() {
+    const c = current;
+    const ro = !!acc().readOnly;
+    const wrap = document.createElement("div");
+    wrap.className = "case-awards";
+    const xs = awardsOf(c);
+    if (!xs.length) {
+      const p = document.createElement("p");
+      p.className = "muted";
+      p.textContent = "Нагород ще не внесено.";
+      wrap.appendChild(p);
+    }
+    xs.forEach((a) => wrap.appendChild(awardRow(c, a, ro)));
+    if (!ro) {
+      const add = document.createElement("button");
+      add.type = "button";
+      add.className = "btn-secondary";
+      add.textContent = "➕ Додати нагороду";
+      add.onclick = async () => {
+        add.disabled = true;
+        const row = { case_id: c.id, award_type_id: null, posthumous: module === "200", status: "є" };
+        const { data, error } = await db.from("case_awards").insert(row).select("id, award_type_id, award_other, posthumous, status, recipient_person_id, handed_at, handed_by, doc_no, note").single();
+        add.disabled = false;
+        if (error) {
+          console.error(error);
+          Persons.toast("Не вдалося додати нагороду");
+          return;
+        }
+        xs.push(data);
+        c.updated_at = (/* @__PURE__ */ new Date()).toISOString();
+        renderStages();
+        loadHistory();
+        const sel = document.querySelector(`.award-row[data-id="${data.id}"] [data-f="award_type_id"]`);
+        if (sel) sel.focus();
+      };
+      wrap.appendChild(add);
+    }
+    return wrap;
+  }
+  function awardRow(c, a, ro) {
+    const row = document.createElement("div");
+    row.className = "award-row" + (a.status === "вручено" ? " is-handed" : "");
+    row.dataset.id = a.id;
+    const kinOpts = c.kin.map((k) => `<option value="${k.person.id}">${esc(k.relation_degree + ": " + fio(k.person))}</option>`).join("");
+    row.innerHTML = `
+      <label class="aw-type">Нагорода<select data-f="award_type_id"><option value="">— оберіть —</option>${awardTypes.map((t) => `<option value="${t.id}">${esc(t.name)}</option>`).join("")}</select></label>
+      <label class="aw-other">Назва / уточнення<input data-f="award_other" placeholder="напр., ступінь, назва іншої нагороди"></label>
+      <label class="aw-st">Стан<select data-f="status">${AWARD_ST.map((s) => `<option value="${s}">${esc(AWARD_ST_LABEL[s])}</option>`).join("")}</select></label>
+      <label class="aw-post"><input type="checkbox" data-f="posthumous"> посмертно</label>
+      <label class="aw-to">Кому вручено<select data-f="recipient_person_id"><option value="">—</option>${kinOpts}</select></label>
+      <label class="aw-date">Дата вручення<input type="date" data-f="handed_at"></label>
+      <label class="aw-by">Ким / де вручено<input data-f="handed_by" placeholder="напр., командир бригади, м. Запоріжжя"></label>
+      <label class="aw-doc">№ указу / наказу<input data-f="doc_no"></label>
+      <label class="aw-note">Примітка<textarea rows="1" data-f="note"></textarea></label>
+      <button type="button" class="btn-link aw-del" title="Видалити цю нагороду зі справи">🗑 Видалити</button>`;
+    const q = (f) => row.querySelector(`[data-f="${f}"]`);
+    q("award_type_id").value = a.award_type_id || "";
+    q("award_other").value = a.award_other || "";
+    q("status").value = a.status || "є";
+    q("posthumous").checked = !!a.posthumous;
+    if (a.recipient_person_id && !c.kin.some((k) => k.person.id === a.recipient_person_id)) q("recipient_person_id").add(new Option("(родич не в цій справі)", a.recipient_person_id));
+    q("recipient_person_id").value = a.recipient_person_id || "";
+    q("handed_at").value = a.handed_at || "";
+    q("handed_by").value = a.handed_by || "";
+    q("doc_no").value = a.doc_no || "";
+    q("note").value = a.note || "";
+    const save = async (patch) => {
+      const { error } = await db.from("case_awards").update(patch).eq("id", a.id);
+      if (error) {
+        console.error(error);
+        Persons.toast("Не вдалося зберегти");
+        return false;
+      }
+      Object.assign(a, patch);
+      c.updated_at = (/* @__PURE__ */ new Date()).toISOString();
+      Persons.toast("Збережено");
+      loadHistory();
+      return true;
+    };
+    q("award_type_id").onchange = () => save({ award_type_id: q("award_type_id").value ? Number(q("award_type_id").value) : null });
+    ["award_other", "handed_by", "doc_no", "note"].forEach((f) => {
+      q(f).onchange = () => save({ [f]: q(f).value.trim() || null });
+    });
+    q("posthumous").onchange = () => save({ posthumous: q("posthumous").checked });
+    q("recipient_person_id").onchange = () => save({ recipient_person_id: q("recipient_person_id").value || null });
+    q("handed_at").onchange = async () => {
+      const d = q("handed_at").value || null;
+      const patch = { handed_at: d };
+      if (d && a.status !== "вручено") {
+        patch.status = "вручено";
+        q("status").value = "вручено";
+      }
+      if (await save(patch)) row.classList.toggle("is-handed", a.status === "вручено");
+    };
+    q("status").onchange = async () => {
+      if (await save({ status: q("status").value })) {
+        row.classList.toggle("is-handed", a.status === "вручено");
+        renderStages();
+      }
+    };
+    row.querySelector(".aw-del").onclick = async () => {
+      if (!confirm(`Видалити нагороду «${awardName(a)}» зі справи?`)) return;
+      const { error } = await db.from("case_awards").delete().eq("id", a.id);
+      if (error) {
+        console.error(error);
+        Persons.toast("Не вдалося видалити");
+        return;
+      }
+      c.case_awards = awardsOf(c).filter((x) => x !== a);
+      Persons.toast("Нагороду видалено");
+      renderStages();
+      loadHistory();
+    };
+    if (ro) row.querySelectorAll("input, select, textarea, button").forEach((el) => {
+      el.disabled = true;
+    });
+    return row;
+  }
   function openNew() {
     const d = $("cab-new");
     d.querySelector("form").reset();
@@ -2861,6 +3029,7 @@ ${ex.name}
     label.set("helpers", "Допомагають");
     label.set("responsible_staff", "Відповідальний (по осередку)");
     label.set("contact_person", "Контактна особа");
+    label.set("award", "🎖 Нагорода");
     Object.entries(P_LABELS).forEach(([k, l]) => label.set(k, l));
     const ul = $("case-history");
     ul.innerHTML = "";
@@ -3369,7 +3538,7 @@ ${ex.name}
     preset = { ids: new Set(ids), label };
     withClosed = true;
     closedFor = mod;
-    ["cab-search", "cab-status", "cab-exec", "cab-resp", "cab-mark", "cab-cell", "cab-region", "cab-unit", "cab-kids", "cab-from", "cab-to"].forEach((id) => {
+    ["cab-search", "cab-status", "cab-exec", "cab-resp", "cab-mark", "cab-cell", "cab-region", "cab-unit", "cab-kids", "cab-award", "cab-from", "cab-to"].forEach((id) => {
       $(id).value = "";
     });
     if (!$("cab-case").hidden) {

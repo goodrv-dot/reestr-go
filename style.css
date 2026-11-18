@@ -1413,3 +1413,16 @@ input::placeholder, textarea::placeholder { color: #7a8591; }
 .mylist-n.mylist-over { color: var(--err); font-weight: 600; }
 .mylist-kids .mylist-name { color: var(--sea, #1f5f8b); }
 .list-overdue { color: var(--err, #c62828); font-weight: 700; white-space: nowrap; }
+
+/* Нагороди у справі (case_awards) */
+.case-awards { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1rem; align-items: flex-start; }
+.award-row { align-self: stretch; display: grid; grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); gap: 0.3rem 0.6rem; align-items: end; padding: 0.5rem 0.6rem; border: 1px solid #e6d9a8; border-radius: 8px; background: #fdf9ec; }
+.award-row.is-handed { background: #f3f9f5; border-color: #cfe5d8; }
+.award-row label { display: flex; flex-direction: column; font-size: 0.78rem; gap: 0.2rem; }
+.award-row input:not([type=checkbox]), .award-row select, .award-row textarea { font: inherit; font-size: 0.9rem; padding: 0.35rem 0.5rem; border: 1px solid var(--line); border-radius: var(--radius-field); background: var(--white); width: 100%; box-sizing: border-box; }
+.award-row .aw-type { grid-column: span 2; }
+.award-row .aw-note { grid-column: span 2; }
+.award-row label.aw-post { flex-direction: row; align-items: center; gap: 0.4rem; padding-bottom: 0.45rem; font-size: 0.9rem; }
+.award-row .aw-del { justify-self: start; padding-bottom: 0.45rem; color: #b42318; }
+.cab-award-mark { font-size: 0.75rem; white-space: nowrap; color: #8a6a00; cursor: help; }
+@media (max-width: 600px) { .award-row .aw-type, .award-row .aw-note { grid-column: auto; } }

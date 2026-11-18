@@ -11,6 +11,8 @@ window.Cabinet = (() => {
   const keep = (k, v) => { try { if (v) sessionStorage.setItem(k, v); else sessionStorage.removeItem(k); } catch { /* ок */ } };
   try { module = sessionStorage.getItem('cab_module') || module; } catch { /* ок */ }
   let defs = [], statuses = [], staff = new Map(), cases = [];
+  let awardTypes = [];          // довідник видів нагород [{id, name}] (таблиця award_types)
+  const AWARD_SEL = 'case_awards(id, award_type_id, award_other, posthumous, status, recipient_person_id, handed_at, handed_by, doc_no, note)';
   let listY = null, lastOpened = null;   // місце в списку справ і остання відкрита справа (повернення «Назад» — туди ж)
   let marks = new Map();        // case_id → [1..5] — особисті мітки адміністратора
   const MARK_COLORS = ['#d64545', '#e8912d', '#e3c13b', '#3f9a5a', '#3b7dd8'];
@@ -73,7 +75,7 @@ window.Cabinet = (() => {
     try { $('cab-pin').checked = localStorage.getItem('cab_pin') !== '0'; } catch { /* ок */ }
     $('cab-pin').addEventListener('change', () => { try { localStorage.setItem('cab_pin', $('cab-pin').checked ? '1' : '0'); } catch { /* ок */ } render(); });
     $('cab-sort').addEventListener('change', () => { try { localStorage.setItem('cab_sort', $('cab-sort').value); } catch { /* ок */ } render(); });
-    ['cab-search', 'cab-status', 'cab-exec', 'cab-resp', 'cab-mark', 'cab-cell', 'cab-region', 'cab-unit', 'cab-kids', 'cab-from', 'cab-to'].forEach((id) => $(id).addEventListener('input', render));
+    ['cab-search', 'cab-status', 'cab-exec', 'cab-resp', 'cab-mark', 'cab-cell', 'cab-region', 'cab-unit', 'cab-kids', 'cab-award', 'cab-from', 'cab-to'].forEach((id) => $(id).addEventListener('input', render));
     $('cab-date-clear').addEventListener('click', () => { $('cab-from').value = ''; $('cab-to').value = ''; render(); });
     document.querySelectorAll('.cab-quick').forEach((b) => b.addEventListener('click', () => { quick = quick === b.dataset.q ? '' : b.dataset.q; render(); }));
     $('cab-back').addEventListener('click', closeCase);

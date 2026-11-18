@@ -3,10 +3,10 @@
   // ---------- Справа ----------
   const SECTIONS = {
     '200': [['person', 'Особа'], ['notice', 'Сповіщення'], ['family', 'Родина'], ['burial', 'Поховання'], ['support', 'Супровід'], ['awards', 'Нагороди і юридичне'], ['problems', 'Проблеми'], ['other', 'Інше']],
-    '300': [['person', 'Особа'], ['treat', 'Лікування'], ['docs', 'Документи'], ['family', 'Родина'], ['problems', 'Проблеми'], ['other', 'Інше']],
-    bzv: [['person', 'Особа'], ['notice', 'Сповіщення'], ['search', 'Пошук'], ['family', 'Родина'], ['problems', 'Проблеми'], ['other', 'Інше']],
-    pol: [['person', 'Особа'], ['release', 'Звільнення'], ['treat', 'Реінтеграція і лікування'], ['docs', 'Документи'], ['family', 'Родина'], ['problems', 'Проблеми'], ['other', 'Інше']],
-    vet: [['person', 'Особа'], ['state', 'Стан і інвалідність'], ['family', 'Родина'], ['problems', 'Проблеми'], ['other', 'Інше']]
+    '300': [['person', 'Особа'], ['treat', 'Лікування'], ['docs', 'Документи'], ['family', 'Родина'], ['awards', 'Нагороди'], ['problems', 'Проблеми'], ['other', 'Інше']],
+    bzv: [['person', 'Особа'], ['notice', 'Сповіщення'], ['search', 'Пошук'], ['family', 'Родина'], ['awards', 'Нагороди'], ['problems', 'Проблеми'], ['other', 'Інше']],
+    pol: [['person', 'Особа'], ['release', 'Звільнення'], ['treat', 'Реінтеграція і лікування'], ['docs', 'Документи'], ['family', 'Родина'], ['awards', 'Нагороди'], ['problems', 'Проблеми'], ['other', 'Інше']],
+    vet: [['person', 'Особа'], ['state', 'Стан і інвалідність'], ['family', 'Родина'], ['awards', 'Нагороди'], ['problems', 'Проблеми'], ['other', 'Інше']]
   };
   // Поля особи, які редагуються у справі й одразу потрапляють у картку реєстру
   const PERSON_FIELDS = {
@@ -337,7 +337,7 @@
   function renderStages() {
     stagesPending = false;
     const c = current;
-    const secs = SECTIONS[module].filter(([k]) => k === 'family' || sectionFields(k).length);
+    const secs = SECTIONS[module].filter(([k]) => k === 'family' || k === 'awards' || sectionFields(k).length);
     if (tab !== 'all' && !secs.some(([k]) => k === tab)) tab = 'all';
     const tabs = $('case-tabs'); tabs.innerHTML = '';
     const chip = (k, label, count, crit) => {
@@ -351,12 +351,13 @@
     chip('all', 'Усі розділи', `${all.filter(isFilled).length}/${all.length}`, false);
     secs.forEach(([k, label]) => {
       const fs = sectionFields(k);
-      chip(k, label, k === 'family' ? (isOrphan(c) ? noFamText(c) : String(c.kin.length)) : `${fs.filter(isFilled).length}/${fs.length}`, fs.some((f) => f.state === 'is-overdue'));
+      chip(k, label, k === 'family' ? (isOrphan(c) ? noFamText(c) : String(c.kin.length)) : k === 'awards' && !fs.length ? (awardsChip(c) || '0') : `${fs.filter(isFilled).length}/${fs.length}`, fs.some((f) => f.state === 'is-overdue'));
     });
     const box = $('case-stages'); box.innerHTML = '';
     secs.filter(([k]) => tab === 'all' || k === tab).forEach(([k, label]) => {
       if (tab === 'all') { const h = document.createElement('h3'); h.className = 'case-sec-title sec-' + k; h.textContent = label; box.appendChild(h); }
       if (k === 'family') box.appendChild(familyEl());
+      if (k === 'awards') box.appendChild(awardsEl());
       const fs = sectionFields(k);
       const shown = fs.filter((f) => isFilled(f) || f.hint), hidden = fs.filter((f) => !isFilled(f) && !f.hint);
       if (shown.length) { const grid = document.createElement('div'); grid.className = 'case-stages'; shown.forEach((f) => grid.appendChild(fieldEl(f))); box.appendChild(grid); }

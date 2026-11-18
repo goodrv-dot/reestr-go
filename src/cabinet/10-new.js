@@ -112,7 +112,7 @@
     const { data } = await db.from('case_history').select('*').eq('case_id', c.id).order('changed_at', { ascending: false }).limit(100);
     const label = new Map(defs.map((d) => [d.key, d.label]));
     label.set('status', 'Статус'); label.set('executor', 'Виконавець'); label.set('cell', 'Осередок');
-    label.set('helpers', 'Допомагають'); label.set('responsible_staff', 'Відповідальний (по осередку)'); label.set('contact_person', 'Контактна особа');
+    label.set('helpers', 'Допомагають'); label.set('responsible_staff', 'Відповідальний (по осередку)'); label.set('contact_person', 'Контактна особа'); label.set('award', '🎖 Нагорода');
     Object.entries(P_LABELS).forEach(([k, l]) => label.set(k, l));
     const ul = $('case-history'); ul.innerHTML = '';
     (data || []).forEach((h) => {

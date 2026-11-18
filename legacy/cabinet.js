@@ -167,7 +167,7 @@ window.Cabinet = (() => {
   let withClosed = false, closedTotal = 0, closedFor = "";
   let lastFull = 0, syncAt = "", loadedKey = "", fullSeq = 0;
   const extraDone = /* @__PURE__ */ new Set();
-  const CASE_SEL = "*, person:persons!cases_person_id_fkey(id, last_name, first_name, patronymic, military_status, death_date, burial_date, wounded, wound_date, birth_date, callsign, burial_place, burial_katottg, burial_lat, burial_lon, military_unit_code, mp_unit_id, region_id, settlement, phone, comment, import_batch_id), case_values(stage_key, value), " + AWARD_SEL;
+  const CASE_SEL = "*, person:persons!cases_person_id_fkey(id, last_name, first_name, patronymic, military_status, death_date, burial_date, wounded, wound_date, birth_date, callsign, burial_place, burial_katottg, burial_lat, burial_lon, military_unit_code, mp_unit_id, region_id, settlement, phone, extra_phones, comment, import_batch_id), case_values(stage_key, value), " + AWARD_SEL;
   async function fetchKin(pids) {
     const kin = /* @__PURE__ */ new Map();
     const chunks = [];
@@ -867,7 +867,7 @@ window.Cabinet = (() => {
   function matchCase(c, words, exact) {
     const names = [], other = [];
     words.forEach((w) => (/\d/.test(w) ? other : names).push(w));
-    const phones = [c.person.phone, ...c.kin.map((k) => k.person.phone)].filter(Boolean).join(" ");
+    const phones = [c.person.phone, ...c.person.extra_phones || [], ...c.kin.flatMap((k) => [k.person.phone, ...k.person.extra_phones || []])].filter(Boolean).join(" ");
     const jid = norm(c.journal_id);
     if (!other.every((w) => {
       const d = w.replace(/\D/g, "");

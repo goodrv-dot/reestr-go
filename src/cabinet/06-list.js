@@ -17,7 +17,8 @@
   function matchCase(c, words, exact) {
     const names = [], other = [];
     words.forEach((w) => (/\d/.test(w) ? other : names).push(w));
-    const phones = [c.person.phone, ...c.kin.map((k) => k.person.phone)].filter(Boolean).join(' ');
+    // основний і додаткові телефони («Ще телефон») — бійця й усіх рідних
+    const phones = [c.person.phone, ...(c.person.extra_phones || []), ...c.kin.flatMap((k) => [k.person.phone, ...(k.person.extra_phones || [])])].filter(Boolean).join(' ');
     const jid = norm(c.journal_id);
     if (!other.every((w) => { const d = w.replace(/\D/g, ''); return jid.includes(w) || (d.length >= 3 && d.length === w.replace(/[\s()+-]/g, '').length && phones.includes(d)); })) return false;
     if (!names.length) return true;

@@ -110,7 +110,7 @@ window.Cabinet = (() => {
   // а між тим — лише ті, що змінились (updated_at; база сама позначає справу зміненою при правці особи чи рідних)
   let lastFull = 0, syncAt = '', loadedKey = '', fullSeq = 0;
   const extraDone = new Set();   // які довантаження завершених справ уже зроблено (пошук, мітки)
-  const CASE_SEL = '*, person:persons!cases_person_id_fkey(id, last_name, first_name, patronymic, military_status, death_date, burial_date, wounded, wound_date, birth_date, callsign, burial_place, burial_katottg, burial_lat, burial_lon, military_unit_code, mp_unit_id, region_id, settlement, phone, comment, import_batch_id), case_values(stage_key, value), ' + AWARD_SEL;
+  const CASE_SEL = '*, person:persons!cases_person_id_fkey(id, last_name, first_name, patronymic, military_status, death_date, burial_date, wounded, wound_date, birth_date, callsign, burial_place, burial_katottg, burial_lat, burial_lon, military_unit_code, mp_unit_id, region_id, settlement, phone, extra_phones, comment, import_batch_id), case_values(stage_key, value), ' + AWARD_SEL;
   async function fetchKin(pids) {
     const kin = new Map();
     const chunks = []; for (let i = 0; i < pids.length; i += 150) chunks.push(pids.slice(i, i + 150));
@@ -599,7 +599,8 @@ window.Cabinet = (() => {
   function matchCase(c, words, exact) {
     const names = [], other = [];
     words.forEach((w) => (/\d/.test(w) ? other : names).push(w));
-    const phones = [c.person.phone, ...c.kin.map((k) => k.person.phone)].filter(Boolean).join(' ');
+    // основний і додаткові телефони («Ще телефон») — бійця й усіх рідних
+    const phones = [c.person.phone, ...(c.person.extra_phones || []), ...c.kin.flatMap((k) => [k.person.phone, ...(k.person.extra_phones || [])])].filter(Boolean).join(' ');
     const jid = norm(c.journal_id);
     if (!other.every((w) => { const d = w.replace(/\D/g, ''); return jid.includes(w) || (d.length >= 3 && d.length === w.replace(/[\s()+-]/g, '').length && phones.includes(d)); })) return false;
     if (!names.length) return true;

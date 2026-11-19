@@ -1426,3 +1426,11 @@ input::placeholder, textarea::placeholder { color: #7a8591; }
 .award-row .aw-del { justify-self: start; padding-bottom: 0.45rem; color: #b42318; }
 .cab-award-mark { font-size: 0.75rem; white-space: nowrap; color: #8a6a00; cursor: help; }
 @media (max-width: 600px) { .award-row .aw-type, .award-row .aw-note { grid-column: auto; } }
+
+/* Кабінет: пошук по всіх модулях */
+.cab-all-btn { font-weight: 600; }
+#cab-all-q { width: 100%; box-sizing: border-box; font: inherit; padding: 0.5rem 0.7rem; border: 1px solid var(--line); border-radius: var(--radius-field); margin: 0.4rem 0 0.6rem; }
+.cab-all-res { max-height: 60vh; overflow: auto; }
+.cab-all-mod { font-size: 0.95rem; margin: 0.8rem 0 0.3rem; padding: 0.15rem 0.5rem; border-radius: 6px; display: inline-block; }
+.cab-all-list { list-style: none; margin: 0; padding: 0; }
+.cab-all-list li { padding: 0.3rem 0; border-bottom: 1px solid var(--line); font-size: 0.92rem; }

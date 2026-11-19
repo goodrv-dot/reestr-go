@@ -68,6 +68,7 @@ window.Cabinet = (() => {
     // інший модуль — чистий список: фільтри з 200 (виконавець, статус, мітки, період…) у 300 приховали б усе
     document.querySelectorAll('.cab-mod').forEach((b) => b.addEventListener('click', () => { module = b.dataset.m; preset = null; picked.clear(); withClosed = false; clearFilters(true); load(); }));
     $('cab-preset-clear').addEventListener('click', () => { preset = null; render(); });
+    initAllSearch();
     const lb = $('cab-lists-btn'); lb.hidden = !(window.ACCESS && window.ACCESS.lists);
     lb.addEventListener('click', () => { window.__listsFrom = 'cabinet'; document.querySelector('.tab[data-tab="lists"]').click(); });
     try { $('cab-sort').value = localStorage.getItem('cab_sort') || 'new'; } catch { /* без сховища — типовий порядок */ }

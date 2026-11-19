@@ -56,9 +56,9 @@ window.V = (() => {
     const re = /\+?\d[\d\s().\-]{6,}\d/g;
     const rest = src.replace(re, (run) => {
       if (run.trim().startsWith('+')) {
+        // «+380… 0…» (той самий номер двічі, кілька номерів через пробіл) — цілим не розбирається, тоді ділимо на частини нижче
         const r = normalizePhone(run);
-        if (r.value) phones.push(r); else bad.push(run.trim());
-        return ' ';
+        if (r.value) { phones.push(r); return ' '; }
       }
       let acc = '', accRaw = [];
       const flush = () => { if (acc) bad.push(accRaw.join(' ')); acc = ''; accRaw = []; };

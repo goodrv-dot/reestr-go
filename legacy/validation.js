@@ -79,9 +79,10 @@ window.V = /* @__PURE__ */ (() => {
     const rest = src.replace(re, (run) => {
       if (run.trim().startsWith("+")) {
         const r = normalizePhone(run);
-        if (r.value) phones.push(r);
-        else bad.push(run.trim());
-        return " ";
+        if (r.value) {
+          phones.push(r);
+          return " ";
+        }
       }
       let acc = "", accRaw = [];
       const flush = () => {

@@ -119,6 +119,16 @@ async function linkByCode(db, list, rows, header) {
     const hit = by.get(code);
     if (!hit) { r.warnings.push(`Код анкети «${code}» не знайдено серед справ — перевірте`); return; }
     if (r.existing && r.existing.id === hit.person_id) { r.relations = []; return; }   // анкету заповнив сам боєць справи
+    // ЗАХИСТ «код ↔ ПІБ»: посилання з кодом могли переслати іншій родині. Якщо в анкеті вказано ІНШОГО військового
+    // (не збігаються ні прізвище, ні ім’я) — коду не віримо: прив’язку шукає linkSoldiers за ПІБ, а анкету — на перевірку.
+    const named = r.relations[0]?.related_full_name;
+    if (named && letters(named) !== letters(hit.fio)) {
+      const words = (t) => clean(t).split(/\s+/).map(letters); const w1 = words(named), w2 = words(hit.fio);
+      if (w1[0] !== w2[0] && w1[1] !== w2[1]) {
+        r.warnings.push(`Код анкети належить справі «${hit.fio}», а в анкеті вказано іншого військового «${named}» — ймовірно, переслане посилання; за кодом НЕ прив’язано (шукаємо за ПІБ)`);
+        return;
+      }
+    }
     if (r.relations[0]) { r.relations[0].related_person_id = hit.person_id; if (!r.relations[0].related_full_name) r.relations[0].related_full_name = hit.fio; }
     else r.relations.push({ relation_degree: OTHER_DEG, related_full_name: hit.fio, related_status: STATUS_BY_MODULE[hit.module] || 'Невідомо', related_mp: 'Так', related_person_id: hit.person_id });
     // ПІБ бійця в анкеті написано інакше, ніж у справі — прив’язуємо за кодом, але просимо глянути

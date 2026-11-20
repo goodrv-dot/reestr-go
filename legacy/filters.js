@@ -260,6 +260,7 @@ window.Filters = /* @__PURE__ */ (() => {
     var _a, _b;
     const v = values();
     skip.forEach((k) => delete v[k]);
+    excIncluded = 0;
     if (preset && !skip.includes("preset")) {
       query = query.in("id", preset.ids.length ? preset.ids : ["00000000-0000-0000-0000-000000000000"]);
     }
@@ -287,7 +288,14 @@ window.Filters = /* @__PURE__ */ (() => {
         if (val.to) query = f === "created_at" ? query.lt(f, nextDay(val.to)) : query.lte(f, val.to);
       } else if (d.key === "child_age") {
         const ids = await personsWithChildAge(db, (_a = val.from) != null ? _a : 0, (_b = val.to) != null ? _b : 17);
-        query = query.in("id", ids.length ? ids : [NONE]);
+        const exc = (await personsWithException(db)).filter((x) => !ids.includes(x));
+        noteExceptions(exc.length);
+        const all = [...ids, ...exc];
+        query = query.in("id", all.length ? all : [NONE]);
+      } else if (d.key === "has_minor_children" && val === true) {
+        const exc = await personsWithException(db);
+        noteExceptions(exc.length);
+        query = exc.length ? query.or(`has_minor_children.eq.true,id.in.(${exc.join(",")})`) : query.eq("has_minor_children", true);
       } else if (d.type === "bool") {
         query = query.eq(d.key, val);
       } else if (d.op === "overlaps") {
@@ -314,6 +322,19 @@ window.Filters = /* @__PURE__ */ (() => {
     if (error) throw error;
     return [...new Set(data.map((r) => r.person_id))];
   }
+  async function personsWithException(db) {
+    const today = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+    const { data, error } = await db.from("children").select("person_id").eq("part_status", "Виняток").or(`part_until.is.null,part_until.gte.${today}`);
+    if (error) throw error;
+    return [...new Set(data.map((r) => r.person_id))];
+  }
+  let excNoted = -1;
+  function noteExceptions(n) {
+    excIncluded = n;
+    if (n && n !== excNoted && typeof Persons !== "undefined" && Persons.toast) Persons.toast(`До вибірки додано дітей-винятків (⭐ допомога після 18): ${n}`);
+    excNoted = n;
+  }
+  let excIncluded = 0;
   function describe() {
     const v = values();
     const out = preset ? [preset.label] : [];
@@ -322,10 +343,11 @@ window.Filters = /* @__PURE__ */ (() => {
       const val = v[d.key];
       let text = "";
       if (d.type === "multi") text = val.map((x) => (d.options.find((o) => o.value === x) || {}).label || x).join(", ");
-      else if (d.type === "bool") text = val ? "Так" : "Ні";
+      else if (d.type === "bool") text = (val ? "Так" : "Ні") + (d.key === "has_minor_children" && val && excIncluded ? ` + ⭐ винятки (${excIncluded})` : "");
       else if (d.type === "select") text = (d.options.find((o) => o.value === val) || {}).label || val;
       else if (d.type === "range") {
         text = [val.from !== null ? `від ${val.from}` : "", val.to !== null ? `до ${val.to}` : ""].filter(Boolean).join(" ") + " років";
+        if (d.key === "child_age" && excIncluded) text += ` + ⭐ винятки (${excIncluded})`;
       } else if (d.type === "daterange") {
         const f = (d.fields.find((x) => x.value === val.field) || {}).label || "";
         out.push(`${f}: ` + [val.from ? `з ${fmtD(val.from)}` : "", val.to ? `по ${fmtD(val.to)}` : ""].filter(Boolean).join(" "));

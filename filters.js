@@ -258,6 +258,7 @@ window.Filters = (() => {
   async function apply(query, db, skip = []) {
     const v = values();
     skip.forEach((k) => delete v[k]);
+    excIncluded = 0;
     if (preset && !skip.includes('preset')) {
       query = query.in('id', preset.ids.length ? preset.ids : ['00000000-0000-0000-0000-000000000000']);
     }
@@ -286,8 +287,16 @@ window.Filters = (() => {
         if (val.from) query = query.gte(f, val.from);
         if (val.to) query = f === 'created_at' ? query.lt(f, nextDay(val.to)) : query.lte(f, val.to);
       } else if (d.key === 'child_age') {
+        // ПРАВИЛО: до будь-якого фільтра за віком дітей додаємо дітей-винятків (⭐ допомога після 18) — і повідомляємо про це
         const ids = await personsWithChildAge(db, val.from ?? 0, val.to ?? 17);
-        query = query.in('id', ids.length ? ids : [NONE]);
+        const exc = (await personsWithException(db)).filter((x) => !ids.includes(x));
+        noteExceptions(exc.length);
+        const all = [...ids, ...exc];
+        query = query.in('id', all.length ? all : [NONE]);
+      } else if (d.key === 'has_minor_children' && val === true) {
+        const exc = await personsWithException(db);
+        noteExceptions(exc.length);
+        query = exc.length ? query.or(`has_minor_children.eq.true,id.in.(${exc.join(',')})`) : query.eq('has_minor_children', true);
       } else if (d.type === 'bool') {
         query = query.eq(d.key, val);
       } else if (d.op === 'overlaps') {
@@ -316,6 +325,21 @@ window.Filters = (() => {
     return [...new Set(data.map((r) => r.person_id))];
   }
 
+  // Особи з дитиною-винятком (⭐ допомога після 18), у якої виняток ще чинний
+  async function personsWithException(db) {
+    const today = new Date().toISOString().slice(0, 10);
+    const { data, error } = await db.from('children').select('person_id').eq('part_status', 'Виняток').or(`part_until.is.null,part_until.gte.${today}`);
+    if (error) throw error;
+    return [...new Set(data.map((r) => r.person_id))];
+  }
+  let excNoted = -1;
+  function noteExceptions(n) {
+    excIncluded = n;
+    if (n && n !== excNoted && typeof Persons !== 'undefined' && Persons.toast) Persons.toast(`До вибірки додано дітей-винятків (⭐ допомога після 18): ${n}`);
+    excNoted = n;
+  }
+  let excIncluded = 0;
+
   // Людський опис активних фільтрів: ['Програми ГО: …', 'Є дитина віком: від 6 до 14 років', …]
   function describe() {
     const v = values();
@@ -325,10 +349,11 @@ window.Filters = (() => {
       const val = v[d.key];
       let text = '';
       if (d.type === 'multi') text = val.map((x) => (d.options.find((o) => o.value === x) || {}).label || x).join(', ');
-      else if (d.type === 'bool') text = val ? 'Так' : 'Ні';
+      else if (d.type === 'bool') text = (val ? 'Так' : 'Ні') + (d.key === 'has_minor_children' && val && excIncluded ? ` + ⭐ винятки (${excIncluded})` : '');
       else if (d.type === 'select') text = (d.options.find((o) => o.value === val) || {}).label || val;
       else if (d.type === 'range') {
         text = [val.from !== null ? `від ${val.from}` : '', val.to !== null ? `до ${val.to}` : ''].filter(Boolean).join(' ') + ' років';
+        if (d.key === 'child_age' && excIncluded) text += ` + ⭐ винятки (${excIncluded})`;
       } else if (d.type === 'daterange') {
         const f = (d.fields.find((x) => x.value === val.field) || {}).label || '';
         out.push(`${f}: ` + [val.from ? `з ${fmtD(val.from)}` : '', val.to ? `по ${fmtD(val.to)}` : ''].filter(Boolean).join(' '));

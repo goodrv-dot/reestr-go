@@ -49,6 +49,7 @@ window.Filters = /* @__PURE__ */ (() => {
       { key: "age", label: "Вік особи", type: "range" },
       { key: "has_minor_children", label: "Є неповнолітні діти", type: "bool" },
       { key: "child_age", label: "Є дитина віком", type: "range" },
+      { key: "has_child_exception", label: "Є дитина-виняток (допомога після 18)", type: "bool" },
       { key: "children_interests", label: "Інтереси дітей", type: "multi", op: "overlaps", options: o(OPT.child_interests) },
       { group: "Проживання і розсилки" },
       { key: "region_id", label: "Область", type: "multi", op: "in", options: regionOpts },
@@ -309,7 +310,7 @@ window.Filters = /* @__PURE__ */ (() => {
     latest.setFullYear(today.getFullYear() - from);
     const earliest = new Date(today);
     earliest.setFullYear(today.getFullYear() - to - 1);
-    const { data, error } = await db.from("children").select("person_id").lte("birth_date", iso(latest)).gt("birth_date", iso(earliest));
+    const { data, error } = await db.from("children").select("person_id").lte("birth_date", iso(latest)).gt("birth_date", iso(earliest)).neq("part_status", "Не включати");
     if (error) throw error;
     return [...new Set(data.map((r) => r.person_id))];
   }

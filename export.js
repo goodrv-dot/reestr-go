@@ -136,7 +136,8 @@ window.Exporter = (() => {
             'Телефон': p.phone || '', 'Додатковий телефон': (p.extra_phones || []).join(', '), 'Email': p.email || '',
             'Область': regions.get(p.region_id) || '', 'Населений пункт': p.settlement || '',
             'ПІБ дитини': c.full_name || '', 'Ким доводиться представник': c.rep_relation || '', 'Дата народження': d(c.birth_date), 'Вік': years(c.birth_date),
-            'Стать': c.sex, 'Інтереси': (c.interests || []).join('; '), 'Особливі потреби': c.special_needs || ''
+            'Стать': c.sex, 'Інтереси': (c.interests || []).join('; '), 'Особливі потреби': c.special_needs || '',
+            'Статус участі': c.part_status || 'Звичайний', 'Причина винятку': c.part_reason || '', 'Погодив(ла)': c.part_by || '', 'Виняток до': d(c.part_until)
           };
         });
 

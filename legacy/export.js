@@ -151,7 +151,11 @@ window.Exporter = /* @__PURE__ */ (() => {
           "Вік": years(c.birth_date),
           "Стать": c.sex,
           "Інтереси": (c.interests || []).join("; "),
-          "Особливі потреби": c.special_needs || ""
+          "Особливі потреби": c.special_needs || "",
+          "Статус участі": c.part_status || "Звичайний",
+          "Причина винятку": c.part_reason || "",
+          "Погодив(ла)": c.part_by || "",
+          "Виняток до": d(c.part_until)
         };
       });
       const sheetRelations = relations.sort((a, b) => fio(byId.get(a.person_id)).localeCompare(fio(byId.get(b.person_id)), "uk")).map((r) => {

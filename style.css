@@ -1434,3 +1434,15 @@ input::placeholder, textarea::placeholder { color: #7a8591; }
 .cab-all-mod { font-size: 0.95rem; margin: 0.8rem 0 0.3rem; padding: 0.15rem 0.5rem; border-radius: 6px; display: inline-block; }
 .cab-all-list { list-style: none; margin: 0; padding: 0; }
 .cab-all-list li { padding: 0.3rem 0; border-bottom: 1px solid var(--line); font-size: 0.92rem; }
+
+/* Статус участі дитини */
+.tag-exc { background: #fff4cc; color: #7a5a00; border: 1px solid #e8cf7a; }
+.row-card.is-exc-child { border-color: #e8cf7a; background: #fffbea; }
+.row-card.is-exc-child .child-adult-warn { color: #7a5a00; }
+.row-card.is-out-child { opacity: 0.7; background: #f4f4f4; }
+.row-card.is-out-child .child-adult-warn { color: #555; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .row-card.is-exc-child { background: #2e2810; } :root:not([data-theme="light"]) .row-card.is-exc-child .child-adult-warn { color: #f0d27a; }
+  :root:not([data-theme="light"]) .tag-exc { background: #3a3110; color: #f0d27a; border-color: #6b5a1f; }
+  :root:not([data-theme="light"]) .row-card.is-out-child { background: #222; }
+}

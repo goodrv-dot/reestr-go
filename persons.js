@@ -357,26 +357,57 @@ window.Persons = (() => {
           <select id="c${n}-rr" data-k="rep_relation"></select></div>
         <div class="field field-span"><label for="c${n}-sn">Особливі потреби</label>
           <input id="c${n}-sn" data-k="special_needs" placeholder="Напр., потребує супроводу"></div>
+        <div class="field"><label for="c${n}-ps">Статус участі</label>
+          <select id="c${n}-ps" data-k="part_status">
+            <option value="Звичайний">Звичайний (до 18 років)</option>
+            <option value="Виняток">⭐ Виняток — допомога після 18</option>
+            <option value="Не включати">⛔ Не включати</option>
+          </select><p class="hint" data-h="part_status"></p></div>
+        <div class="field part-extra"><label for="c${n}-pr">Причина</label>
+          <input id="c${n}-pr" data-k="part_reason" list="part-reasons" placeholder="Напр., навчається на денній формі"></div>
+        <div class="field part-extra part-exc"><label for="c${n}-pu">Виняток до (необов’язково)</label>
+          <input id="c${n}-pu" type="date" data-k="part_until"></div>
       </div>
       <p class="sublabel">Інтереси дитини</p>
       <div class="checks checks-grid child-interests"></div>
       <button type="button" class="btn-link btn-remove">Прибрати</button>`;
     row.querySelector('[data-k="birth_date"]').value = c.birth_date || '';
     row.querySelector('[data-k="full_name"]').value = c.full_name || '';
-    // 18+ — підсвічуємо картку дитини (у програмі «Діти МП» — до 18 років)
+    // Статус участі: «Виняток» (допомога після 18) / «Не включати» — ставить лише адміністратор
+    const ps = row.querySelector('[data-k="part_status"]');
+    ps.value = c.part_status || 'Звичайний';
+    row.querySelector('[data-k="part_reason"]').value = c.part_reason || '';
+    row.querySelector('[data-k="part_until"]').value = c.part_until || '';
+    row.dataset.partBy = c.part_by || '';
+    row.dataset.partWas = c.part_status || 'Звичайний';
+    if (!isAdmin) { ps.disabled = true; row.querySelectorAll('.part-extra input').forEach((i) => { i.disabled = true; }); }
+    // 18+ — підсвічуємо картку дитини (у програмі «Діти МП» — до 18 років), якщо немає винятку
     const bdIn = row.querySelector('[data-k="birth_date"]');
     const markAdult = () => {
       const v = bdIn.value; let age = null;
       if (v) { const b = new Date(v + 'T00:00:00'), t = new Date(); age = t.getFullYear() - b.getFullYear() - (t < new Date(t.getFullYear(), b.getMonth(), b.getDate()) ? 1 : 0); }
-      const adult = age !== null && age >= 18;
+      const st = ps.value, until = row.querySelector('[data-k="part_until"]').value;
+      const expired = st === 'Виняток' && until && until < new Date().toISOString().slice(0, 10);
+      row.querySelectorAll('.part-extra').forEach((el) => { el.hidden = st === 'Звичайний'; });
+      row.querySelectorAll('.part-exc').forEach((el) => { el.hidden = st !== 'Виняток'; });
+      const adult = age !== null && age >= 18 && (st === 'Звичайний' || expired);
       row.classList.toggle('is-adult-child', adult);
+      row.classList.toggle('is-exc-child', st === 'Виняток' && !expired);
+      row.classList.toggle('is-out-child', st === 'Не включати');
       let w = row.querySelector('.child-adult-warn');
-      if (adult) {
+      const msg = adult ? (expired ? `🔞 ${age} років — виняток закінчився ${until.split('-').reverse().join('.')}. Перегляньте рішення`
+                                   : `🔞 ${age} років — старше 18. Перевірте: можливо, це не дитина (у програмі «Діти МП» — до 18 років). Якщо допомогу надаємо як виняток — оберіть «⭐ Виняток»`)
+        : st === 'Виняток' ? `⭐ Виняток — допомога після 18${row.dataset.partBy ? ' · погодив(ла): ' + row.dataset.partBy : ''}`
+        : st === 'Не включати' ? '⛔ Не включати в програми й вибірки' : '';
+      if (msg) {
         if (!w) { w = document.createElement('p'); w.className = 'child-adult-warn'; row.prepend(w); }
-        w.textContent = `🔞 ${age} років — старше 18. Перевірте: можливо, це не дитина (у програмі «Діти МП» — до 18 років)`;
+        w.textContent = msg;
       } else if (w) w.remove();
     };
-    bdIn.addEventListener('change', markAdult); markAdult();
+    bdIn.addEventListener('change', markAdult);
+    ps.addEventListener('change', markAdult);
+    row.querySelector('[data-k="part_until"]').addEventListener('change', markAdult);
+    markAdult();
     fillSelect(row.querySelector('[data-k="sex"]'), OPT.child_sex, c.sex || 'Не вказано');
     const rr = row.querySelector('[data-k="rep_relation"]');
     rr.add(new Option('Не вказано', '')); OPT.child_rep_relation.forEach((v) => rr.add(new Option(v, v))); rr.value = c.rep_relation || '';
@@ -739,7 +770,7 @@ window.Persons = (() => {
     let query;
     try {
       ({ query } = await buildQuery(
-        'id, is_extra, is_main, cell_id, program_ids, main_program_ids, last_name, first_name, patronymic, phone, extra_phones, region_id, person_categories, family_categories, created_at, critical_count, warning_count, comment, created_by, source, consent_pd_at, children_ages',
+        'id, is_extra, is_main, cell_id, program_ids, main_program_ids, last_name, first_name, patronymic, phone, extra_phones, region_id, person_categories, family_categories, created_at, critical_count, warning_count, comment, created_by, source, consent_pd_at, children_ages, children_exc_ages, children_out_ages',
         { count: 'exact' }));
     } catch (e) {
       console.error(e);
@@ -795,7 +826,18 @@ window.Persons = (() => {
         const wrap = document.createElement('div'); wrap.className = 'mods'; wrap.appendChild(badges); nm.appendChild(wrap);
       }
       // серед дітей є хтось 18+ (у формі просимо до 18) — підсвічуємо, щоб перевірити
-      const adult = (p.children_ages || []).filter((x) => x >= 18);
+      // діти зі статусом «Виняток» / «Не включати» — окремі мітки, з «🔞» їх прибираємо
+      const exc = [...(p.children_exc_ages || [])], out = [...(p.children_out_ages || [])];
+      const adult = (p.children_ages || []).filter((x) => {
+        const i = exc.indexOf(x); if (i >= 0) { exc.splice(i, 1); return false; }
+        const j = out.indexOf(x); if (j >= 0) { out.splice(j, 1); return false; }
+        return x >= 18;
+      });
+      if ((p.children_exc_ages || []).length) {
+        const t = document.createElement('span'); t.className = 'tag tag-exc';
+        t.textContent = `⭐ дитина ${p.children_exc_ages.join(', ')} р. (виняток)`;
+        t.title = 'Допомогу надаємо як виняток (старше 18)'; nm.append(' ', t);
+      }
       if (adult.length) {
         const t = document.createElement('span'); t.className = 'tag tag-adult';
         t.textContent = `🔞 дитина ${adult.join(', ')} р.`;
@@ -1335,7 +1377,14 @@ window.Persons = (() => {
         sex: row.querySelector('[data-k="sex"]').value,
         rep_relation: row.querySelector('[data-k="rep_relation"]').value || null,
         special_needs: row.querySelector('[data-k="special_needs"]').value.trim() || null,
-        interests: [...row.querySelectorAll('.child-interests input:checked')].map((cb) => cb.value)
+        interests: [...row.querySelectorAll('.child-interests input:checked')].map((cb) => cb.value),
+        ...(() => {
+          const st = row.querySelector('[data-k="part_status"]').value || 'Звичайний';
+          if (st === 'Звичайний') return { part_status: st, part_reason: null, part_by: null, part_until: null };
+          const by = st !== row.dataset.partWas || !row.dataset.partBy ? (operator && operator.full_name) || row.dataset.partBy || null : row.dataset.partBy;
+          return { part_status: st, part_reason: row.querySelector('[data-k="part_reason"]').value.trim() || null, part_by: by,
+            part_until: st === 'Виняток' ? row.querySelector('[data-k="part_until"]').value || null : null };
+        })()
       });
     });
     const cnt = f.children_count.value === '' ? null : Number(f.children_count.value);

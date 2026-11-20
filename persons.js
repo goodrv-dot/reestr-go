@@ -833,6 +833,17 @@ window.Persons = (() => {
         const j = out.indexOf(x); if (j >= 0) { out.splice(j, 1); return false; }
         return x >= 18;
       });
+      // фільтр «Є дитина віком» увімкнено — показуємо, які саме діти підійшли (🎯)
+      const ca = Filters.getState().child_age;
+      if (ca) {
+        const lo = ca.from ?? 0, hi = ca.to ?? 17, skip = [...(p.children_out_ages || [])];
+        const hit = (p.children_ages || []).filter((x) => { const j = skip.indexOf(x); if (j >= 0) { skip.splice(j, 1); return false; } return x >= lo && x <= hi; });
+        if (hit.length) {
+          const t = document.createElement('span'); t.className = 'tag tag-hit';
+          t.textContent = `🎯 ${hit.join(', ')} р.`;
+          t.title = `Діти, за якими особа потрапила у вибірку «Є дитина віком ${lo}–${hi}»`; nm.append(' ', t);
+        }
+      }
       if ((p.children_exc_ages || []).length) {
         const t = document.createElement('span'); t.className = 'tag tag-exc';
         t.textContent = `⭐ дитина ${p.children_exc_ages.join(', ')} р. (виняток)`;

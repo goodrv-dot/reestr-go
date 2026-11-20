@@ -1446,3 +1446,7 @@ input::placeholder, textarea::placeholder { color: #7a8591; }
   :root:not([data-theme="light"]) .tag-exc { background: #3a3110; color: #f0d27a; border-color: #6b5a1f; }
   :root:not([data-theme="light"]) .row-card.is-out-child { background: #222; }
 }
+
+.tag-hit { background: #e3f1e6; color: #1d5b2c; border-color: #9fcfaa; font-weight: 600; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .tag-hit { background: #1f3a26; color: #b9e6c4; border-color: #3c6b49; } }
+:root[data-theme="dark"] .tag-hit { background: #1f3a26; color: #b9e6c4; border-color: #3c6b49; }

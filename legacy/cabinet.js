@@ -2322,7 +2322,7 @@ window.Cabinet = (() => {
         <label>Спорідненість<select data-f="deg">${OPT.relation_degree.map((o) => `<option>${esc(o)}</option>`).join("")}</select></label>
         <label>Телефон<input data-f="phone" type="tel"></label>
         <label title="Другий (третій…) номер: напр., окремий для WhatsApp / Viber. Кілька — через кому">Ще телефон<input data-f="phone2" type="tel" placeholder="напр., для месенджерів"></label>
-        <label>Населений пункт, адреса<input data-f="settlement"></label>
+        <label class="fam-addr">Населений пункт, адреса<input data-f="settlement"></label>
         <label class="fam-contact"><input type="radio" name="fam-contact"> контактна особа</label>`;
       const q = (f) => row.querySelector(`[data-f="${f}"]`);
       row.children[0].textContent = fio(k.person);
@@ -2330,6 +2330,7 @@ window.Cabinet = (() => {
       q("deg").value = k.relation_degree;
       q("phone").value = V.formatPhone(k.person.phone) || "";
       q("settlement").value = k.person.settlement || "";
+      q("settlement").title = k.person.settlement || "";
       {
         const cl = callLink(k.person.phone);
         const lab = q("phone").parentElement;

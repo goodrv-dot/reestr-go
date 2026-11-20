@@ -1450,3 +1450,7 @@ input::placeholder, textarea::placeholder { color: #7a8591; }
 .tag-hit { background: #e3f1e6; color: #1d5b2c; border-color: #9fcfaa; font-weight: 600; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .tag-hit { background: #1f3a26; color: #b9e6c4; border-color: #3c6b49; } }
 :root[data-theme="dark"] .tag-hit { background: #1f3a26; color: #b9e6c4; border-color: #3c6b49; }
+
+/* адреса родича — ширше поле (довгі адреси «обл., район, село, вулиця») */
+.fam-row label.fam-addr { grid-column: span 2; min-width: 0; }
+@media (max-width: 640px) { .fam-row label.fam-addr { grid-column: 1 / -1; } }

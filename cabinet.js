@@ -1500,11 +1500,11 @@ window.Cabinet = (() => {
         <label>Спорідненість<select data-f="deg">${OPT.relation_degree.map((o) => `<option>${esc(o)}</option>`).join('')}</select></label>
         <label>Телефон<input data-f="phone" type="tel"></label>
         <label title="Другий (третій…) номер: напр., окремий для WhatsApp / Viber. Кілька — через кому">Ще телефон<input data-f="phone2" type="tel" placeholder="напр., для месенджерів"></label>
-        <label>Населений пункт, адреса<input data-f="settlement"></label>
+        <label class="fam-addr">Населений пункт, адреса<input data-f="settlement"></label>
         <label class="fam-contact"><input type="radio" name="fam-contact"> контактна особа</label>`;
       const q = (f) => row.querySelector(`[data-f="${f}"]`);
       row.children[0].textContent = fio(k.person); tabLink(row.children[0], personHref(k.person.id), () => openPerson(k.person.id));
-      q('deg').value = k.relation_degree; q('phone').value = V.formatPhone(k.person.phone) || ''; q('settlement').value = k.person.settlement || '';
+      q('deg').value = k.relation_degree; q('phone').value = V.formatPhone(k.person.phone) || ''; q('settlement').value = k.person.settlement || ''; q('settlement').title = k.person.settlement || '';
       { const cl = callLink(k.person.phone); const lab = q('phone').parentElement;   // «Телефон 📞» над полем
         if (cl) { const h = document.createElement('span'); h.append('Телефон ', cl); lab.replaceChild(h, lab.firstChild); } }
       const radio = row.querySelector('[type=radio]'); radio.checked = contact === k;

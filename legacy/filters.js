@@ -53,6 +53,7 @@ window.Filters = /* @__PURE__ */ (() => {
       { key: "children_interests", label: "Інтереси дітей", type: "multi", op: "overlaps", options: o(OPT.child_interests) },
       { group: "Проживання і розсилки" },
       { key: "region_id", label: "Область", type: "multi", op: "in", options: regionOpts },
+      { key: "settlement_kind", label: "Тип населеного пункту", type: "multi", op: "in", options: o(["Обласний центр", "Інший населений пункт", "Не визначено"]) },
       { key: "is_idp", label: "ВПО", type: "multi", op: "in", options: o(OPT.yes_no_unknown) },
       { key: "vkmpu_member", label: "Член ВКМПУ", type: "bool" },
       { key: "preferred_messenger", label: "Бажаний месенджер", type: "multi", op: "in", options: o(OPT.messengers) },

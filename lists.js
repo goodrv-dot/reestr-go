@@ -164,7 +164,7 @@ window.Lists = (() => {
   }
 
   // ---------- Люди в списку ----------
-  const P_COLS = 'id, last_name, first_name, patronymic, birth_date, military_status, death_date, wound_date, military_unit_code, mp_unit_id, mp_unit_other, phone, cell_id, journal, cases!cases_person_id_fkey(journal_id)';
+  const P_COLS = 'id, last_name, first_name, patronymic, birth_date, military_status, death_date, wound_date, military_unit_code, mp_unit_id, mp_unit_other, phone, extra_phones, settlement, cell_id, journal, cases!cases_person_id_fkey(journal_id)';
   async function loadMembers() {
     $('list-status').textContent = 'Завантажуємо…';
     const all = [];
@@ -181,7 +181,18 @@ window.Lists = (() => {
         .in('related_person_id', ids.slice(i, i + 150)).order('created_at');
       (data || []).forEach((r) => { if (r.person && !kin.has(r.related_person_id)) kin.set(r.related_person_id, r); });
     }
-    members = all.filter((m) => m.person).map((m) => ({ ...m, kin: kin.get(m.person_id) || null }));
+    // для родичів у списку: чий він родич (боєць і його справа) + діти з картки
+    const rel = new Map(), kids = new Map();
+    for (let i = 0; i < ids.length; i += 150) {
+      const part = ids.slice(i, i + 150);
+      const [r1, r2] = await Promise.all([
+        db.from('military_relations').select('person_id, relation_degree, related_full_name, soldier:persons!military_relations_related_person_id_fkey(last_name, first_name, patronymic, cases!cases_person_id_fkey(journal_id))').in('person_id', part),
+        db.from('children').select('person_id, full_name, birth_date, part_status').in('person_id', part).order('birth_date')
+      ]);
+      (r1.data || []).forEach((r) => { if (!rel.has(r.person_id)) rel.set(r.person_id, []); rel.get(r.person_id).push(r); });
+      (r2.data || []).forEach((c) => { if (!kids.has(c.person_id)) kids.set(c.person_id, []); kids.get(c.person_id).push(c); });
+    }
+    members = all.filter((m) => m.person).map((m) => ({ ...m, kin: kin.get(m.person_id) || null, rel: rel.get(m.person_id) || [], kids: kids.get(m.person_id) || [] }));
     // по номеру справи (200-0009, 200-0010…), люди без справи — у кінці в порядку додавання
     const jk = (m) => jidOf(m.person) || '\uffff';
     members.sort((a, b) => jk(a).localeCompare(jk(b), 'uk', { numeric: true }));
@@ -195,18 +206,30 @@ window.Lists = (() => {
   const unitOf = (p) => { const u = Persons.ctx().units; return p.mp_unit_id ? (u.get(p.mp_unit_id) || '') : (p.mp_unit_other || ''); };
   const eventOf = (p) => (p.death_date ? `загибель ${fmt(p.death_date)}` : p.wound_date ? `поранення ${fmt(p.wound_date)}` : '');
   const jidOf = (p) => ((p && p.cases) || []).map((c) => c.journal_id).filter(Boolean).sort().join(', ');
+  // справа: власна, а для родича — справа бійця, чий він родич
+  const caseOf = (m) => jidOf(m.person) || [...new Set((m.rel || []).flatMap((r) => ((r.soldier && r.soldier.cases) || []).map((c) => c.journal_id)))].sort().join(', ');
+  const soldierOf = (m) => (m.rel || []).map((r) => `${r.relation_degree}: ${r.soldier ? fio(r.soldier) : (r.related_full_name || '?')}`).join('; ');
+  const ageOf = (iso) => { if (!iso) return null; const b = new Date(iso + 'T00:00:00'), t = new Date(); let a = t.getFullYear() - b.getFullYear(); if (t.getMonth() < b.getMonth() || (t.getMonth() === b.getMonth() && t.getDate() < b.getDate())) a -= 1; return a; };
+  const kidMark = (c) => (c.part_status === 'Виняток' ? ' ⭐' : c.part_status === 'Не включати' ? ' ⛔' : '');
+  const yearOf = (iso) => (iso ? String(iso).slice(0, 4) : '');
+  const kidsOf = (m) => (m.kids || []).map((c) => `${c.full_name || 'дитина'}, ${c.birth_date ? yearOf(c.birth_date) + ' р.н. (' + ageOf(c.birth_date) + ' р.)' : 'рік народження невідомий'}${kidMark(c)}`).join('\n');
+  const kidsAges = (m) => (m.kids || []).filter((c) => c.part_status !== 'Не включати').map((c) => ageOf(c.birth_date)).filter((x) => x !== null).join(', ');
+  const phonesOf = (m) => [m.person.phone, ...(m.person.extra_phones || [])].filter(Boolean).map((x) => V.formatPhone(x) || x).filter((x, i, a) => a.indexOf(x) === i).join(', ');
   const kinOf = (m) => (m.kin ? `${m.kin.relation_degree}: ${fio(m.kin.person)}${m.kin.person.phone ? ', ' + V.formatPhone(m.kin.person.phone) : ''}` : '');
 
   // усі колонки для друку / Excel; key → [заголовок, значення]
   function columnsAll() {
     const cells = Persons.ctx().cells;
+    // порядок: хто → кому дзвонити → де живе → діти → робота зі списком; далі — дані бійця (для списків бійців)
     const base = [
-      ['case', 'Справа', (m) => jidOf(m.person)], ['fio', 'ПІБ', (m) => fio(m.person)], ['bd', 'Дата народження', (m) => fmt(m.person.birth_date)],
+      ['case', 'Справа', caseOf], ['fio', 'ПІБ', (m) => fio(m.person)], ['soldier', 'Ким доводиться бійцю', soldierOf],
+      ['phone', 'Телефон для зв’язку', phonesOf], ['addr', 'Населений пункт, адреса', (m) => m.person.settlement || ''],
+      ['kids', 'Діти (ПІБ, рік народження)', kidsOf], ['kidsage', 'Вік дітей', kidsAges],
+      ['st', 'Статус у списку', (m) => m.status], ['note', 'Примітка', (m) => m.note || ''],
+      ['kin', 'Контакт родини (для бійця)', kinOf], ['bd', 'Дата народження', (m) => fmt(m.person.birth_date)],
       ['mstat', 'Статус особи', (m) => m.person.military_status || ''], ['rank', 'Звання', (m) => rankOf(m.person)],
       ['vch', 'В/ч', (m) => m.person.military_unit_code || ''], ['unit', 'Бригада', (m) => unitOf(m.person)],
       ['event', 'Подія', (m) => eventOf(m.person)], ['cell', 'Осередок', (m) => cells.get(m.person.cell_id) || ''],
-      ['phone', 'Телефон', (m) => V.formatPhone(m.person.phone) || ''], ['kin', 'Контакт родини', kinOf],
-      ['st', 'Статус у списку', (m) => m.status], ['note', 'Примітка', (m) => m.note || '']
     ];
     return [...base, ...(current.columns || []).map((c) => ['x:' + c, c, (m) => (m.extra || {})[c] || ''])];
   }
@@ -321,14 +344,20 @@ window.Lists = (() => {
   }
 
   // ---------- Друк і Excel ----------
+  // типові колонки: список родичів (діти, контакти) або список бійців (звання, бригада, подія)
+  function defaultCols() {
+    const kinList = members.filter((m) => jidOf(m.person)).length < members.length / 2;
+    return new Set(kinList ? ['case', 'fio', 'soldier', 'phone', 'addr', 'kids', 'st', 'note']
+                           : ['case', 'fio', 'bd', 'rank', 'vch', 'unit', 'event', 'kin', 'st', 'note']);
+  }
   function renderPrintCols() {
-    const box = $('list-cols'); const saved = (() => { try { return JSON.parse(localStorage.getItem('list_cols_' + current.id) || 'null'); } catch { return null; } })();
+    const box = $('list-cols'); const saved = (() => { try { return JSON.parse(localStorage.getItem('list_cols2_' + current.id) || 'null'); } catch { return null; } })();
     box.innerHTML = '';
     columnsAll().forEach(([key, label]) => {
       const l = document.createElement('label'); l.className = 'check';
       l.innerHTML = '<input type="checkbox"> <span></span>'; l.firstChild.value = key; l.lastChild.textContent = label;
-      l.firstChild.checked = saved ? saved.includes(key) : !['phone', 'cell', 'mstat'].includes(key);
-      l.firstChild.onchange = () => { try { localStorage.setItem('list_cols_' + current.id, JSON.stringify(pickedCols().map((c) => c[0]))); } catch { /* ок */ } };
+      l.firstChild.checked = saved ? saved.includes(key) : defaultCols().has(key);
+      l.firstChild.onchange = () => { try { localStorage.setItem('list_cols2_' + current.id, JSON.stringify(pickedCols().map((c) => c[0]))); } catch { /* ок */ } };
       box.appendChild(l);
     });
   }
@@ -353,8 +382,15 @@ window.Lists = (() => {
     const cols = pickedCols();
     const aoa = [['№', ...cols.map(([, h]) => h)], ...members.map((m, i) => [i + 1, ...cols.map(([, , f]) => f(m))])];
     const ws = XLSX.utils.aoa_to_sheet(aoa);
-    ws['!cols'] = [{ wch: 5 }, ...cols.map(([k]) => ({ wch: k === 'fio' || k === 'kin' || k === 'note' ? 34 : 16 }))];
+    ws['!cols'] = [{ wch: 5 }, ...cols.map(([k]) => ({ wch: ['fio', 'kin', 'note', 'addr', 'soldier'].includes(k) ? 34 : k === 'kids' ? 48 : k === 'phone' ? 22 : 16 }))];
     const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Список');
+    // окремий аркуш «Діти»: один рядок — одна дитина (для подарунків, путівок, обліку)
+    const kidRows = members.flatMap((m) => (m.kids || []).map((c) => [caseOf(m), fio(m.person), phonesOf(m), m.person.settlement || '', c.full_name || '', yearOf(c.birth_date), ageOf(c.birth_date) ?? '', fmt(c.birth_date), c.part_status || 'Звичайний']));
+    if (kidRows.length) {
+      const wk = XLSX.utils.aoa_to_sheet([['Справа', 'Батько / мати / опікун', 'Телефон для зв’язку', 'Населений пункт, адреса', 'Дитина (ПІБ)', 'Рік народження', 'Вік', 'Дата народження', 'Статус участі'], ...kidRows]);
+      wk['!cols'] = [{ wch: 12 }, { wch: 34 }, { wch: 22 }, { wch: 40 }, { wch: 30 }, { wch: 10 }, { wch: 6 }, { wch: 14 }, { wch: 14 }];
+      XLSX.utils.book_append_sheet(wb, wk, 'Діти');
+    }
     const safe = current.name.replace(/[\\/?*[\]:"<>|]/g, ' ').slice(0, 60).trim() || 'spysok';
     XLSX.writeFile(wb, `${safe}.xlsx`);
     logExport('Excel', members.length);

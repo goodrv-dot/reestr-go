@@ -240,7 +240,7 @@ window.Lists = /* @__PURE__ */ (() => {
     toast("Список видалено");
     showIndex();
   }
-  const P_COLS = "id, last_name, first_name, patronymic, birth_date, military_status, death_date, wound_date, military_unit_code, mp_unit_id, mp_unit_other, phone, cell_id, journal, cases!cases_person_id_fkey(journal_id)";
+  const P_COLS = "id, last_name, first_name, patronymic, birth_date, military_status, death_date, wound_date, military_unit_code, mp_unit_id, mp_unit_other, phone, extra_phones, settlement, cell_id, journal, cases!cases_person_id_fkey(journal_id)";
   async function loadMembers() {
     $("list-status").textContent = "Завантажуємо…";
     const all = [];
@@ -262,7 +262,23 @@ window.Lists = /* @__PURE__ */ (() => {
         if (r.person && !kin.has(r.related_person_id)) kin.set(r.related_person_id, r);
       });
     }
-    members = all.filter((m) => m.person).map((m) => ({ ...m, kin: kin.get(m.person_id) || null }));
+    const rel = /* @__PURE__ */ new Map(), kids = /* @__PURE__ */ new Map();
+    for (let i = 0; i < ids.length; i += 150) {
+      const part = ids.slice(i, i + 150);
+      const [r1, r2] = await Promise.all([
+        db.from("military_relations").select("person_id, relation_degree, related_full_name, soldier:persons!military_relations_related_person_id_fkey(last_name, first_name, patronymic, cases!cases_person_id_fkey(journal_id))").in("person_id", part),
+        db.from("children").select("person_id, full_name, birth_date, part_status").in("person_id", part).order("birth_date")
+      ]);
+      (r1.data || []).forEach((r) => {
+        if (!rel.has(r.person_id)) rel.set(r.person_id, []);
+        rel.get(r.person_id).push(r);
+      });
+      (r2.data || []).forEach((c2) => {
+        if (!kids.has(c2.person_id)) kids.set(c2.person_id, []);
+        kids.get(c2.person_id).push(c2);
+      });
+    }
+    members = all.filter((m) => m.person).map((m) => ({ ...m, kin: kin.get(m.person_id) || null, rel: rel.get(m.person_id) || [], kids: kids.get(m.person_id) || [] }));
     const jk = (m) => jidOf(m.person) || "￿";
     members.sort((a, b) => jk(a).localeCompare(jk(b), "uk", { numeric: true }));
     hiddenCnt = all.length - members.length;
@@ -285,23 +301,41 @@ window.Lists = /* @__PURE__ */ (() => {
   };
   const eventOf = (p) => p.death_date ? `загибель ${fmt(p.death_date)}` : p.wound_date ? `поранення ${fmt(p.wound_date)}` : "";
   const jidOf = (p) => (p && p.cases || []).map((c) => c.journal_id).filter(Boolean).sort().join(", ");
+  const caseOf = (m) => jidOf(m.person) || [...new Set((m.rel || []).flatMap((r) => (r.soldier && r.soldier.cases || []).map((c) => c.journal_id)))].sort().join(", ");
+  const soldierOf = (m) => (m.rel || []).map((r) => `${r.relation_degree}: ${r.soldier ? fio(r.soldier) : r.related_full_name || "?"}`).join("; ");
+  const ageOf = (iso) => {
+    if (!iso) return null;
+    const b = /* @__PURE__ */ new Date(iso + "T00:00:00"), t = /* @__PURE__ */ new Date();
+    let a = t.getFullYear() - b.getFullYear();
+    if (t.getMonth() < b.getMonth() || t.getMonth() === b.getMonth() && t.getDate() < b.getDate()) a -= 1;
+    return a;
+  };
+  const kidMark = (c) => c.part_status === "Виняток" ? " ⭐" : c.part_status === "Не включати" ? " ⛔" : "";
+  const yearOf = (iso) => iso ? String(iso).slice(0, 4) : "";
+  const kidsOf = (m) => (m.kids || []).map((c) => `${c.full_name || "дитина"}, ${c.birth_date ? yearOf(c.birth_date) + " р.н. (" + ageOf(c.birth_date) + " р.)" : "рік народження невідомий"}${kidMark(c)}`).join("\n");
+  const kidsAges = (m) => (m.kids || []).filter((c) => c.part_status !== "Не включати").map((c) => ageOf(c.birth_date)).filter((x) => x !== null).join(", ");
+  const phonesOf = (m) => [m.person.phone, ...m.person.extra_phones || []].filter(Boolean).map((x) => V.formatPhone(x) || x).filter((x, i, a) => a.indexOf(x) === i).join(", ");
   const kinOf = (m) => m.kin ? `${m.kin.relation_degree}: ${fio(m.kin.person)}${m.kin.person.phone ? ", " + V.formatPhone(m.kin.person.phone) : ""}` : "";
   function columnsAll() {
     const cells = Persons.ctx().cells;
     const base = [
-      ["case", "Справа", (m) => jidOf(m.person)],
+      ["case", "Справа", caseOf],
       ["fio", "ПІБ", (m) => fio(m.person)],
+      ["soldier", "Ким доводиться бійцю", soldierOf],
+      ["phone", "Телефон для зв’язку", phonesOf],
+      ["addr", "Населений пункт, адреса", (m) => m.person.settlement || ""],
+      ["kids", "Діти (ПІБ, рік народження)", kidsOf],
+      ["kidsage", "Вік дітей", kidsAges],
+      ["st", "Статус у списку", (m) => m.status],
+      ["note", "Примітка", (m) => m.note || ""],
+      ["kin", "Контакт родини (для бійця)", kinOf],
       ["bd", "Дата народження", (m) => fmt(m.person.birth_date)],
       ["mstat", "Статус особи", (m) => m.person.military_status || ""],
       ["rank", "Звання", (m) => rankOf(m.person)],
       ["vch", "В/ч", (m) => m.person.military_unit_code || ""],
       ["unit", "Бригада", (m) => unitOf(m.person)],
       ["event", "Подія", (m) => eventOf(m.person)],
-      ["cell", "Осередок", (m) => cells.get(m.person.cell_id) || ""],
-      ["phone", "Телефон", (m) => V.formatPhone(m.person.phone) || ""],
-      ["kin", "Контакт родини", kinOf],
-      ["st", "Статус у списку", (m) => m.status],
-      ["note", "Примітка", (m) => m.note || ""]
+      ["cell", "Осередок", (m) => cells.get(m.person.cell_id) || ""]
     ];
     return [...base, ...(current.columns || []).map((c) => ["x:" + c, c, (m) => (m.extra || {})[c] || ""])];
   }
@@ -484,11 +518,15 @@ window.Lists = /* @__PURE__ */ (() => {
     }
     return true;
   }
+  function defaultCols() {
+    const kinList = members.filter((m) => jidOf(m.person)).length < members.length / 2;
+    return new Set(kinList ? ["case", "fio", "soldier", "phone", "addr", "kids", "st", "note"] : ["case", "fio", "bd", "rank", "vch", "unit", "event", "kin", "st", "note"]);
+  }
   function renderPrintCols() {
     const box = $("list-cols");
     const saved = (() => {
       try {
-        return JSON.parse(localStorage.getItem("list_cols_" + current.id) || "null");
+        return JSON.parse(localStorage.getItem("list_cols2_" + current.id) || "null");
       } catch (e) {
         return null;
       }
@@ -500,10 +538,10 @@ window.Lists = /* @__PURE__ */ (() => {
       l.innerHTML = '<input type="checkbox"> <span></span>';
       l.firstChild.value = key;
       l.lastChild.textContent = label;
-      l.firstChild.checked = saved ? saved.includes(key) : !["phone", "cell", "mstat"].includes(key);
+      l.firstChild.checked = saved ? saved.includes(key) : defaultCols().has(key);
       l.firstChild.onchange = () => {
         try {
-          localStorage.setItem("list_cols_" + current.id, JSON.stringify(pickedCols().map((c) => c[0])));
+          localStorage.setItem("list_cols2_" + current.id, JSON.stringify(pickedCols().map((c) => c[0])));
         } catch (e) {
         }
       };
@@ -538,9 +576,18 @@ window.Lists = /* @__PURE__ */ (() => {
     const cols = pickedCols();
     const aoa = [["№", ...cols.map(([, h]) => h)], ...members.map((m, i) => [i + 1, ...cols.map(([, , f]) => f(m))])];
     const ws = XLSX.utils.aoa_to_sheet(aoa);
-    ws["!cols"] = [{ wch: 5 }, ...cols.map(([k]) => ({ wch: k === "fio" || k === "kin" || k === "note" ? 34 : 16 }))];
+    ws["!cols"] = [{ wch: 5 }, ...cols.map(([k]) => ({ wch: ["fio", "kin", "note", "addr", "soldier"].includes(k) ? 34 : k === "kids" ? 48 : k === "phone" ? 22 : 16 }))];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Список");
+    const kidRows = members.flatMap((m) => (m.kids || []).map((c) => {
+      var _a;
+      return [caseOf(m), fio(m.person), phonesOf(m), m.person.settlement || "", c.full_name || "", yearOf(c.birth_date), (_a = ageOf(c.birth_date)) != null ? _a : "", fmt(c.birth_date), c.part_status || "Звичайний"];
+    }));
+    if (kidRows.length) {
+      const wk = XLSX.utils.aoa_to_sheet([["Справа", "Батько / мати / опікун", "Телефон для зв’язку", "Населений пункт, адреса", "Дитина (ПІБ)", "Рік народження", "Вік", "Дата народження", "Статус участі"], ...kidRows]);
+      wk["!cols"] = [{ wch: 12 }, { wch: 34 }, { wch: 22 }, { wch: 40 }, { wch: 30 }, { wch: 10 }, { wch: 6 }, { wch: 14 }, { wch: 14 }];
+      XLSX.utils.book_append_sheet(wb, wk, "Діти");
+    }
     const safe = current.name.replace(/[\\/?*[\]:"<>|]/g, " ").slice(0, 60).trim() || "spysok";
     XLSX.writeFile(wb, `${safe}.xlsx`);
     logExport("Excel", members.length);

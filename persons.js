@@ -503,7 +503,9 @@ window.Persons = (() => {
     document.querySelectorAll('.modchip').forEach((b) => b.addEventListener('click', () => {
       const id = modId(b.dataset.mod);
       const cur = Filters.getPrograms();
-      if (!b.dataset.mod || !id || (cur.length === 1 && cur[0] === id)) { Filters.setPrograms([]); return; }
+      // повторний клік по вже обраному модулю НЕ знімає його (раніше знімав — модуль «злітав» непомітно); зняти — кнопка «Усі»
+      if (!b.dataset.mod || !id) { Filters.setPrograms([]); return; }
+      if (cur.length === 1 && cur[0] === id) { toast('Модуль уже обрано. Щоб зняти — натисніть «Усі»'); return; }
       Filters.setPrograms([id]);
     }));
     document.addEventListener('filters-changed', syncModChips);

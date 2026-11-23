@@ -1454,3 +1454,5 @@ input::placeholder, textarea::placeholder { color: #7a8591; }
 /* адреса родича — ширше поле (довгі адреси «обл., район, село, вулиця») */
 .fam-row label.fam-addr { grid-column: span 2; min-width: 0; }
 @media (max-width: 640px) { .fam-row label.fam-addr { grid-column: 1 / -1; } }
+
+.ks-cold { color: #1d5fa0; font-weight: 600; }

@@ -507,7 +507,7 @@ window.Lists = (() => {
     }
     const x = ks.items[ks.i];
     $('ks-progress').textContent = `${ks.i + 1} з ${n} · надіслано ${ks.sent}${ks.skipped ? ' · пропущено ' + ks.skipped : ''}`;
-    box.innerHTML = `<div class="ks-card"><div><b class="ks-jid"></b> <span class="ks-rep" hidden>🔁 повторно</span></div>
+    box.innerHTML = `<div class="ks-card"><div><b class="ks-jid"></b> <span class="ks-rep" hidden>🔁 повторно</span> <span class="ks-cold" hidden title="Справа «Не беремо в роботу»: з родиною ще не було контакту — надсилається «холодний» текст із представленням організації">🧊 перший контакт</span></div>
       <div>Кому: <b class="ks-who"></b> <span class="muted ks-deg"></span></div><div class="ks-ph"></div>
       <details class="ks-prev"><summary>Текст повідомлення</summary><pre class="ks-text"></pre></details></div>
       <ol class="ks-steps muted"><li>«💬 Відкрити WhatsApp» — текст уже набрано, позначка «надіслано» ставиться одразу.</li><li>У WhatsApp натисніть <b>Надіслати</b> (Enter).</li><li>Поверніться сюди — «➡ Далі».</li></ol>
@@ -517,6 +517,7 @@ window.Lists = (() => {
       <button type="button" id="ks-skip" class="btn-secondary">⏭ Пропустити</button></div>`;
     box.querySelector('.ks-jid').textContent = x.journal_id;
     box.querySelector('.ks-rep').hidden = x.state !== 'repeat';
+    box.querySelector('.ks-cold').hidden = !x.cold;
     box.querySelector('.ks-who').textContent = x.rcpt_fio;
     box.querySelector('.ks-deg').textContent = x.rcpt_self ? '(сам/сама)' : x.rcpt_degree ? `(${x.rcpt_degree})` : '';
     { const ph = box.querySelector('.ks-ph');

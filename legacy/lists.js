@@ -78,7 +78,7 @@ window.Lists = /* @__PURE__ */ (() => {
     if (!db) return;
     const from = document.querySelector(`.tab[data-tab="${window.__listsFrom || "cabinet"}"]`);
     $("lists-to-cab").hidden = !from || from.hidden;
-    $("lists-to-cab").textContent = (window.__listsFrom || "cabinet") === "registry" ? "← Особи" : "← Кабінет";
+    $("lists-to-cab").textContent = { registry: "← Особи", kids: "← Діти" }[window.__listsFrom || "cabinet"] || "← Кабінет";
     const [l, o] = await Promise.all([
       db.from("person_lists").select("*, person_list_members(count)").order("created_at", { ascending: false }),
       db.from("operators").select("user_id, full_name, role, can_lists, can_registry, active").order("full_name")

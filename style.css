@@ -1498,3 +1498,6 @@ input::placeholder, textarea::placeholder { color: #7a8591; }
 .ph-diff { margin: 0.2rem 0 0 1.1rem; padding: 0; }
 
 .kids-table .kids-n { width: 2.5rem; text-align: right; white-space: nowrap; }
+
+.kids-seg { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.9rem; }
+.kids-seg select { font: inherit; padding: 0.25rem 0.4rem; border: 1px solid var(--line); border-radius: var(--radius-field); background: var(--white); color: inherit; max-width: 16rem; }

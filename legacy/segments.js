@@ -22,7 +22,7 @@ window.Segments = /* @__PURE__ */ (() => {
     await load();
   }
   async function load(selectId) {
-    const { data, error } = await db.from("segments").select("*").order("name");
+    const { data, error } = await db.from("segments").select("*").eq("kind", "registry").order("name");
     if (error) {
       console.error(error);
       return;

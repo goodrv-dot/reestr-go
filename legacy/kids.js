@@ -26,6 +26,16 @@ window.Kids = /* @__PURE__ */ (() => {
     $("kids-excel").hidden = !(window.ACCESS && (window.ACCESS.admin || Persons.ctx().operator.can_export));
     $("kids-tolist").hidden = !(window.ACCESS && window.ACCESS.lists);
     $("kids-tolist").onclick = toList;
+    $("kids-lists").hidden = !(window.ACCESS && window.ACCESS.lists);
+    $("kids-lists").onclick = () => {
+      window.__listsFrom = "kids";
+      document.querySelector('.tab[data-tab="lists"]').click();
+    };
+    $("kids-seg").onchange = segApply;
+    $("kids-seg-save").onclick = segSave;
+    $("kids-seg-upd").onclick = segUpdate;
+    $("kids-seg-del").onclick = segDelete;
+    segLoad();
     $("kids-more").onclick = () => {
       shown += PAGE;
       render();
@@ -380,6 +390,102 @@ window.Kids = /* @__PURE__ */ (() => {
       loadActs(r);
       load(true);
     };
+  }
+  let segs = [], me = null;
+  function fState() {
+    const ms = {};
+    Object.entries(MS).forEach(([k, m]) => {
+      const v = m.values();
+      if (v.length) ms[k] = v;
+    });
+    return { q: $("kids-q").value.trim(), af: $("kids-af").value, at: $("kids-at").value, ms };
+  }
+  function fSet(st) {
+    var _a, _b;
+    st = st || {};
+    $("kids-q").value = st.q || "";
+    $("kids-af").value = (_a = st.af) != null ? _a : "";
+    $("kids-at").value = (_b = st.at) != null ? _b : "";
+    Object.entries(MS).forEach(([k, m]) => {
+      const want = new Set((st.ms || {})[k] || []);
+      m.el.querySelectorAll("input[type=checkbox]").forEach((c) => {
+        c.checked = want.has(c.value);
+      });
+    });
+    syncSummaries();
+    apply();
+  }
+  async function segLoad(selectId) {
+    if (!me) {
+      const { data: data2 } = await db.auth.getUser();
+      me = data2 && data2.user ? data2.user.id : null;
+    }
+    const { data, error } = await db.from("segments").select("id, name, filters, created_by").eq("kind", "kids").order("name");
+    if (error) {
+      console.error(error);
+      return;
+    }
+    segs = data || [];
+    const sel = $("kids-seg");
+    const cur2 = selectId || sel.value;
+    sel.innerHTML = '<option value="">— не обрано —</option>';
+    segs.forEach((s) => sel.add(new Option(s.name, s.id)));
+    sel.value = segs.some((s) => s.id === cur2) ? cur2 : "";
+    segButtons();
+  }
+  function segButtons() {
+    const s = segs.find((x) => x.id === $("kids-seg").value);
+    const mine = s && (s.created_by === me || isAdmin);
+    $("kids-seg-upd").hidden = !mine || !canEdit;
+    $("kids-seg-del").hidden = !mine || !canEdit;
+    $("kids-seg-save").hidden = !canEdit;
+  }
+  function segApply() {
+    const s = segs.find((x) => x.id === $("kids-seg").value);
+    segButtons();
+    if (s) {
+      fSet(s.filters);
+      toast(`Сегмент «${s.name}»`);
+    }
+  }
+  async function segSave() {
+    const name = (prompt("Назва сегмента (напр., «Діти 3–12 · Родини загиблих · обл. центри»):") || "").trim();
+    if (!name) return;
+    const { data, error } = await db.from("segments").insert({ name, filters: fState(), kind: "kids", created_by: me }).select("id").single();
+    if (error) {
+      console.error(error);
+      toast("Не вдалося зберегти сегмент");
+      return;
+    }
+    toast("Сегмент збережено");
+    segLoad(data.id);
+  }
+  async function segUpdate() {
+    const s = segs.find((x) => x.id === $("kids-seg").value);
+    if (!s) return;
+    if (!confirm(`Перезаписати сегмент «${s.name}» поточними фільтрами?`)) return;
+    const { error } = await db.from("segments").update({ filters: fState(), updated_at: (/* @__PURE__ */ new Date()).toISOString() }).eq("id", s.id);
+    if (error) {
+      console.error(error);
+      toast("Не вдалося оновити");
+      return;
+    }
+    toast("Сегмент оновлено");
+    segLoad(s.id);
+  }
+  async function segDelete() {
+    const s = segs.find((x) => x.id === $("kids-seg").value);
+    if (!s) return;
+    if (!confirm(`Видалити сегмент «${s.name}»? Діти й дані не зміняться — лише збережений набір фільтрів.`)) return;
+    const { error } = await db.from("segments").delete().eq("id", s.id);
+    if (error) {
+      console.error(error);
+      toast("Не вдалося видалити");
+      return;
+    }
+    toast("Сегмент видалено");
+    $("kids-seg").value = "";
+    segLoad();
   }
   function toList() {
     if (!cur.length) {

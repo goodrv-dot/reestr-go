@@ -241,8 +241,9 @@ window.Cabinet = (() => {
     if (!defs.some((d) => d.key === 'kids_form_sent')) return null;
     const v = c.vals, d10 = (x) => String(x).slice(0, 10);
     const ago = (x) => Math.round((new Date(today() + 'T00:00:00Z') - new Date(d10(x) + 'T00:00:00Z')) / 86400000);
-    if (v.kids_form_filled) return { k: 'filled', date: d10(v.kids_form_filled) };
+    // явна позначка «Дітей немає» важливіша за автоматичне «заповнено» (напр., у анкету вписали не дітей бійця)
     if (v.kids_form_none) return { k: 'nokids', date: d10(v.kids_form_none) };
+    if (v.kids_form_filled) return { k: 'filled', date: d10(v.kids_form_filled) };
     if (v.kids_form_resent) { const n = ago(v.kids_form_resent); return { k: n >= KIDS_WAIT ? 'dnd' : 'wait2', n, sent: d10(v.kids_form_sent || v.kids_form_resent), resent: d10(v.kids_form_resent), due: addDays(d10(v.kids_form_resent), KIDS_WAIT) }; }
     if (v.kids_form_sent) { const n = ago(v.kids_form_sent); return { k: n >= KIDS_WAIT ? 'repeat' : 'wait1', n, sent: d10(v.kids_form_sent), due: addDays(d10(v.kids_form_sent), KIDS_WAIT) }; }
     return { k: 'none', due: kidsDue(c) };
@@ -1657,10 +1658,18 @@ window.Cabinet = (() => {
   // extra — анкету вже надіслано, але треба написати ще й іншому родичу (напр., додали дружину): позначки не змінюємо
   function kidsFormEl(c, extra) {
     const box = document.createElement('div'); box.className = 'kids-form';
-    if (c.vals.kids_form_filled) {   // діти вже є в картці родича (анкета / імпорт) або позначено вручну
-      box.innerHTML = '<span class="kids-done">✅ Анкету «Діти» заповнено — надсилати не потрібно</span>'; return box;
-    }
     const ks = kidsState(c);
+    if (c.vals.kids_form_filled && ks.k !== 'nokids') {   // діти вже є в картці родича (анкета / імпорт) або позначено вручну
+      box.innerHTML = '<span class="kids-done">✅ Анкету «Діти» заповнено — надсилати не потрібно</span> ';
+      if (!acc().readOnly) {   // у анкету вписали не дітей бійця (онуки, діти сестри…) — оператор може виправити
+        const no = document.createElement('button'); no.type = 'button'; no.className = 'btn-link btn-small';
+        no.textContent = '🚫 Це не діти бійця — дітей немає';
+        no.title = 'Напр., сестра чи мати вписала своїх дітей або онуків. Позначка «Дітей немає» замінить «заповнено»; самих дітей у картці родича адміністратор позначить «⛔ Не включати».';
+        no.onclick = async () => { if (!confirm('Позначити «Дітей немає»? Анкету вважатимемо не про дітей бійця.')) return; await saveValue('kids_form_none', today()); Persons.toast('Позначено «Дітей немає». Попросіть адміністратора позначити тих дітей «⛔ Не включати»'); };
+        box.append(no);
+      }
+      return box;
+    }
     if (ks.k === 'nokids') { box.innerHTML = '<span class="kids-dnd">🚫 Дітей немає / не актуально — не надсилаємо</span>'; return box; }
     if (ks.k === 'dnd') { box.innerHTML = '<span class="kids-dnd">🔕 Не турбувати — більше не надсилаємо</span>'; return box; }
     const repeat = ks.k === 'repeat' && !extra;

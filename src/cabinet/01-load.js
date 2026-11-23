@@ -141,8 +141,9 @@
     if (!defs.some((d) => d.key === 'kids_form_sent')) return null;
     const v = c.vals, d10 = (x) => String(x).slice(0, 10);
     const ago = (x) => Math.round((new Date(today() + 'T00:00:00Z') - new Date(d10(x) + 'T00:00:00Z')) / 86400000);
-    if (v.kids_form_filled) return { k: 'filled', date: d10(v.kids_form_filled) };
+    // явна позначка «Дітей немає» важливіша за автоматичне «заповнено» (напр., у анкету вписали не дітей бійця)
     if (v.kids_form_none) return { k: 'nokids', date: d10(v.kids_form_none) };
+    if (v.kids_form_filled) return { k: 'filled', date: d10(v.kids_form_filled) };
     if (v.kids_form_resent) { const n = ago(v.kids_form_resent); return { k: n >= KIDS_WAIT ? 'dnd' : 'wait2', n, sent: d10(v.kids_form_sent || v.kids_form_resent), resent: d10(v.kids_form_resent), due: addDays(d10(v.kids_form_resent), KIDS_WAIT) }; }
     if (v.kids_form_sent) { const n = ago(v.kids_form_sent); return { k: n >= KIDS_WAIT ? 'repeat' : 'wait1', n, sent: d10(v.kids_form_sent), due: addDays(d10(v.kids_form_sent), KIDS_WAIT) }; }
     return { k: 'none', due: kidsDue(c) };

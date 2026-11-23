@@ -329,8 +329,8 @@ window.Cabinet = (() => {
     if (!defs.some((d) => d.key === "kids_form_sent")) return null;
     const v = c.vals, d10 = (x) => String(x).slice(0, 10);
     const ago = (x) => Math.round((/* @__PURE__ */ new Date(today() + "T00:00:00Z") - /* @__PURE__ */ new Date(d10(x) + "T00:00:00Z")) / 864e5);
-    if (v.kids_form_filled) return { k: "filled", date: d10(v.kids_form_filled) };
     if (v.kids_form_none) return { k: "nokids", date: d10(v.kids_form_none) };
+    if (v.kids_form_filled) return { k: "filled", date: d10(v.kids_form_filled) };
     if (v.kids_form_resent) {
       const n = ago(v.kids_form_resent);
       return { k: n >= KIDS_WAIT ? "dnd" : "wait2", n, sent: d10(v.kids_form_sent || v.kids_form_resent), resent: d10(v.kids_form_resent), due: addDays(d10(v.kids_form_resent), KIDS_WAIT) };
@@ -2578,11 +2578,24 @@ ${ex.name}
   function kidsFormEl(c, extra) {
     const box = document.createElement("div");
     box.className = "kids-form";
-    if (c.vals.kids_form_filled) {
-      box.innerHTML = '<span class="kids-done">✅ Анкету «Діти» заповнено — надсилати не потрібно</span>';
+    const ks = kidsState(c);
+    if (c.vals.kids_form_filled && ks.k !== "nokids") {
+      box.innerHTML = '<span class="kids-done">✅ Анкету «Діти» заповнено — надсилати не потрібно</span> ';
+      if (!acc().readOnly) {
+        const no2 = document.createElement("button");
+        no2.type = "button";
+        no2.className = "btn-link btn-small";
+        no2.textContent = "🚫 Це не діти бійця — дітей немає";
+        no2.title = "Напр., сестра чи мати вписала своїх дітей або онуків. Позначка «Дітей немає» замінить «заповнено»; самих дітей у картці родича адміністратор позначить «⛔ Не включати».";
+        no2.onclick = async () => {
+          if (!confirm("Позначити «Дітей немає»? Анкету вважатимемо не про дітей бійця.")) return;
+          await saveValue("kids_form_none", today());
+          Persons.toast("Позначено «Дітей немає». Попросіть адміністратора позначити тих дітей «⛔ Не включати»");
+        };
+        box.append(no2);
+      }
       return box;
     }
-    const ks = kidsState(c);
     if (ks.k === "nokids") {
       box.innerHTML = '<span class="kids-dnd">🚫 Дітей немає / не актуально — не надсилаємо</span>';
       return box;

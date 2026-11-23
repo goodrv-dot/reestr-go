@@ -174,11 +174,11 @@ window.Kids = /* @__PURE__ */ (() => {
     const tb = $("kids-table").tBodies[0];
     tb.innerHTML = "";
     const regions = Persons.ctx().regions;
-    cur.slice(0, shown).forEach((r) => {
+    cur.slice(0, shown).forEach((r, i) => {
       const tr = document.createElement("tr");
       const mark = r.part_status === "Виняток" ? ' <span class="tag tag-exc">⭐ виняток</span>' : r.part_status === "Не включати" ? ' <span class="tag">⛔</span>' : r.age !== null && r.age >= 18 ? ' <span class="tag tag-adult">🔞</span>' : "";
       const done = (r.acts || []).filter((a) => a.status === "Взяв(ла) участь");
-      tr.innerHTML = `<td><button type="button" class="btn-link kids-open"></button>${mark}<div class="muted kids-sub"></div></td>
+      tr.innerHTML = `<td class="kids-n muted">${i + 1}</td><td><button type="button" class="btn-link kids-open"></button>${mark}<div class="muted kids-sub"></div></td>
         <td class="kids-agecell"></td>
         <td><span class="kids-par"></span><div class="muted kids-sub2"></div></td>
         <td class="kids-ph"></td>

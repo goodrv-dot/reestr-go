@@ -1496,3 +1496,5 @@ input::placeholder, textarea::placeholder { color: #7a8591; }
 .ph-item { padding: 0.35rem 0; border-bottom: 1px dashed var(--line); font-size: 0.9rem; }
 .ph-head { font-weight: 600; }
 .ph-diff { margin: 0.2rem 0 0 1.1rem; padding: 0; }
+
+.kids-table .kids-n { width: 2.5rem; text-align: right; white-space: nowrap; }

@@ -264,7 +264,7 @@ window.Staff = /* @__PURE__ */ (() => {
     box.append(t);
   }
   async function load() {
-    const { data, error } = await db.from("operators").select("user_id, full_name, email, role, can_export, can_registry, can_import, can_cab200, can_cab300, cab_modules, can_lists, can_sendpulse, can_burial_point, cell_ids, active, must_change_password, created_at, no_login, aliases, read_only").order("active", { ascending: false }).order("full_name");
+    const { data, error } = await db.from("operators").select("user_id, full_name, email, role, can_export, can_registry, can_import, can_cab200, can_cab300, cab_modules, can_lists, can_kids, can_sendpulse, can_burial_point, cell_ids, active, must_change_password, created_at, no_login, aliases, read_only").order("active", { ascending: false }).order("full_name");
     const tbody = $("staff-table").tBodies[0];
     tbody.innerHTML = "";
     if (error) {
@@ -307,7 +307,7 @@ window.Staff = /* @__PURE__ */ (() => {
     else if (o.role === "admin") tdExp.innerHTML = '<span class="muted">усе (адміністратор)</span>';
     else {
       const cells = Persons.ctx().cells;
-      const parts = [o.read_only && "👁 Лише перегляд", o.can_registry && "Реєстр", o.can_export && "Експорт", o.can_registry && o.can_import && "Імпорт", o.can_lists && "Списки", o.can_sendpulse && "Розсилка", o.can_burial_point && "Точки поховань", o.can_cab200 && "Кабінет 200", o.can_cab300 && "Кабінет 300", ...(o.cab_modules || []).map((m) => MOD_NAMES[m]).filter(Boolean)].filter(Boolean);
+      const parts = [o.read_only && "👁 Лише перегляд", o.can_registry && "Реєстр", o.can_export && "Експорт", o.can_registry && o.can_import && "Імпорт", o.can_lists && "Списки", o.can_kids && "Діти", o.can_sendpulse && "Розсилка", o.can_burial_point && "Точки поховань", o.can_cab200 && "Кабінет 200", o.can_cab300 && "Кабінет 300", ...(o.cab_modules || []).map((m) => MOD_NAMES[m]).filter(Boolean)].filter(Boolean);
       const cn = (o.cell_ids || []).map((id) => cells.get(id)).filter(Boolean);
       const sum = document.createElement("div");
       sum.className = "acc-sum";
@@ -372,6 +372,7 @@ window.Staff = /* @__PURE__ */ (() => {
     f.lists.checked = !!o.can_lists;
     f.sendpulse.checked = !!o.can_sendpulse;
     f.burialpoint.checked = !!o.can_burial_point;
+    f.kids.checked = !!o.can_kids;
     const anyCab = () => f.cab200.checked || f.cab300.checked || NEW_MODS.some((m) => f["cab" + m].checked);
     const box = $("acc-cells");
     box.innerHTML = "";
@@ -471,6 +472,12 @@ window.Staff = /* @__PURE__ */ (() => {
       if (bp.error) {
         console.error(bp.error);
         Persons.toast("Не вдалося зберегти доступ «Точки поховань»");
+        return;
+      }
+      const kd = await db.rpc("set_operator_kids", { p_user: o.user_id, p_on: f.kids.checked });
+      if (kd.error) {
+        console.error(kd.error);
+        Persons.toast("Не вдалося зберегти доступ «Діти»");
         return;
       }
       const ro = await db.rpc("set_operator_readonly", { p_user: o.user_id, p_ro: f.readonly.checked });

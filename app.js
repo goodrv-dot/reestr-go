@@ -43,6 +43,7 @@ function showApp(operator, userId) {
   tabBtn('registry').hidden = !A.registry; tabBtn('dashboard').hidden = false;   // «Дашборд» — усім (без «Реєстру» — справи кабінету й карта поховань)
   tabBtn('import').hidden = !A.import; tabBtn('cabinet').hidden = !hasCab; tabBtn('lists').hidden = !(A.lists && !hasCab && !A.registry);   // «📋 Списки» — кнопки в кабінеті та в «Особах»
   tabBtn('sendpulse').hidden = !A.sendpulse;
+  tabBtn('kids').hidden = !A.kids;
    // «📨 Розсилка» — лише кому увімкнули
   document.querySelectorAll('.sp-only').forEach((el) => { el.hidden = !A.sendpulse; });
   // перехід в ERP — лише для тих, хто має доступ «Реєстр» (і адміністраторів)
@@ -64,6 +65,7 @@ function showApp(operator, userId) {
       document.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.matches && e.target.matches('textarea.one-line')) e.preventDefault(); });
       document.addEventListener('input', (e) => { const t = e.target; if (t.matches && t.matches('textarea.one-line')) { if (/\n/.test(t.value)) t.value = t.value.replace(/\s*\n\s*/g, ' '); window.growOneLine(t); } });
       if (A.lists) Lists.init(db, userId, operator.role === 'admin');
+      if (A.kids) try { Kids.init(db, operator.role === 'admin'); } catch (e) { console.error(e); }
       window.__exp = true;
     }
     const prm = new URLSearchParams(location.search);
@@ -75,7 +77,7 @@ function showApp(operator, userId) {
       tabBtn(back).click();
       if (back === 'cabinet' && lastCase) Cabinet.openByJournal(lastCase);
       if (hasCab && back !== 'cabinet') Cabinet.badge();
-    } else if (!A.registry && !prm.get('case')) tabBtn(hasCab ? 'cabinet' : 'manual').click();
+    } else if (!A.registry && !prm.get('case')) tabBtn(hasCab ? 'cabinet' : A.kids ? 'kids' : 'manual').click();
     else if (hasCab) Cabinet.badge();
     openDeepLink();
   }).catch((e) => {
@@ -158,7 +160,7 @@ async function enterWithSession(session) {
     const adm = operator.role === 'admin';
     window.ACCESS = { admin: adm, registry: adm || !!acc.can_registry, import: adm || !!acc.can_import,
       cab200: adm || !!acc.can_cab200, cab300: adm || !!acc.can_cab300, cells: acc.cell_ids || [],
-      readOnly: !adm && !!acc.read_only, lists: adm || !!acc.can_lists, sendpulse: adm || !!acc.can_sendpulse, burialPoint: adm || !!acc.can_burial_point };
+      readOnly: !adm && !!acc.read_only, lists: adm || !!acc.can_lists, kids: adm || !!acc.can_kids, sendpulse: adm || !!acc.can_sendpulse, burialPoint: adm || !!acc.can_burial_point };
     // нові модулі кабінету (БЗВ, Полон, Ветерани): ACCESS.cabbzv / cabpol / cabvet
     (acc.cab_modules || []).forEach((m) => { window.ACCESS['cab' + m] = true; });
     window.ACCESS.cabMods = ['200', '300', ...(acc.cab_modules || [])].filter((m) => window.ACCESS['cab' + m]);

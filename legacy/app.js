@@ -42,6 +42,7 @@ function showApp(operator, userId) {
   tabBtn("cabinet").hidden = !hasCab;
   tabBtn("lists").hidden = !(A.lists && !hasCab && !A.registry);
   tabBtn("sendpulse").hidden = !A.sendpulse;
+  tabBtn("kids").hidden = !A.kids;
   document.querySelectorAll(".sp-only").forEach((el) => {
     el.hidden = !A.sendpulse;
   });
@@ -82,6 +83,11 @@ function showApp(operator, userId) {
         }
       });
       if (A.lists) Lists.init(db, userId, operator.role === "admin");
+      if (A.kids) try {
+        Kids.init(db, operator.role === "admin");
+      } catch (e) {
+        console.error(e);
+      }
       window.__exp = true;
     }
     const prm = new URLSearchParams(location.search);
@@ -96,7 +102,7 @@ function showApp(operator, userId) {
       tabBtn(back).click();
       if (back === "cabinet" && lastCase) Cabinet.openByJournal(lastCase);
       if (hasCab && back !== "cabinet") Cabinet.badge();
-    } else if (!A.registry && !prm.get("case")) tabBtn(hasCab ? "cabinet" : "manual").click();
+    } else if (!A.registry && !prm.get("case")) tabBtn(hasCab ? "cabinet" : A.kids ? "kids" : "manual").click();
     else if (hasCab) Cabinet.badge();
     openDeepLink();
   }).catch((e) => {
@@ -174,6 +180,7 @@ async function enterWithSession(session) {
       cells: acc.cell_ids || [],
       readOnly: !adm && !!acc.read_only,
       lists: adm || !!acc.can_lists,
+      kids: adm || !!acc.can_kids,
       sendpulse: adm || !!acc.can_sendpulse,
       burialPoint: adm || !!acc.can_burial_point
     };

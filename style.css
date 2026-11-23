@@ -1460,3 +1460,31 @@ input::placeholder, textarea::placeholder { color: #7a8591; }
 .list-kidage { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.9rem; margin: 0 0.5rem; }
 .list-kidage label { display: inline-flex; align-items: center; gap: 0.3rem; }
 .list-kidage input { width: 3.6rem; font: inherit; padding: 0.2rem 0.3rem; border: 1px solid var(--line); border-radius: var(--radius-field); }
+
+/* ---------- Вкладка «Діти» ---------- */
+.kids-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.6rem; }
+.kids-actions { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.kids-filters { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: flex-start; margin: 0.6rem 0; }
+.kids-q { flex: 1 1 18rem; font: inherit; padding: 0.45rem 0.6rem; border: 1px solid var(--line); border-radius: var(--radius-field); background: var(--white); color: inherit; }
+.kids-age { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.3rem 0.5rem; border: 1px solid var(--line); border-radius: var(--radius-field); background: var(--white); }
+.kids-age input { width: 3.6rem; font: inherit; padding: 0.15rem 0.3rem; border: 1px solid var(--line); border-radius: var(--radius-field); }
+.kids-ms { position: relative; border: 1px solid var(--line); border-radius: var(--radius-field); background: var(--white); }
+.kids-ms > summary { cursor: pointer; padding: 0.4rem 0.6rem; list-style: none; white-space: nowrap; }
+.kids-ms > summary::-webkit-details-marker { display: none; }
+.kids-ms[open] > summary { border-bottom: 1px solid var(--line); }
+.kids-ms-list { position: absolute; z-index: 20; min-width: 16rem; max-height: 18rem; overflow: auto; padding: 0.4rem 0.6rem; background: var(--white); border: 1px solid var(--line); border-radius: var(--radius-field); box-shadow: 0 6px 20px rgba(0,0,0,.12); display: flex; flex-direction: column; gap: 0.2rem; }
+.kids-hint { flex-basis: 100%; margin: 0; font-size: 0.85rem; }
+.kids-table td { vertical-align: top; }
+.kids-sub, .kids-sub2 { font-size: 0.82rem; }
+.kids-ph a { text-decoration: none; }
+.kids-dlg { max-width: 46rem; width: calc(100% - 2rem); }
+.kids-dlg-parent { margin: 0 0 0.6rem; line-height: 1.5; }
+.kids-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr)); gap: 0.4rem 0.8rem; border: 0; padding: 0; margin: 0.4rem 0; }
+.kids-grid label, .kids-dlg form > label { display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.9rem; }
+.kids-dlg input:not([type=checkbox]), .kids-dlg select, .kids-dlg textarea { font: inherit; padding: 0.35rem 0.5rem; border: 1px solid var(--line); border-radius: var(--radius-field); background: var(--white); color: inherit; }
+.kids-int { display: grid; grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr)); gap: 0.2rem 0.8rem; }
+.kids-int-wrap, #kids-part-wrap { border: 1px solid var(--line); border-radius: 8px; padding: 0.4rem 0.7rem; }
+.kids-acts-wrap { border-top: 1px solid var(--line); margin-top: 0.8rem; padding-top: 0.4rem; }
+.kids-act { padding: 0.25rem 0; border-bottom: 1px dashed var(--line); }
+.kids-act-form { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.5rem; }
+.kids-act-form input[name=title], .kids-act-form input[name=note] { flex: 1 1 12rem; }

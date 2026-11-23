@@ -187,7 +187,7 @@ window.Lists = (() => {
       const part = ids.slice(i, i + 150);
       const [r1, r2] = await Promise.all([
         db.from('military_relations').select('person_id, relation_degree, related_full_name, soldier:persons!military_relations_related_person_id_fkey(last_name, first_name, patronymic, cases!cases_person_id_fkey(journal_id))').in('person_id', part),
-        db.from('children').select('person_id, full_name, birth_date, part_status').in('person_id', part).order('birth_date')
+        db.from('children').select('person_id, full_name, birth_date, part_status, part_until').in('person_id', part).order('birth_date')
       ]);
       (r1.data || []).forEach((r) => { if (!rel.has(r.person_id)) rel.set(r.person_id, []); rel.get(r.person_id).push(r); });
       (r2.data || []).forEach((c) => { if (!kids.has(c.person_id)) kids.set(c.person_id, []); kids.get(c.person_id).push(c); });
@@ -212,8 +212,14 @@ window.Lists = (() => {
   const ageOf = (iso) => { if (!iso) return null; const b = new Date(iso + 'T00:00:00'), t = new Date(); let a = t.getFullYear() - b.getFullYear(); if (t.getMonth() < b.getMonth() || (t.getMonth() === b.getMonth() && t.getDate() < b.getDate())) a -= 1; return a; };
   const kidMark = (c) => (c.part_status === 'Виняток' ? ' ⭐' : c.part_status === 'Не включати' ? ' ⛔' : '');
   const yearOf = (iso) => (iso ? String(iso).slice(0, 4) : '');
-  const kidsOf = (m) => (m.kids || []).map((c) => `${c.full_name || 'дитина'}, ${c.birth_date ? yearOf(c.birth_date) + ' р.н. (' + ageOf(c.birth_date) + ' р.)' : 'рік народження невідомий'}${kidMark(c)}`).join('\n');
-  const kidsAges = (m) => (m.kids || []).filter((c) => c.part_status !== 'Не включати').map((c) => ageOf(c.birth_date)).filter((x) => x !== null).join(', ');
+  // віковий діапазон дітей для друку/Excel (порожньо — усі); ⭐ винятки — завжди, ⛔ «Не включати» — ні
+  const kidRange = () => { const f = $('list-kid-from'), t = $('list-kid-to'); const a = f && f.value !== '' ? Number(f.value) : null, b = t && t.value !== '' ? Number(t.value) : null; return a === null && b === null ? null : [a ?? 0, b ?? 99]; };
+  const todayIso = () => new Date().toISOString().slice(0, 10);
+  const kidsIn = (m) => { const r = kidRange(); if (!r) return m.kids || [];
+    return (m.kids || []).filter((c) => (c.part_status === 'Виняток' && (!c.part_until || c.part_until >= todayIso()))
+      || (c.part_status !== 'Не включати' && ageOf(c.birth_date) !== null && ageOf(c.birth_date) >= r[0] && ageOf(c.birth_date) <= r[1])); };
+  const kidsOf = (m) => kidsIn(m).map((c) => `${c.full_name || 'дитина'}, ${c.birth_date ? yearOf(c.birth_date) + ' р.н. (' + ageOf(c.birth_date) + ' р.)' : 'рік народження невідомий'}${kidMark(c)}`).join('\n');
+  const kidsAges = (m) => kidsIn(m).filter((c) => c.part_status !== 'Не включати').map((c) => ageOf(c.birth_date)).filter((x) => x !== null).join(', ');
   const phonesOf = (m) => [m.person.phone, ...(m.person.extra_phones || [])].filter(Boolean).map((x) => V.formatPhone(x) || x).filter((x, i, a) => a.indexOf(x) === i).join(', ');
   const kinOf = (m) => (m.kin ? `${m.kin.relation_degree}: ${fio(m.kin.person)}${m.kin.person.phone ? ', ' + V.formatPhone(m.kin.person.phone) : ''}` : '');
 
@@ -351,6 +357,15 @@ window.Lists = (() => {
                            : ['case', 'fio', 'bd', 'rank', 'vch', 'unit', 'event', 'kin', 'st', 'note']);
   }
   function renderPrintCols() {
+    // діапазон віку дітей: збережений для цього списку, інакше — з назви списку («Діти 3-12 …»)
+    { const f = $('list-kid-from'), t = $('list-kid-to');
+      if (f && t && f.dataset.list !== String(current.id)) {
+        let v = null; try { v = JSON.parse(localStorage.getItem('list_kidage_' + current.id) || 'null'); } catch { v = null; }
+        if (!v) { const mm = String(current.name || '').match(/(\d{1,2})\s*[-–—]\s*(\d{1,2})/); if (mm && /діт|дит/i.test(current.name)) v = [mm[1], mm[2]]; }
+        f.value = v ? v[0] : ''; t.value = v ? v[1] : ''; f.dataset.list = String(current.id);
+        const save = () => { try { localStorage.setItem('list_kidage_' + current.id, JSON.stringify([f.value, t.value])); } catch { /* ок */ } };
+        f.onchange = save; t.onchange = save;
+      } }
     const box = $('list-cols'); const saved = (() => { try { return JSON.parse(localStorage.getItem('list_cols2_' + current.id) || 'null'); } catch { return null; } })();
     box.innerHTML = '';
     columnsAll().forEach(([key, label]) => {
@@ -385,7 +400,7 @@ window.Lists = (() => {
     ws['!cols'] = [{ wch: 5 }, ...cols.map(([k]) => ({ wch: ['fio', 'kin', 'note', 'addr', 'soldier'].includes(k) ? 34 : k === 'kids' ? 48 : k === 'phone' ? 22 : 16 }))];
     const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Список');
     // окремий аркуш «Діти»: один рядок — одна дитина (для подарунків, путівок, обліку)
-    const kidRows = members.flatMap((m) => (m.kids || []).map((c) => [caseOf(m), fio(m.person), phonesOf(m), m.person.settlement || '', c.full_name || '', yearOf(c.birth_date), ageOf(c.birth_date) ?? '', fmt(c.birth_date), c.part_status || 'Звичайний']));
+    const kidRows = members.flatMap((m) => kidsIn(m).map((c) => [caseOf(m), fio(m.person), phonesOf(m), m.person.settlement || '', c.full_name || '', yearOf(c.birth_date), ageOf(c.birth_date) ?? '', fmt(c.birth_date), c.part_status || 'Звичайний']));
     if (kidRows.length) {
       const wk = XLSX.utils.aoa_to_sheet([['Справа', 'Батько / мати / опікун', 'Телефон для зв’язку', 'Населений пункт, адреса', 'Дитина (ПІБ)', 'Рік народження', 'Вік', 'Дата народження', 'Статус участі'], ...kidRows]);
       wk['!cols'] = [{ wch: 12 }, { wch: 34 }, { wch: 22 }, { wch: 40 }, { wch: 30 }, { wch: 10 }, { wch: 6 }, { wch: 14 }, { wch: 14 }];

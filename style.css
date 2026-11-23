@@ -1456,3 +1456,7 @@ input::placeholder, textarea::placeholder { color: #7a8591; }
 @media (max-width: 640px) { .fam-row label.fam-addr { grid-column: 1 / -1; } }
 
 .ks-cold { color: #1d5fa0; font-weight: 600; }
+
+.list-kidage { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.9rem; margin: 0 0.5rem; }
+.list-kidage label { display: inline-flex; align-items: center; gap: 0.3rem; }
+.list-kidage input { width: 3.6rem; font: inherit; padding: 0.2rem 0.3rem; border: 1px solid var(--line); border-radius: var(--radius-field); }

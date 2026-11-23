@@ -673,7 +673,7 @@ window.Lists = /* @__PURE__ */ (() => {
     try {
       const [b, st] = await Promise.all([
         db.rpc("kids_mail_batch", { p_list: current.id }),
-        db.from("app_settings").select("key, value").in("key", ["kids_form_url", "kids_form_text", "kids_form_text_self", "kids_form_code_entry", "kids_mail_pause"])
+        db.from("app_settings").select("key, value").in("key", ["kids_form_url", "kids_form_text", "kids_form_text_self", "kids_form_text_cold", "kids_form_code_entry", "kids_mail_pause"])
       ]);
       if (b.error) {
         console.error(b.error);
@@ -691,6 +691,15 @@ window.Lists = /* @__PURE__ */ (() => {
         const { data: ep } = await db.from("persons").select("id, extra_phones").in("id", ids.slice(i, i + 100));
         (ep || []).forEach((r) => ex.set(r.id, (r.extra_phones || []).filter((x) => waDigits(x))));
       }
+      const cids = [...new Set((b.data || []).map((x) => x.case_id))];
+      const cst = /* @__PURE__ */ new Map();
+      for (let i = 0; i < cids.length; i += 100) {
+        const { data: cs } = await db.from("cases").select("id, status").in("id", cids.slice(i, i + 100));
+        (cs || []).forEach((r) => cst.set(r.id, r.status));
+      }
+      (b.data || []).forEach((x) => {
+        x.cold = cst.get(x.case_id) === "Не беремо в роботу";
+      });
       (b.data || []).forEach((x) => {
         x.phones = [x.rcpt_phone, ...ex.get(x.rcpt_id) || []].filter((ph, i, a) => waDigits(ph) && a.indexOf(ph) === i);
         x.phone = x.phones[0];
@@ -715,7 +724,7 @@ window.Lists = /* @__PURE__ */ (() => {
   function ksText(x) {
     const s = ks.set;
     const link = s.kids_form_code_entry ? s.kids_form_url.replace(/[?#].*$/, "") + "?usp=pp_url&" + encodeURIComponent(s.kids_form_code_entry) + "=" + x.code : s.kids_form_url;
-    return (x.rcpt_self && s.kids_form_text_self || s.kids_form_text).replace(/\{ім[’'`]?я\}/gi, [x.rcpt_first, x.rcpt_patr].filter(Boolean).join(" ")).replace(/\{оператор\}/gi, ops.get(me) || "співробітник").replace(/\{посилання\}/gi, link).replace(/\{загиблий\}/gi, x.soldier || "");
+    return (x.rcpt_self && s.kids_form_text_self || x.cold && s.kids_form_text_cold || s.kids_form_text).replace(/\{ім[’'`]?я\}/gi, [x.rcpt_first, x.rcpt_patr].filter(Boolean).join(" ")).replace(/\{оператор\}/gi, ops.get(me) || "співробітник").replace(/\{посилання\}/gi, link).replace(/\{загиблий\}/gi, x.soldier || "");
   }
   function ksTick() {
     clearInterval(ks.timer);

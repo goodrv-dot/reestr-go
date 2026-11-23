@@ -2545,10 +2545,11 @@ ${ex.name}
   }
   const KIDS_TEXT_DEFAULT = "Доброго дня, {ім’я}!\nМене звати {оператор}, я з ГО «Ветеранський корпус Морської піхоти». Ми поруч із вашою родиною.\n\nЯкщо у вашій родині є діти до 18 років, просимо заповнити коротку анкету — так ми зможемо запрошувати їх на оздоровлення, табори та інші програми підтримки:\n{посилання}\n\nЯкщо це не стосується вашої родини — просто напишіть нам про це у відповідь.\n\nЗбережіть, будь ласка, цей номер — за ним ви завжди можете звернутися до нас з питаннями чи по підтримку.\nБудь ласка, підтвердіть коротким повідомленням, що отримали. Дякуємо.";
   const KIDS_TEXT_SELF_DEFAULT = KIDS_TEXT_DEFAULT.replace("Ми поруч із вашою родиною.", "Дякуємо вам за службу.");
-  const kidsSet = { loaded: false, url: "", text: "", textSelf: "", entry: "" };
+  const COLD_STATUS = "Не беремо в роботу";
+  const kidsSet = { loaded: false, url: "", text: "", textSelf: "", textCold: "", entry: "" };
   async function loadKidsSet(force) {
     if (kidsSet.loaded && !force) return kidsSet;
-    const { data, error } = await db.from("app_settings").select("key, value").in("key", ["kids_form_url", "kids_form_text", "kids_form_text_self", "kids_form_code_entry"]);
+    const { data, error } = await db.from("app_settings").select("key, value").in("key", ["kids_form_url", "kids_form_text", "kids_form_text_self", "kids_form_text_cold", "kids_form_code_entry"]);
     if (error) {
       console.error(error);
       return kidsSet;
@@ -2556,10 +2557,12 @@ ${ex.name}
     kidsSet.url = "";
     kidsSet.text = "";
     kidsSet.textSelf = "";
+    kidsSet.textCold = "";
     (data || []).forEach((r) => {
       if (r.key === "kids_form_url") kidsSet.url = r.value || "";
       else if (r.key === "kids_form_text") kidsSet.text = r.value || "";
       else if (r.key === "kids_form_code_entry") kidsSet.entry = r.value || "";
+      else if (r.key === "kids_form_text_cold") kidsSet.textCold = r.value || "";
       else kidsSet.textSelf = r.value || "";
     });
     kidsSet.loaded = true;
@@ -2571,7 +2574,7 @@ ${ex.name}
   };
   const caseCode = (c) => String(c.id).replace(/-/g, "").slice(0, 8).toUpperCase();
   const kidsLink = (c) => kidsSet.entry && kidsSet.url ? kidsSet.url.replace(/[?#].*$/, "") + "?usp=pp_url&" + encodeURIComponent(kidsSet.entry) + "=" + caseCode(c) : kidsSet.url;
-  const kidsText = (k) => (k.self ? kidsSet.textSelf || KIDS_TEXT_SELF_DEFAULT : kidsSet.text || KIDS_TEXT_DEFAULT).replace(/\{ім[’'`]?я\}/gi, [k.person.first_name, k.person.patronymic].filter(Boolean).join(" ") || "").replace(/\{оператор\}/gi, staff.get(me) || "співробітник").replace(/\{посилання\}/gi, kidsLink(current)).replace(/\{загиблий\}/gi, fio(current.person));
+  const kidsText = (k) => (k.self ? kidsSet.textSelf || KIDS_TEXT_SELF_DEFAULT : current.status === COLD_STATUS && kidsSet.textCold || kidsSet.text || KIDS_TEXT_DEFAULT).replace(/\{ім[’'`]?я\}/gi, [k.person.first_name, k.person.patronymic].filter(Boolean).join(" ") || "").replace(/\{оператор\}/gi, staff.get(me) || "співробітник").replace(/\{посилання\}/gi, kidsLink(current)).replace(/\{загиблий\}/gi, fio(current.person));
   function kidsFormEl(c, extra) {
     const box = document.createElement("div");
     box.className = "kids-form";
@@ -2687,17 +2690,18 @@ ${ex.name}
     $("kf-url").value = kidsSet.url;
     $("kf-text").value = kidsSet.text || KIDS_TEXT_DEFAULT;
     $("kf-text-self").value = kidsSet.textSelf || KIDS_TEXT_SELF_DEFAULT;
+    if ($("kf-text-cold")) $("kf-text-cold").value = kidsSet.textCold || "";
     $("kf-save").onclick = async (ev) => {
       const b = ev.currentTarget;
       if (b.disabled) return;
-      const url = $("kf-url").value.trim(), text = $("kf-text").value.trim(), textSelf = $("kf-text-self").value.trim();
+      const url = $("kf-url").value.trim(), text = $("kf-text").value.trim(), textSelf = $("kf-text-self").value.trim(), textCold = $("kf-text-cold") ? $("kf-text-cold").value.trim() : kidsSet.textCold;
       if (url && !safeUrl(url)) {
         Persons.toast("Вставте повне посилання, що починається з https://");
         return;
       }
       b.disabled = true;
       const now = (/* @__PURE__ */ new Date()).toISOString();
-      const { error } = await db.from("app_settings").upsert([{ key: "kids_form_url", value: url, updated_at: now }, { key: "kids_form_text", value: text, updated_at: now }, { key: "kids_form_text_self", value: textSelf, updated_at: now }], { onConflict: "key" });
+      const { error } = await db.from("app_settings").upsert([{ key: "kids_form_url", value: url, updated_at: now }, { key: "kids_form_text", value: text, updated_at: now }, { key: "kids_form_text_self", value: textSelf, updated_at: now }, { key: "kids_form_text_cold", value: textCold, updated_at: now }], { onConflict: "key" });
       b.disabled = false;
       if (error) {
         console.error(error);
@@ -2707,6 +2711,7 @@ ${ex.name}
       kidsSet.url = url;
       kidsSet.text = text;
       kidsSet.textSelf = textSelf;
+      kidsSet.textCold = textCold;
       Persons.toast("Анкету «Діти» збережено");
     };
   }

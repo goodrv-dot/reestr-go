@@ -45,6 +45,7 @@ window.Exporter = /* @__PURE__ */ (() => {
     return a;
   };
   async function exportExcel() {
+    var _a, _b;
     const btn = $("export-excel-btn");
     btn.disabled = true;
     btn.textContent = "Готуємо…";
@@ -57,10 +58,23 @@ window.Exporter = /* @__PURE__ */ (() => {
       }
       const ids = persons.map((p) => p.id);
       const byId = new Map(persons.map((p) => [p.id, p]));
-      const [children, relations] = await Promise.all([
+      const [allChildren, relations] = await Promise.all([
         fetchByPersons("children", "*", ids),
         fetchByPersons("military_relations", "*", ids)
       ]);
+      const st = Filters.getState();
+      const today2 = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+      const ageN = (iso) => {
+        if (!iso) return null;
+        const b = /* @__PURE__ */ new Date(iso + "T00:00:00"), t = /* @__PURE__ */ new Date();
+        let a = t.getFullYear() - b.getFullYear();
+        if (t.getMonth() < b.getMonth() || t.getMonth() === b.getMonth() && t.getDate() < b.getDate()) a -= 1;
+        return a;
+      };
+      const kidRange = st.child_age ? [(_a = st.child_age.from) != null ? _a : 0, (_b = st.child_age.to) != null ? _b : 17] : st.has_minor_children === true ? [0, 17] : null;
+      const isExc = (c) => c.part_status === "Виняток" && (!c.part_until || c.part_until >= today2);
+      const children = !kidRange ? allChildren : allChildren.filter((c) => isExc(c) || c.part_status !== "Не включати" && ageN(c.birth_date) !== null && ageN(c.birth_date) >= kidRange[0] && ageN(c.birth_date) <= kidRange[1]);
+      const kidNote = kidRange ? `лише віком ${kidRange[0]}–${kidRange[1]} р. + ⭐ винятки (усього дітей у картках: ${allChildren.length})` : "усі діти з карток";
       const unitName = (id, other) => (id ? units.get(id) : other) || "";
       const kinRels = [];
       for (let i = 0; i < ids.length; i += 150) {
@@ -89,7 +103,7 @@ window.Exporter = /* @__PURE__ */ (() => {
         kidsOf.set(c.person_id, [...kidsOf.get(c.person_id) || [], t]);
       });
       const sheetPersons = persons.map((p) => {
-        var _a;
+        var _a2;
         return {
           "ПІБ": fio(p),
           "Телефон": p.phone || "",
@@ -100,7 +114,7 @@ window.Exporter = /* @__PURE__ */ (() => {
           "Діти": (kidsOf.get(p.id) || []).join("; "),
           "Кількість дітей": (kidsOf.get(p.id) || []).length || p.children_count || "",
           "Дата народження": d(p.birth_date),
-          "Вік": (_a = p.age) != null ? _a : "",
+          "Вік": (_a2 = p.age) != null ? _a2 : "",
           "Стать": p.sex,
           "Месенджер": p.preferred_messenger,
           "Згода на обробку ПД": d(p.consent_pd_at),
@@ -189,6 +203,7 @@ window.Exporter = /* @__PURE__ */ (() => {
         [],
         ["Осіб", persons.length],
         ["Дітей", children.length],
+        ["Які діти", kidNote],
         ["Зв’язків з військовими", relations.length]
       ];
       const wsInfo = XLSX.utils.aoa_to_sheet(info);

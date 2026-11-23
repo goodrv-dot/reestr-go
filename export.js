@@ -63,10 +63,19 @@ window.Exporter = (() => {
       if (!persons.length) { Persons.toast('Немає кого вивантажувати: список порожній.'); return; }
       const ids = persons.map((p) => p.id);
       const byId = new Map(persons.map((p) => [p.id, p]));
-      const [children, relations] = await Promise.all([
+      const [allChildren, relations] = await Promise.all([
         fetchByPersons('children', '*', ids),
         fetchByPersons('military_relations', '*', ids)
       ]);
+      // Фільтр за віком дітей увімкнено — у вивантаження йдуть лише діти цього віку (⭐ винятки — завжди, ⛔ «Не включати» — ні)
+      const st = Filters.getState();
+      const today = new Date().toISOString().slice(0, 10);
+      const ageN = (iso) => { if (!iso) return null; const b = new Date(iso + 'T00:00:00'), t = new Date(); let a = t.getFullYear() - b.getFullYear(); if (t.getMonth() < b.getMonth() || (t.getMonth() === b.getMonth() && t.getDate() < b.getDate())) a -= 1; return a; };
+      const kidRange = st.child_age ? [st.child_age.from ?? 0, st.child_age.to ?? 17] : (st.has_minor_children === true ? [0, 17] : null);
+      const isExc = (c) => c.part_status === 'Виняток' && (!c.part_until || c.part_until >= today);
+      const children = !kidRange ? allChildren : allChildren.filter((c) => isExc(c)
+        || (c.part_status !== 'Не включати' && ageN(c.birth_date) !== null && ageN(c.birth_date) >= kidRange[0] && ageN(c.birth_date) <= kidRange[1]));
+      const kidNote = kidRange ? `лише віком ${kidRange[0]}–${kidRange[1]} р. + ⭐ винятки (усього дітей у картках: ${allChildren.length})` : 'усі діти з карток';
       const unitName = (id, other) => (id ? units.get(id) : other) || '';
 
       // Рідні вибраних військових (зв’язані картки, що посилаються на них) — для розсилок родинам 200 / 300
@@ -168,6 +177,7 @@ window.Exporter = (() => {
         [],
         ['Осіб', persons.length],
         ['Дітей', children.length],
+        ['Які діти', kidNote],
         ['Зв’язків з військовими', relations.length]
       ];
       const wsInfo = XLSX.utils.aoa_to_sheet(info);

@@ -1488,3 +1488,11 @@ input::placeholder, textarea::placeholder { color: #7a8591; }
 .kids-act { padding: 0.25rem 0; border-bottom: 1px dashed var(--line); }
 .kids-act-form { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.5rem; }
 .kids-act-form input[name=title], .kids-act-form input[name=note] { flex: 1 1 12rem; }
+
+/* Історія змін картки */
+.person-history { margin-top: 1rem; border: 1px solid var(--line); border-radius: 8px; padding: 0.4rem 0.8rem; }
+.person-history > summary { cursor: pointer; font-weight: 600; }
+.person-history-list { max-height: 28rem; overflow: auto; margin-top: 0.4rem; }
+.ph-item { padding: 0.35rem 0; border-bottom: 1px dashed var(--line); font-size: 0.9rem; }
+.ph-head { font-weight: 600; }
+.ph-diff { margin: 0.2rem 0 0 1.1rem; padding: 0; }

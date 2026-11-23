@@ -1115,6 +1115,7 @@ window.Persons = /* @__PURE__ */ (() => {
     tl.onclick = () => Lists.addDialog({ ids: [id], label: "Особа: " + $("form-title").textContent, after: () => showLists(id) });
     showLists(id);
     showCases(id);
+    initHistory(id);
     loadOtherKin(id).catch((e) => console.error(e));
     Ui.paint($("person-form"));
     await showQuality(id);
@@ -1166,6 +1167,133 @@ window.Persons = /* @__PURE__ */ (() => {
       el.append(s);
     });
     el.hidden = false;
+  }
+  const H_LABELS = {
+    last_name: "Прізвище",
+    first_name: "Імʼя",
+    patronymic: "По батькові",
+    birth_date: "Дата народження",
+    sex: "Стать",
+    phone: "Телефон",
+    extra_phones: "Дод. телефони",
+    email: "Email",
+    preferred_messenger: "Месенджер",
+    consent_pd_at: "Згода на обробку ПД",
+    consent_messages: "Згода на повідомлення",
+    unsubscribed: "Відписався",
+    vkmpu_member: "Член ВКМПУ",
+    military_status: "Військовий статус",
+    has_disability: "Інвалідність",
+    disability_group: "Група інвалідності",
+    disability_war_related: "Інвалідність через війну",
+    mp_relation: "Відношення до МП",
+    mp_relation_type: "Характер відношення до МП",
+    mp_unit_id: "Підрозділ МП",
+    mp_unit_other: "Підрозділ МП (інше)",
+    region_id: "Область",
+    settlement: "Населений пункт",
+    is_idp: "ВПО",
+    has_children: "Є діти",
+    children_count: "Кількість дітей",
+    comment: "Коментар",
+    death_date: "Дата смерті",
+    wounded: "Поранення",
+    wound_date: "Дата поранення",
+    military_unit_code: "В/ч",
+    cell_id: "Осередок",
+    touchpoint: "Точка дотику",
+    name_check: "ПІБ неповне",
+    burial_date: "Дата поховання",
+    callsign: "Позивний",
+    burial_place: "Місце поховання",
+    katottg_code: "Код населеного пункту",
+    burial_katottg: "Код місця поховання",
+    burial_lat: "Поховання: широта",
+    burial_lon: "Поховання: довгота",
+    full_name: "ПІБ",
+    interests: "Інтереси",
+    special_needs: "Особливі потреби",
+    rep_relation: "Ким доводиться",
+    part_status: "Статус участі",
+    part_reason: "Причина винятку",
+    part_by: "Погодив(ла)",
+    part_until: "Виняток до",
+    related_full_name: "ПІБ військового",
+    related_birth_date: "Дата народження військового",
+    relation_degree: "Спорідненість",
+    related_status: "Статус військового",
+    related_mp: "Військовий МП",
+    related_unit_id: "Підрозділ",
+    related_unit_other: "Підрозділ (інше)",
+    related_death_date: "Дата загибелі",
+    related_callsign: "Позивний військового",
+    related_unit_code: "В/ч військового",
+    related_burial_date: "Дата поховання",
+    related_burial_place: "Місце поховання",
+    related_person_id: "Привʼязка до справи",
+    source: "Джерело",
+    source_ref: "Посилання на джерело",
+    created_by: "Хто створив",
+    is_extra: "Звʼязана картка",
+    journal: "Журнал",
+    hromada_id: "Громада",
+    extra: "Додаткові дані",
+    import_batch_id: "Пакет імпорту"
+  };
+  const hVal = (k, v) => {
+    if (v === null || v === void 0 || v === "") return "—";
+    if (Array.isArray(v)) return v.length ? v.join(", ") : "—";
+    if (typeof v === "boolean") return v ? "так" : "ні";
+    if (k === "region_id") return regions.get(v) || v;
+    if (k === "cell_id") return cells.get(v) || v;
+    if (k === "mp_unit_id" || k === "related_unit_id") return (units.find((u) => u.id === v) || {}).name || v;
+    if (k === "related_person_id") return "привʼязано до бійця справи";
+    if (k === "created_by") return staff.get(v) || v;
+    if (typeof v === "object") return JSON.stringify(v);
+    if (/^\d{4}-\d{2}-\d{2}(T|$)/.test(String(v))) return String(v).slice(0, 10).split("-").reverse().join(".");
+    return String(v);
+  };
+  function initHistory(id) {
+    const d = $("person-history");
+    if (!d) return;
+    d.hidden = !id;
+    d.open = false;
+    $("person-history-list").innerHTML = "";
+    d.ontoggle = async () => {
+      if (!d.open || editingId !== id) return;
+      const box = $("person-history-list");
+      box.innerHTML = '<p class="muted">Завантажуємо…</p>';
+      const { data, error } = await db.rpc("person_history_list", { p_person: id });
+      if (error) {
+        console.error(error);
+        box.innerHTML = '<p class="muted">Не вдалося завантажити історію.</p>';
+        return;
+      }
+      box.innerHTML = "";
+      if (!data.length) {
+        box.innerHTML = '<p class="muted">Змін ще не було (історія ведеться з 23.11.2026).</p>';
+        return;
+      }
+      data.forEach((h) => {
+        const it = document.createElement("div");
+        it.className = "ph-item";
+        const head = document.createElement("div");
+        head.className = "ph-head";
+        head.textContent = `${new Date(h.at).toLocaleString("uk-UA", { dateStyle: "short", timeStyle: "short" })} · ${h.who} · ${h.entity}${h.label ? " «" + h.label + "»" : ""}: ${h.action}`;
+        it.appendChild(head);
+        if (h.diff && h.action === "змінено") {
+          const ul = document.createElement("ul");
+          ul.className = "ph-diff";
+          Object.entries(h.diff).forEach(([k, [o, n]]) => {
+            const li = document.createElement("li");
+            li.textContent = `${H_LABELS[k] || k}: ${hVal(k, o)} → ${hVal(k, n)}`;
+            ul.appendChild(li);
+          });
+          it.appendChild(ul);
+        }
+        box.appendChild(it);
+      });
+    };
   }
   async function showLists(id) {
     const el = $("form-lists");

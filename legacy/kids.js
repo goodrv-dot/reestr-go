@@ -13,8 +13,8 @@ window.Kids = /* @__PURE__ */ (() => {
   };
   const ACT_KINDS = ["Оздоровлення", "Дитячий табір", "Захід / свято", "Спортивний захід", "Освітня програма", "Психологічна підтримка", "Матеріальна допомога", "Подарунок", "Міжнародна програма", "Інше"];
   const ACT_ST = ["Запрошено", "Записано", "Взяв(ла) участь", "Відмова", "Не з’явився(лась)"];
-  const PAGE = 200;
-  let db = null, isAdmin = false, canEdit = false, rows = [], shown = PAGE, loaded = false, busy = false;
+  const PAGE = 100;
+  let db = null, isAdmin = false, canEdit = false, rows = [], page = 0, loaded = false, busy = false;
   const toast = (m) => window.Persons && Persons.toast ? Persons.toast(m) : alert(m);
   function init(dbc, admin) {
     db = dbc;
@@ -36,10 +36,15 @@ window.Kids = /* @__PURE__ */ (() => {
     $("kids-seg-upd").onclick = segUpdate;
     $("kids-seg-del").onclick = segDelete;
     segLoad();
-    $("kids-more").onclick = () => {
-      shown += PAGE;
+    const go = (d) => {
+      page += d;
       render();
+      $("kids-table").scrollIntoView({ block: "start" });
     };
+    $("kids-prev").onclick = () => go(-1);
+    $("kids-next").onclick = () => go(1);
+    $("kids-prev2").onclick = () => go(-1);
+    $("kids-next2").onclick = () => go(1);
     $("kids-reset").onclick = () => {
       $("kids-filters").querySelectorAll("input[type=checkbox]").forEach((c) => {
         c.checked = false;
@@ -172,7 +177,7 @@ window.Kids = /* @__PURE__ */ (() => {
   }
   let cur = [];
   function apply() {
-    shown = PAGE;
+    page = 0;
     render();
   }
   function render() {
@@ -184,7 +189,12 @@ window.Kids = /* @__PURE__ */ (() => {
     const tb = $("kids-table").tBodies[0];
     tb.innerHTML = "";
     const regions = Persons.ctx().regions;
-    cur.slice(0, shown).forEach((r, i) => {
+    const pages = Math.max(1, Math.ceil(cur.length / PAGE));
+    if (page >= pages) page = pages - 1;
+    if (page < 0) page = 0;
+    const from = page * PAGE;
+    cur.slice(from, from + PAGE).forEach((r, j) => {
+      const i = from + j;
       const tr = document.createElement("tr");
       const mark = r.part_status === "Виняток" ? ' <span class="tag tag-exc">⭐ виняток</span>' : r.part_status === "Не включати" ? ' <span class="tag">⛔</span>' : r.age !== null && r.age >= 18 ? ' <span class="tag tag-adult">🔞</span>' : "";
       const done = (r.acts || []).filter((a) => a.status === "Взяв(ла) участь");
@@ -207,8 +217,13 @@ window.Kids = /* @__PURE__ */ (() => {
       tr.querySelector(".kids-acts").textContent = done.length ? `✅ ${done.length}` + (done[0] ? ` (${done[0].kind})` : "") : (r.acts || []).length ? `📝 ${(r.acts || []).length}` : "—";
       tb.appendChild(tr);
     });
-    $("kids-more").hidden = cur.length <= shown;
-    $("kids-more").textContent = `Показати ще (${Math.min(PAGE, cur.length - shown)} з ${cur.length - shown})`;
+    const info = cur.length ? `Сторінка ${page + 1} з ${pages} · ${from + 1}–${Math.min(from + PAGE, cur.length)} з ${cur.length}` : "";
+    ["", "2"].forEach((s) => {
+      $("kids-pager" + s).hidden = pages <= 1;
+      $("kids-pinfo" + s).textContent = info;
+      $("kids-prev" + s).disabled = page === 0;
+      $("kids-next" + s).disabled = page >= pages - 1;
+    });
     $("kids-empty").hidden = !!cur.length;
   }
   function phoneCell(td, r) {

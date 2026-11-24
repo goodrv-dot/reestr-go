@@ -57,13 +57,23 @@ window.Lists = /* @__PURE__ */ (() => {
     fb.addEventListener("click", () => addDialog({ filter: true, label: `Усі особи за поточним пошуком і фільтрами: ${$("count").textContent || ""}`.trim() }));
   }
   const OVER_RE = / · (⚠ ПРОСТРОЧЕНО: перенесено на .+)$/;
+  const COLD_RE = / · ((?:🧊|🔀)[^·]*)$/;
   function nameInto(el, name) {
-    const m = String(name || "").match(OVER_RE);
+    name = String(name || "");
+    const c = name.match(COLD_RE);
+    if (c) name = name.slice(0, c.index);
+    const m = name.match(OVER_RE);
     el.textContent = m ? name.slice(0, m.index) : name;
     if (m) {
       const sp = document.createElement("span");
       sp.className = "list-overdue";
       sp.textContent = m[1];
+      el.append(" ", sp);
+    }
+    if (c) {
+      const sp = document.createElement("span");
+      sp.className = "list-cold";
+      sp.textContent = c[1];
       el.append(" ", sp);
     }
   }
@@ -208,7 +218,7 @@ window.Lists = /* @__PURE__ */ (() => {
       return;
     }
     Object.assign(l, patch);
-    $("list-title").textContent = l.name;
+    nameInto($("list-title"), l.name);
     toast("Збережено");
     if ("columns" in patch) renderMembers();
   }
@@ -599,7 +609,7 @@ window.Lists = /* @__PURE__ */ (() => {
     const area = $("print-area");
     area.innerHTML = `<h1></h1><p class="print-sub"></p><table><thead><tr><th>№</th>${cols.map(([, h]) => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${members.map((m, i) => `<tr><td>${i + 1}</td>${cols.map(([, , f]) => `<td>${esc(f(m))}</td>`).join("")}</tr>`).join("")}</tbody></table>
       <p class="print-sign">Склав(ла): ____________________ ${esc(Persons.ctx().operator.full_name || "")}  ·  ${(/* @__PURE__ */ new Date()).toLocaleDateString("uk-UA")}</p>`;
-    area.querySelector("h1").textContent = l.name;
+    nameInto(area.querySelector("h1"), l.name);
     area.querySelector(".print-sub").textContent = [l.description, l.due_date && `Термін: ${fmt(l.due_date)}`, `Осіб: ${members.length}`].filter(Boolean).join(" · ");
     document.body.classList.add("print-mode");
     logExport("Друк", members.length);

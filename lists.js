@@ -47,10 +47,15 @@ window.Lists = (() => {
   }
   // «… · ⚠ ПРОСТРОЧЕНО: перенесено на N днів» у назві — показуємо червоним
   const OVER_RE = / · (⚠ ПРОСТРОЧЕНО: перенесено на .+)$/;
+  // позначка «🧊 понеділкова розсилка» / «🔀 змішаний» — червоним, окремо від назви
+  const COLD_RE = / · ((?:🧊|🔀)[^·]*)$/;
   function nameInto(el, name) {
-    const m = String(name || '').match(OVER_RE);
+    name = String(name || '');
+    const c = name.match(COLD_RE); if (c) name = name.slice(0, c.index);
+    const m = name.match(OVER_RE);
     el.textContent = m ? name.slice(0, m.index) : name;
     if (m) { const sp = document.createElement('span'); sp.className = 'list-overdue'; sp.textContent = m[1]; el.append(' ', sp); }
+    if (c) { const sp = document.createElement('span'); sp.className = 'list-cold'; sp.textContent = c[1]; el.append(' ', sp); }
   }
   const debounce = (f, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => f(...a), ms); }; };
 
@@ -145,7 +150,7 @@ window.Lists = (() => {
       status: f.status.value, columns: f.columns.value.split(',').map((x) => x.trim()).filter(Boolean).slice(0, 12) };
     const { error } = await db.from('person_lists').update(patch).eq('id', l.id);
     if (error) { console.error(error); toast('Не вдалося зберегти'); return; }
-    Object.assign(l, patch); $('list-title').textContent = l.name; toast('Збережено');
+    Object.assign(l, patch); nameInto($('list-title'), l.name); toast('Збережено');
     if ('columns' in patch) renderMembers();
   }
   async function saveShare() {
@@ -385,7 +390,7 @@ window.Lists = (() => {
     area.innerHTML = `<h1></h1><p class="print-sub"></p><table><thead><tr><th>№</th>${cols.map(([, h]) => `<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${
       members.map((m, i) => `<tr><td>${i + 1}</td>${cols.map(([, , f]) => `<td>${esc(f(m))}</td>`).join('')}</tr>`).join('')}</tbody></table>
       <p class="print-sign">Склав(ла): ____________________ ${esc(Persons.ctx().operator.full_name || '')}  ·  ${new Date().toLocaleDateString('uk-UA')}</p>`;
-    area.querySelector('h1').textContent = l.name;
+    nameInto(area.querySelector('h1'), l.name);
     area.querySelector('.print-sub').textContent = [l.description, l.due_date && `Термін: ${fmt(l.due_date)}`, `Осіб: ${members.length}`].filter(Boolean).join(' · ');
     document.body.classList.add('print-mode');
     logExport('Друк', members.length);

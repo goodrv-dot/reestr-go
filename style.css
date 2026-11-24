@@ -1503,3 +1503,7 @@ input::placeholder, textarea::placeholder { color: #7a8591; }
 .kids-seg select { font: inherit; padding: 0.25rem 0.4rem; border: 1px solid var(--line); border-radius: var(--radius-field); background: var(--white); color: inherit; max-width: 16rem; }
 
 .kids-pager { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin: 0.4rem 0; }
+
+.list-cold { color: #c0392b; font-weight: 700; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .list-cold { color: #ff7b6b; } }
+:root[data-theme="dark"] .list-cold { color: #ff7b6b; }

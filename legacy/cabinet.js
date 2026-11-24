@@ -3229,8 +3229,17 @@ ${ex.name}
       const due = l.due_date && l.due_date < today() ? " mylist-over" : "";
       li.innerHTML = `<button type="button" class="btn-link mylist-name"></button> <span class="mylist-n${due}"></span> <span class="mylist-act"></span>`;
       const nm2 = li.querySelector(".mylist-name");
-      const om = l.name.match(/ · (⚠ ПРОСТРОЧЕНО: перенесено на .+)$/);
-      nm2.textContent = (om ? l.name.slice(0, om.index) : l.name).replace(/ — до виконання$/, "");
+      let nmTxt = l.name;
+      const cm = nmTxt.match(/ · ((?:🧊|🔀)[^·]*)$/);
+      if (cm) nmTxt = nmTxt.slice(0, cm.index);
+      const om = nmTxt.match(/ · (⚠ ПРОСТРОЧЕНО: перенесено на .+)$/);
+      nm2.textContent = (om ? nmTxt.slice(0, om.index) : nmTxt).replace(/ — до виконання$/, "");
+      if (cm) {
+        const sp = document.createElement("span");
+        sp.className = "list-cold";
+        sp.textContent = cm[1];
+        nm2.after(" ", sp);
+      }
       if (om) {
         const sp = document.createElement("span");
         sp.className = "list-overdue";
